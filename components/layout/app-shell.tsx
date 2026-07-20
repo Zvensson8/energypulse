@@ -93,7 +93,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/": {
     title: "Hem",
-    subtitle: "Välj vad du vill göra – tre steg från data till beslut",
+    subtitle: "Betyg → simulera → plan → beslutsunderlag",
   },
   "/dashboard": {
     title: "Portföljöversikt",
@@ -105,7 +105,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   },
   "/buildings": {
     title: "Byggnader",
-    subtitle: "Prestanda, filter och export",
+    subtitle: "Lista – klicka ett hus för betyg och plan",
   },
   "/import": {
     title: "Importera energidata",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -59,11 +59,15 @@ function statusBadge(
   return "outline";
 }
 
-export function RenovationPlansView() {
+export function RenovationPlansView({
+  initialBuildingId,
+}: {
+  initialBuildingId?: string;
+} = {}) {
   const qc = useQueryClient();
   const [status, setStatus] = useState("all");
   const [detail, setDetail] = useState<RenovationPlan | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(Boolean(initialBuildingId));
   const [msg, setMsg] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -465,10 +469,13 @@ export function RenovationPlansView() {
       <CreatePlanDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
+        initialBuildingId={initialBuildingId}
         onCreated={() => {
           void qc.invalidateQueries({ queryKey: ["renovation-plans"] });
           setCreateOpen(false);
-          setMsg("Renovationsplan skapad.");
+          setMsg(
+            "Renovationsplan sparad som utkast. Exportera beslutsunderlag från byggnadens betygssida."
+          );
         }}
       />
     </div>
@@ -560,18 +567,24 @@ function CreatePlanDialog({
   open,
   onOpenChange,
   onCreated,
+  initialBuildingId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onCreated: () => void;
+  initialBuildingId?: string;
 }) {
-  const [buildingId, setBuildingId] = useState("");
+  const [buildingId, setBuildingId] = useState(initialBuildingId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [scenarios, setScenarios] = useState<RenovationScenario[] | null>(
     null
   );
   const [loadingScenarios, setLoadingScenarios] = useState(false);
   const [selecting, setSelecting] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open && initialBuildingId) setBuildingId(initialBuildingId);
+  }, [open, initialBuildingId]);
 
   const buildingsQ = useQuery({
     queryKey: ["buildings-for-renovation"],

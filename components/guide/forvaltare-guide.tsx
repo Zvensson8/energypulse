@@ -17,38 +17,38 @@ import { Button } from "@/components/ui/button";
 const STEPS = [
   {
     n: 1,
-    title: "Se helheten",
-    body: "Översikten visar hur beståndet mår: energi, kravrisk och om underlaget är komplett.",
-    href: "/dashboard",
-    cta: "Öppna översikt",
+    title: "Se betyg",
+    body: "Öppna riskscore, klicka ett hus och se energiklass, krav 2030, klimatriskår och samlad risk på en sida.",
+    href: "/risk-scores",
+    cta: "Byggnader med hög risk",
     icon: ClipboardList,
     color: "from-indigo-500 to-violet-500",
   },
   {
     n: 2,
-    title: "Importera data",
-    body: "Dra in CSV eller Excel med månadsförbrukning. Systemet validerar och räknar om prestanda automatiskt.",
-    href: "/import",
-    cta: "Importera",
-    icon: Upload,
+    title: "Simulera åtgärder",
+    body: "På betygssidan eller under Åtgärder: se före/efter på kravgap och klimatriskår – utan att spara.",
+    href: "/actions",
+    cta: "Åtgärder",
+    icon: LineChart,
     color: "from-emerald-500 to-teal-500",
   },
   {
     n: 3,
-    title: "Granska byggnader",
-    body: "Per byggnad ser du energiklass, kravgap 2030 och om data saknas. Klicka en rad för mer detalj.",
-    href: "/buildings",
-    cta: "Byggnadslista",
+    title: "Välj plan",
+    body: "Jämför billig, balanserad och aggressiv plan för huset. Spara utkast och godkänn när ledningen sagt ja.",
+    href: "/renovation",
+    cta: "Renovationsplaner",
     icon: Building2,
     color: "from-sky-500 to-blue-500",
   },
   {
     n: 4,
-    title: "Prioritera åtgärder",
-    body: "Se vilka åtgärder som ger störst nytta mot krav och klimatrisk. Räkna om prioritet med aktuella vikter.",
-    href: "/actions",
-    cta: "Åtgärder",
-    icon: LineChart,
+    title: "Exportera beslutsunderlag",
+    body: "Från husets betygssida: ladda ner PDF till ledningen med nuläge, åtgärder och kostnad.",
+    href: "/risk-scores",
+    cta: "Börja här",
+    icon: Upload,
     color: "from-amber-500 to-orange-500",
   },
 ];
@@ -89,14 +89,13 @@ export function ForvaltareGuide() {
                 Kom igång med EnergyPulse
               </h1>
               <p className="max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Verktyget samlar energidata, lagkrav och klimatrisk för ditt
-                bestånd – utan att du behöver vara dataanalytiker. Följ stegen
-                nedan.
+                Se betyg, simulera åtgärder, välj plan och ta ut PDF till
+                ledningen – utan att vara dataanalytiker.
               </p>
             </div>
             <Button asChild className="shrink-0 gap-1.5">
-              <Link href="/dashboard">
-                Gå till översikt
+              <Link href="/risk-scores">
+                Se högriskbyggnader
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>

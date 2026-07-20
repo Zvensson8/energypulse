@@ -5,6 +5,11 @@ export const metadata = {
   description: "Åtgärdsplaner mot MEPS och CRREM misalignment",
 };
 
-export default function RenovationPage() {
-  return <RenovationPlansView />;
+export default async function RenovationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ building?: string }>;
+}) {
+  const sp = await searchParams;
+  return <RenovationPlansView initialBuildingId={sp.building} />;
 }

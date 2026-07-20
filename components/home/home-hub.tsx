@@ -19,30 +19,39 @@ import { Button } from "@/components/ui/button";
 const STEPS = [
   {
     n: "1",
-    title: "Mata in data",
-    body: "Ladda upp energiförbrukning (CSV/Excel). Systemet validerar och räknar om automatiskt.",
-    href: "/import",
-    cta: "Öppna import",
-    icon: Upload,
+    title: "Se betyg",
+    body: "Öppna hus med hög risk – energiklass, krav 2030, klimatriskår och samlad risk på en sida.",
+    href: "/risk-scores",
+    cta: "Byggnader med hög risk",
+    icon: Activity,
     color: "from-indigo-500 to-violet-500",
   },
   {
     n: "2",
-    title: "Hitta läget",
-    body: "Se översikt, riskscore och vilka byggnader som behöver åtgärd.",
-    href: "/dashboard",
-    cta: "Till översikt",
-    icon: LayoutDashboard,
+    title: "Simulera åtgärder",
+    body: "Se hur en åtgärd påverkar kravgap, klimatriskår och risk – utan att spara.",
+    href: "/actions",
+    cta: "Till åtgärder",
+    icon: ListTodo,
     color: "from-emerald-500 to-teal-500",
   },
   {
     n: "3",
-    title: "Simulera & agera",
-    body: "Skapa eller slutför åtgärder. Se före/efter på MEPS och klimatriskår.",
-    href: "/actions",
-    cta: "Till åtgärder",
-    icon: ListTodo,
+    title: "Välj plan",
+    body: "Jämför billig, balanserad och aggressiv plan. Spara utkast.",
+    href: "/renovation",
+    cta: "Renovationsplaner",
+    icon: Hammer,
     color: "from-amber-500 to-orange-500",
+  },
+  {
+    n: "4",
+    title: "Exportera underlag",
+    body: "Ladda ner besluts-PDF till ledningen från byggnadens betygssida.",
+    href: "/risk-scores",
+    cta: "Börja med riskscore",
+    icon: LayoutDashboard,
+    color: "from-sky-500 to-cyan-500",
   },
 ];
 
@@ -103,19 +112,19 @@ export function HomeHub() {
               Vad vill du göra idag?
             </h1>
             <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-              EnergyPulse samlar energidata, lagkrav (MEPS) och klimatrisk
-              (CRREM) – så du kan prioritera rätt åtgärder med få klick.
+              Se betyg, simulera åtgärder, välj plan och ta ut beslutsunderlag
+              till ledningen – i fyra tydliga steg.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button size="lg" asChild>
-                <Link href="/import">
-                  <Upload className="h-4 w-4" />
-                  Importera energidata
+                <Link href="/risk-scores">
+                  <Activity className="h-4 w-4" />
+                  Se byggnader med hög risk
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="/dashboard">
-                  Se portföljöversikt
+                  Portföljöversikt
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>

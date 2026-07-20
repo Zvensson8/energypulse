@@ -312,7 +312,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <Link
-                            href={`/buildings?building=${b.id}`}
+                            href={`/buildings/${b.id}`}
                             className="text-base font-semibold hover:text-primary"
                           >
                             {b.name}
@@ -383,7 +383,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                       </div>
                       <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/buildings?building=${b.id}`}>
+                          <Link href={`/buildings/${b.id}`}>
                             Öppna
                             <ArrowRight className="h-4 w-4" />
                           </Link>

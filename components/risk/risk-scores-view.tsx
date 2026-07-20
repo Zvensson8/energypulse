@@ -410,15 +410,15 @@ function RiskCard({ row: r }: { row: RiskScoreRow }) {
 
         <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
           <Button asChild className="sm:min-w-[10rem]">
-            <Link href="/renovation">
-              <ClipboardList className="h-4 w-4" />
-              Jämför planer
+            <Link href={`/buildings/${r.building_id}`}>
+              <Building2 className="h-4 w-4" />
+              Se betyg
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href={`/buildings?building=${r.building_id}`}>
-              <Building2 className="h-4 w-4" />
-              Byggnad
+            <Link href={`/renovation?building=${r.building_id}`}>
+              <ClipboardList className="h-4 w-4" />
+              Jämför planer
             </Link>
           </Button>
           <Button variant="ghost" asChild>
@@ -428,6 +428,7 @@ function RiskCard({ row: r }: { row: RiskScoreRow }) {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
+          {/* scorecard is primary entry for forvaltare */}
         </div>
       </div>
     </article>

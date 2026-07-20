@@ -152,19 +152,13 @@ export function BuildingsTable({
         header: "Byggnad",
         size: 140,
         cell: ({ row }) => (
-          <button
-            type="button"
-            className="truncate text-left font-medium text-primary hover:underline"
-            onClick={() =>
-              setProvenance({
-                buildingId: row.original.building_id,
-                year: row.original.year,
-              })
-            }
-            title="Visa underlag och beräkning"
+          <Link
+            href={`/buildings/${row.original.building_id}?year=${row.original.year}`}
+            className="truncate font-medium text-primary hover:underline"
+            title="Se betyg och planera åtgärder"
           >
             {row.original.building_name}
-          </button>
+          </Link>
         ),
       },
       {

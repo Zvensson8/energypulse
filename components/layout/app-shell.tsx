@@ -18,6 +18,8 @@ import {
   DoorOpen,
   AlertTriangle,
   Pencil,
+  Activity,
+  Hammer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/command/command-palette";
@@ -68,6 +70,18 @@ const NAV = [
     label: "Fysrisk",
     short: "Risk",
     icon: AlertTriangle,
+  },
+  {
+    href: "/risk-scores",
+    label: "Riskscore",
+    short: "Score",
+    icon: Activity,
+  },
+  {
+    href: "/renovation",
+    label: "Renovering",
+    short: "Renov",
+    icon: Hammer,
   },
   {
     href: "/crrem",

@@ -388,6 +388,10 @@ export interface Database {
           crrem_stranding_year: number | null;
           meps_2030_gap: number | null;
           meps_2033_gap: number | null;
+          meps_status: string | null;
+          crrem_misalignment_year: number | null;
+          combined_risk_score: number | null;
+          financial_risk_flag: boolean;
           calculation_method: string;
           crrem_version_used: string | null;
           data_gap_status: DataGapStatus;
@@ -460,6 +464,10 @@ export interface Database {
           planned_year: number | null;
           completed_date: string | null;
           source: string;
+          estimated_meps_gap_reduction: number | null;
+          estimated_misalignment_year_shift: number | null;
+          estimated_ped_reduction: number | null;
+          affects_physical_risk: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -479,6 +487,10 @@ export interface Database {
           planned_year?: number | null;
           completed_date?: string | null;
           source?: string;
+          estimated_meps_gap_reduction?: number | null;
+          estimated_misalignment_year_shift?: number | null;
+          estimated_ped_reduction?: number | null;
+          affects_physical_risk?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -582,6 +594,36 @@ export interface Database {
         Relationships: [];
       };
       data_edit_sessions: {
+        Row: Record<string, unknown>;
+        Insert: Record<string, unknown>;
+        Update: { [key: string]: unknown };
+        Relationships: [];
+      };
+      risk_scores: {
+        Row: {
+          id: string;
+          building_id: string;
+          year: number;
+          meps_score: number | null;
+          crrem_score: number | null;
+          physical_score: number | null;
+          data_quality_score: number | null;
+          combined_score: number;
+          calculated_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Record<string, unknown>;
+        Update: { [key: string]: unknown };
+        Relationships: [];
+      };
+      renovation_plans: {
+        Row: Record<string, unknown>;
+        Insert: Record<string, unknown>;
+        Update: { [key: string]: unknown };
+        Relationships: [];
+      };
+      renovation_plan_actions: {
         Row: Record<string, unknown>;
         Insert: Record<string, unknown>;
         Update: { [key: string]: unknown };
@@ -955,6 +997,30 @@ export interface Database {
       rollback_data_edit: {
         Args: { p_session_id: string; p_reason: string };
         Returns: boolean;
+      };
+      calculate_combined_risk_score: {
+        Args: { p_building_id: string; p_year: number };
+        Returns: number;
+      };
+      recalculate_after_action: {
+        Args: { p_action_id: string; p_year?: number | null };
+        Returns: Record<string, unknown>;
+      };
+      generate_renovation_plan: {
+        Args: {
+          p_building_id: string;
+          p_year?: number | null;
+          p_title?: string | null;
+        };
+        Returns: string;
+      };
+      refresh_all_risk_scores: {
+        Args: { p_year: number };
+        Returns: number;
+      };
+      refresh_performance_compliance_fields: {
+        Args: { p_building_id: string; p_year: number };
+        Returns: null;
       };
     };
     Enums: {

@@ -154,6 +154,18 @@ export function CommandPalette({
                   Fysiska klimatrisker
                 </Command.Item>
                 <Command.Item
+                  onSelect={() => go("/risk-scores")}
+                  className={itemClass}
+                >
+                  Kombinerad risk (EPBD/MEPS/CRREM)
+                </Command.Item>
+                <Command.Item
+                  onSelect={() => go("/renovation")}
+                  className={itemClass}
+                >
+                  Renovationsplaner
+                </Command.Item>
+                <Command.Item
                   onSelect={() => go("/crrem")}
                   className={itemClass}
                 >

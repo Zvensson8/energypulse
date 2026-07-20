@@ -9,6 +9,7 @@ import {
   getTopRiskLists,
 } from "@/app/actions/dashboard";
 import { countOpenWorkflowAlerts } from "@/app/actions/risk-workflow";
+import { getPortfolioRiskSummary } from "@/app/actions/risk-scores";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { RiskHeatmap } from "@/components/dashboard/risk-heatmap";
 import { TopRiskLists } from "@/components/dashboard/top-risk-lists";
@@ -60,6 +61,15 @@ export function DashboardView() {
     queryFn: async () => {
       const res = await countOpenWorkflowAlerts();
       if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+  });
+
+  const riskSumQ = useQuery({
+    queryKey: ["risk-summary", year],
+    queryFn: async () => {
+      const res = await getPortfolioRiskSummary(year);
+      if (!res.success) return null;
       return res.data;
     },
   });
@@ -117,40 +127,55 @@ export function DashboardView() {
         </div>
       )}
 
-      {alertsQ.data &&
-        (alertsQ.data.openCompliance > 0 ||
-          alertsQ.data.openPhysical > 0 ||
-          alertsQ.data.declarationSuggestions > 0) && (
-          <div className="flex flex-wrap gap-2">
-            {alertsQ.data.openCompliance > 0 && (
+      <div className="flex flex-wrap gap-2">
+        {riskSumQ.data && (
+          <>
+            <Link
+              href="/risk-scores"
+              className="inline-flex items-center gap-1.5 rounded-md border border-terminal-accent/40 bg-terminal-accent/10 px-2.5 py-1 text-2xs text-terminal-accent hover:bg-terminal-accent/20"
+            >
+              Snitt risk {riskSumQ.data.avgCombined ?? "—"} ·{" "}
+              {riskSumQ.data.highRiskCount} hög
+            </Link>
+            {riskSumQ.data.financialRiskCount > 0 && (
               <Link
-                href="/risks"
-                className="inline-flex items-center gap-1.5 rounded-md border border-gap-incomplete/40 bg-gap-incomplete/10 px-2.5 py-1 text-2xs text-gap-incomplete hover:bg-gap-incomplete/20"
-              >
-                <AlertTriangle className="h-3 w-3" />
-                {alertsQ.data.openCompliance} öppna MEPS/CRREM-risker
-              </Link>
-            )}
-            {alertsQ.data.openPhysical > 0 && (
-              <Link
-                href="/risks"
+                href="/risk-scores"
                 className="inline-flex items-center gap-1.5 rounded-md border border-gap-extrapolated/40 bg-gap-extrapolated/10 px-2.5 py-1 text-2xs text-gap-extrapolated hover:bg-gap-extrapolated/20"
               >
                 <AlertTriangle className="h-3 w-3" />
-                {alertsQ.data.openPhysical} öppna fysiska risker
+                {riskSumQ.data.financialRiskCount} finansiell risk (&lt;2035)
               </Link>
             )}
-            {alertsQ.data.declarationSuggestions > 0 && (
-              <Link
-                href="/actions"
-                className="inline-flex items-center gap-1.5 rounded-md border border-terminal-accent/40 bg-terminal-accent/10 px-2.5 py-1 text-2xs text-terminal-accent hover:bg-terminal-accent/20"
-              >
-                <Sparkles className="h-3 w-3" />
-                {alertsQ.data.declarationSuggestions} deklarationsförslag
-              </Link>
-            )}
-          </div>
+          </>
         )}
+        {alertsQ.data && alertsQ.data.openCompliance > 0 && (
+          <Link
+            href="/risks"
+            className="inline-flex items-center gap-1.5 rounded-md border border-gap-incomplete/40 bg-gap-incomplete/10 px-2.5 py-1 text-2xs text-gap-incomplete hover:bg-gap-incomplete/20"
+          >
+            <AlertTriangle className="h-3 w-3" />
+            {alertsQ.data.openCompliance} öppna MEPS/CRREM-risker
+          </Link>
+        )}
+        {alertsQ.data && alertsQ.data.openPhysical > 0 && (
+          <Link
+            href="/risks"
+            className="inline-flex items-center gap-1.5 rounded-md border border-gap-extrapolated/40 bg-gap-extrapolated/10 px-2.5 py-1 text-2xs text-gap-extrapolated hover:bg-gap-extrapolated/20"
+          >
+            <AlertTriangle className="h-3 w-3" />
+            {alertsQ.data.openPhysical} öppna fysiska risker
+          </Link>
+        )}
+        {alertsQ.data && alertsQ.data.declarationSuggestions > 0 && (
+          <Link
+            href="/actions"
+            className="inline-flex items-center gap-1.5 rounded-md border border-terminal-accent/40 bg-terminal-accent/10 px-2.5 py-1 text-2xs text-terminal-accent hover:bg-terminal-accent/20"
+          >
+            <Sparkles className="h-3 w-3" />
+            {alertsQ.data.declarationSuggestions} deklarationsförslag
+          </Link>
+        )}
+      </div>
 
       {kpisQ.data && <KpiCards kpis={kpisQ.data} />}
 

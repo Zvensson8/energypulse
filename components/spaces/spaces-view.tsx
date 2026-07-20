@@ -39,6 +39,7 @@ import {
   Shield,
   Thermometer,
 } from "lucide-react";
+import { PropertyFilter } from "@/components/filters/property-filter";
 
 const SPACE_TYPE_SV: Record<string, string> = {
   office: "Kontor",
@@ -56,6 +57,7 @@ export function SpacesView() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
+  const [propertyId, setPropertyId] = useState("");
   const [reveal, setReveal] = useState<{
     spaceId: string;
     name: string | null;
@@ -71,15 +73,21 @@ export function SpacesView() {
     },
   });
 
-  const stats = useMemo(() => {
+  const rows = useMemo(() => {
     const list = data ?? [];
+    if (!propertyId) return list;
+    return list.filter((s) => s.property_id === propertyId);
+  }, [data, propertyId]);
+
+  const stats = useMemo(() => {
+    const list = rows;
     return {
       total: list.length,
       withTenant: list.filter((s) => s.has_tenant).length,
       heated: list.filter((s) => s.is_heated).length,
       loa: list.reduce((sum, s) => sum + (s.loa ?? 0), 0),
     };
-  }, [data]);
+  }, [rows]);
 
   return (
     <div className="page-shell">
@@ -97,6 +105,7 @@ export function SpacesView() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <PropertyFilter value={propertyId} onChange={setPropertyId} />
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
               <Shield className="h-3.5 w-3.5" />
               Hyresgäst maskerad
@@ -163,7 +172,7 @@ export function SpacesView() {
             Sök
           </Button>
           <span className="text-sm tabular text-muted-foreground">
-            {data?.length ?? 0} st{isFetching ? " · …" : ""}
+            {rows.length} st{isFetching ? " · …" : ""}
           </span>
         </div>
 
@@ -179,13 +188,13 @@ export function SpacesView() {
           </div>
         )}
 
-        {!isLoading && (data?.length ?? 0) === 0 && (
+        {!isLoading && rows.length === 0 && (
           <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
             <DoorOpen className="mx-auto h-10 w-10 text-muted-foreground/40" />
             <h3 className="mt-3 text-lg font-semibold">Inga lokaler hittades</h3>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-              Skapa din första lokal eller justera sökningen. Du kan också köra
-              pilot-seed.
+              Skapa din första lokal, byt fastighetsfilter eller justera
+              sökningen.
             </p>
             <Button className="mt-5" onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />
@@ -195,7 +204,7 @@ export function SpacesView() {
         )}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {(data ?? []).map((s) => (
+          {rows.map((s) => (
             <article
               key={s.id}
               className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"

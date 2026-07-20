@@ -11,6 +11,7 @@ export type ActionResult<T> =
 export type RiskScoreRow = {
   building_id: string;
   building_name: string;
+  property_id: string | null;
   property_name: string;
   year: number;
   meps_score: number | null;
@@ -97,7 +98,7 @@ export async function listRiskScores(opts?: {
         `
         building_id, year, meps_score, crrem_score, physical_score,
         data_quality_score, combined_score,
-        buildings!inner ( name, properties!inner ( name ) )
+        buildings!inner ( name, property_id, properties!inner ( id, name ) )
       `
       )
       .eq("year", year)
@@ -146,13 +147,18 @@ export async function listRiskScores(opts?: {
     let rows: RiskScoreRow[] = (scores ?? []).map((s) => {
       const b = s.buildings as unknown as {
         name: string;
-        properties: { name: string } | { name: string }[];
+        property_id: string | null;
+        properties:
+          | { id: string; name: string }
+          | { id: string; name: string }[]
+          | null;
       };
       const prop = Array.isArray(b?.properties) ? b.properties[0] : b?.properties;
       const pi = piMap.get(s.building_id as string);
       return {
         building_id: s.building_id as string,
         building_name: b?.name ?? "—",
+        property_id: prop?.id ?? b?.property_id ?? null,
         property_name: prop?.name ?? "—",
         year: s.year as number,
         meps_score: s.meps_score as number | null,

@@ -22,6 +22,7 @@ export type ComplianceRiskRow = {
   id: string;
   building_id: string;
   building_name: string;
+  property_id: string | null;
   property_name: string;
   year: number;
   risk_kind: string;
@@ -124,7 +125,7 @@ export async function listComplianceRisks(opts?: {
         `
         id, building_id, year, risk_kind, metric_value, severity,
         workflow_status, status_reason, notes,
-        buildings!inner ( name, properties!inner ( name ) )
+        buildings!inner ( name, property_id, properties!inner ( id, name ) )
       `
       )
       .order("severity", { ascending: false, nullsFirst: false })
@@ -141,13 +142,18 @@ export async function listComplianceRisks(opts?: {
     const rows: ComplianceRiskRow[] = (data ?? []).map((r) => {
       const b = r.buildings as unknown as {
         name: string;
-        properties: { name: string } | { name: string }[];
+        property_id: string | null;
+        properties:
+          | { id: string; name: string }
+          | { id: string; name: string }[]
+          | null;
       };
       const prop = Array.isArray(b?.properties) ? b.properties[0] : b?.properties;
       return {
         id: r.id as string,
         building_id: r.building_id as string,
         building_name: b?.name ?? "—",
+        property_id: prop?.id ?? b?.property_id ?? null,
         property_name: prop?.name ?? "—",
         year: r.year as number,
         risk_kind: r.risk_kind as string,

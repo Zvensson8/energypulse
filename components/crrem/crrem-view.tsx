@@ -29,6 +29,7 @@ import {
   YAxis,
 } from "recharts";
 import { Thermometer, Building2, AlertTriangle } from "lucide-react";
+import { PropertyFilter } from "@/components/filters/property-filter";
 
 export function CrremView({
   initialBuildingId,
@@ -40,6 +41,7 @@ export function CrremView({
   const [year, setYear] = useState(
     initialYear ?? new Date().getFullYear() - 1
   );
+  const [propertyId, setPropertyId] = useState("");
   const [buildingId, setBuildingId] = useState<string | undefined>(
     initialBuildingId
   );
@@ -54,9 +56,17 @@ export function CrremView({
     },
   });
 
-  // Auto-select first building
+  const buildings = useMemo(() => {
+    const list = buildingsQ.data ?? [];
+    if (!propertyId) return list;
+    return list.filter((b) => b.property_id === propertyId);
+  }, [buildingsQ.data, propertyId]);
+
+  // Auto-select first building in filtered set
   const effectiveBuildingId =
-    buildingId ?? buildingsQ.data?.[0]?.building_id;
+    buildingId && buildings.some((b) => b.building_id === buildingId)
+      ? buildingId
+      : buildings[0]?.building_id;
 
   const chartQ = useQuery({
     queryKey: ["crrem-chart", effectiveBuildingId, year, crremVersion],
@@ -96,8 +106,17 @@ export function CrremView({
             </div>
             <p className="page-subtitle">
               När utsläppen riskerar att bli för höga – prioritera tidigast
-              riskår.
+              riskår. Filtrera på fastighet för att fokusera.
             </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <PropertyFilter
+              value={propertyId}
+              onChange={(id) => {
+                setPropertyId(id);
+                setBuildingId(undefined);
+              }}
+            />
           </div>
         </div>
 
@@ -142,7 +161,7 @@ export function CrremView({
                 <SelectValue placeholder="Välj byggnad" />
               </SelectTrigger>
               <SelectContent>
-                {(buildingsQ.data ?? []).map((b) => (
+                {buildings.map((b) => (
                   <SelectItem key={b.building_id} value={b.building_id}>
                     {b.building_name} · {b.property_name}
                   </SelectItem>

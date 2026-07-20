@@ -43,6 +43,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { PropertyFilter } from "@/components/filters/property-filter";
 
 const STATUS_SV: Record<string, string> = {
   draft: "Utkast",
@@ -66,6 +67,7 @@ export function RenovationPlansView({
 } = {}) {
   const qc = useQueryClient();
   const [status, setStatus] = useState("all");
+  const [propertyId, setPropertyId] = useState("");
   const [detail, setDetail] = useState<RenovationPlan | null>(null);
   const [createOpen, setCreateOpen] = useState(Boolean(initialBuildingId));
   const [msg, setMsg] = useState<string | null>(null);
@@ -81,9 +83,14 @@ export function RenovationPlansView({
     },
   });
 
-  const stats = useMemo(() => {
+  const filteredPlans = useMemo(() => {
     const list = data ?? [];
-    // When filtered, KPIs reflect current filter set (expected for status filter)
+    if (!propertyId) return list;
+    return list.filter((p) => p.property_id === propertyId);
+  }, [data, propertyId]);
+
+  const stats = useMemo(() => {
+    const list = filteredPlans;
     return {
       total: list.length,
       draft: list.filter((p) => p.status === "draft").length,
@@ -93,7 +100,7 @@ export function RenovationPlansView({
       completed: list.filter((p) => p.status === "completed").length,
       cost: list.reduce((s, p) => s + (p.total_estimated_cost ?? 0), 0),
     };
-  }, [data]);
+  }, [filteredPlans]);
 
   const setStatusMut = useMutation({
     mutationFn: async (input: {
@@ -139,6 +146,7 @@ export function RenovationPlansView({
                 Åtgärder
               </Link>
             </Button>
+            <PropertyFilter value={propertyId} onChange={setPropertyId} />
             <Button onClick={() => setCreateOpen(true)}>
               <GitCompare className="h-4 w-4" />
               Jämför scenarier
@@ -242,7 +250,7 @@ export function RenovationPlansView({
           </div>
         )}
 
-        {!isLoading && (data?.length ?? 0) === 0 && (
+        {!isLoading && filteredPlans.length === 0 && (
           <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
             <ClipboardList className="mx-auto h-10 w-10 text-muted-foreground/40" />
             <h3 className="mt-3 text-lg font-semibold">
@@ -266,7 +274,7 @@ export function RenovationPlansView({
         )}
 
         <div className="grid gap-3">
-          {(data ?? []).map((p) => {
+          {filteredPlans.map((p) => {
             const riskDrop =
               p.baseline_combined_score != null &&
               p.projected_combined_score != null

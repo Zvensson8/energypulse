@@ -23,6 +23,7 @@ export type PortfolioActionRow = {
   id: string;
   building_id: string;
   building_name: string;
+  property_id: string | null;
   property_name: string;
   title: string;
   category: string;
@@ -97,8 +98,8 @@ export async function listPortfolioActions(opts?: {
         investment_cost, currency, payback_years,
         priority_score, planned_year,
         buildings!inner (
-          id, name,
-          properties!inner ( name )
+          id, name, property_id,
+          properties!inner ( id, name )
         )
       `
       )
@@ -220,7 +221,11 @@ export async function listPortfolioActions(opts?: {
     const rows: PortfolioActionRow[] = (actions ?? []).map((a) => {
       const b = a.buildings as unknown as {
         name: string;
-        properties: { name: string } | { name: string }[];
+        property_id: string | null;
+        properties:
+          | { id: string; name: string }
+          | { id: string; name: string }[]
+          | null;
       } | null;
       const prop = Array.isArray(b?.properties)
         ? b?.properties[0]
@@ -240,6 +245,7 @@ export async function listPortfolioActions(opts?: {
         id: a.id as string,
         building_id: a.building_id as string,
         building_name: b?.name ?? "—",
+        property_id: prop?.id ?? b?.property_id ?? null,
         property_name: prop?.name ?? "—",
         title: a.title as string,
         category: a.category as string,

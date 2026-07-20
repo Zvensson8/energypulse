@@ -422,6 +422,7 @@ export async function listCrremBuildings(
     Array<{
       building_id: string;
       building_name: string;
+      property_id: string | null;
       property_name: string;
       year: number;
       ghg_intensity: number | null;
@@ -470,6 +471,7 @@ export async function listCrremBuildings(
         return {
           building_id: p.building_id,
           building_name: b?.name ?? "—",
+          property_id: b?.property_id ?? null,
           property_name: b ? pMap.get(b.property_id) ?? "—" : "—",
           year: p.year,
           ghg_intensity:

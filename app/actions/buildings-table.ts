@@ -48,6 +48,7 @@ const querySchema = z.object({
     .nullable(),
   crrem_stranding_year_max: z.number().int().optional().nullable(),
   search: z.string().optional().nullable(),
+  property_id: z.string().uuid().optional().nullable(),
 });
 
 export type BuildingsTableQuery = z.infer<typeof querySchema>;
@@ -145,6 +146,7 @@ export async function queryBuildingPerformance(
     // For search by name we need broader fetch then filter; for pure PI filters use range
     const needsNameJoin =
       Boolean(q.search?.trim()) ||
+      Boolean(q.property_id) ||
       q.sortBy === "building_name" ||
       q.sortBy === "property_name";
 
@@ -252,6 +254,11 @@ export async function queryBuildingPerformance(
         calculation_method: r.calculation_method,
       };
     });
+
+    if (q.property_id) {
+      rows = rows.filter((r) => r.property_id === q.property_id);
+      total = rows.length;
+    }
 
     if (q.search?.trim()) {
       const s = q.search.trim().toLowerCase();

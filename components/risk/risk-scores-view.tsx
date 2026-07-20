@@ -32,6 +32,7 @@ import {
   Building2,
   ListTodo,
 } from "lucide-react";
+import { PropertyFilter } from "@/components/filters/property-filter";
 
 const MEPS_SV: Record<string, string> = {
   compliant: "Uppfyller",
@@ -67,6 +68,7 @@ export function RiskScoresView() {
   const qc = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [filter, setFilter] = useState<"all" | "high" | "financial">("all");
+  const [propertyId, setPropertyId] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
   const summaryQ = useQuery({
@@ -104,11 +106,13 @@ export function RiskScoresView() {
   const s = summaryQ.data;
   const rows = useMemo(() => {
     let list = listQ.data ?? [];
+    if (propertyId)
+      list = list.filter((r) => r.property_id === propertyId);
     if (filter === "high") list = list.filter((r) => r.combined_score >= 60);
     if (filter === "financial")
       list = list.filter((r) => r.financial_risk_flag);
     return list;
-  }, [listQ.data, filter]);
+  }, [listQ.data, filter, propertyId]);
 
   return (
     <div className="page-shell">
@@ -125,6 +129,7 @@ export function RiskScoresView() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <PropertyFilter value={propertyId} onChange={setPropertyId} />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               År
               <Select

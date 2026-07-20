@@ -47,6 +47,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import type { RiskWorkflowStatus } from "@/lib/validations/workflow";
+import { PropertyFilter } from "@/components/filters/property-filter";
 
 const RISK_SV: Record<string, string> = {
   flood: "Översvämning",
@@ -99,6 +100,7 @@ export function PhysicalRisksView() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<"physical" | "compliance">("physical");
   const [hideClosed, setHideClosed] = useState(true);
+  const [propertyId, setPropertyId] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<{
     id: string;
@@ -107,20 +109,26 @@ export function PhysicalRisksView() {
   } | null>(null);
 
   const physQ = useQuery({
-    queryKey: ["physical-risks", hideClosed],
+    queryKey: ["physical-risks", hideClosed, propertyId],
     queryFn: async () => {
-      const res = await listPhysicalRisks({ hideClosed });
+      const res = await listPhysicalRisks({
+        hideClosed,
+        propertyId: propertyId || undefined,
+      });
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
   });
 
   const compQ = useQuery({
-    queryKey: ["compliance-risks", hideClosed],
+    queryKey: ["compliance-risks", hideClosed, propertyId],
     queryFn: async () => {
       const res = await listComplianceRisks({ hideClosed });
       if (!res.success) throw new Error(res.error);
-      return res.data;
+      let list = res.data;
+      if (propertyId)
+        list = list.filter((r) => r.property_id === propertyId);
+      return list;
     },
   });
 
@@ -185,6 +193,7 @@ export function PhysicalRisksView() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <PropertyFilter value={propertyId} onChange={setPropertyId} />
             {tab === "compliance" && (
               <Button
                 variant="outline"

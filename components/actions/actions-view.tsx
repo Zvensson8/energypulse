@@ -55,6 +55,7 @@ import {
   Building2,
   Play,
 } from "lucide-react";
+import { PropertyFilter } from "@/components/filters/property-filter";
 
 const STATUS_SV: Record<string, string> = {
   proposed: "Föreslagen",
@@ -78,6 +79,7 @@ export function ActionsView() {
   const qc = useQueryClient();
   const [status, setStatus] = useState("all");
   const [year, setYear] = useState(new Date().getFullYear() - 1);
+  const [propertyId, setPropertyId] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [simulateId, setSimulateId] = useState<string | null>(null);
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
@@ -180,7 +182,11 @@ export function ActionsView() {
     },
   });
 
-  const rows = data?.rows ?? [];
+  const rows = useMemo(() => {
+    const list = data?.rows ?? [];
+    if (!propertyId) return list;
+    return list.filter((r) => r.property_id === propertyId);
+  }, [data?.rows, propertyId]);
   const weights = data?.weights;
 
   const stats = useMemo(() => {
@@ -224,6 +230,7 @@ export function ActionsView() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <PropertyFilter value={propertyId} onChange={setPropertyId} />
             <Button
               variant="outline"
               disabled={detect.isPending}

@@ -31,6 +31,7 @@ import {
   type BuildingPerformanceRow,
   type BuildingsTableQuery,
 } from "@/app/actions/buildings-table";
+import { PropertyFilter } from "@/components/filters/property-filter";
 import { exportBuildingPerformanceExcel } from "@/app/actions/export";
 import { exportBuildingPerformancePdf } from "@/app/actions/export-pdf";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,7 @@ export function BuildingsTable({
   const [classFilter, setClassFilter] = useState<EnergyClass | "all">("all");
   const [strandingMax, setStrandingMax] = useState<string>("all");
   const [search, setSearch] = useState(initialSearch ?? "");
+  const [propertyId, setPropertyId] = useState("");
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [pinning, setPinning] = useState<ColumnPinningState>({
     left: ["building_name", "property_name"],
@@ -119,6 +121,7 @@ export function BuildingsTable({
       crrem_stranding_year_max:
         strandingMax === "all" ? null : Number(strandingMax),
       search: search.trim() || null,
+      property_id: propertyId || null,
     };
   }, [
     page,
@@ -129,6 +132,7 @@ export function BuildingsTable({
     classFilter,
     strandingMax,
     search,
+    propertyId,
   ]);
 
   const { data, isLoading, isFetching, error } = useQuery({
@@ -143,7 +147,7 @@ export function BuildingsTable({
 
   useEffect(() => {
     setPage(0);
-  }, [gapFilter, classFilter, strandingMax, search, year, sorting]);
+  }, [gapFilter, classFilter, strandingMax, search, year, sorting, propertyId]);
 
   const columns = useMemo<ColumnDef<BuildingPerformanceRow>[]>(
     () => [
@@ -532,6 +536,7 @@ export function BuildingsTable({
                 className="pl-9"
               />
             </div>
+            <PropertyFilter value={propertyId} onChange={setPropertyId} />
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               År
               <Select

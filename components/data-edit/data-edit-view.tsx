@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { HelpTip } from "@/components/ui/help-tip";
 import { Loader2, Pencil, Undo2, Shield, Plus } from "lucide-react";
+import { PropertyFilter } from "@/components/filters/property-filter";
 
 const MONTH_SV = [
   "",
@@ -59,6 +60,7 @@ export function DataEditView({
 } = {}) {
   const qc = useQueryClient();
   const lastMonth = useMemo(() => lastCompletedMonth(), []);
+  const [propertyId, setPropertyId] = useState("");
   const [buildingId, setBuildingId] = useState(initialBuildingId ?? "");
   const [year, setYear] = useState(
     initialYear ?? lastMonth.year
@@ -81,13 +83,26 @@ export function DataEditView({
       const sb = getBrowserClient();
       const { data, error } = await sb
         .from("buildings")
-        .select("id, name, properties(name)")
+        .select("id, name, property_id, properties(id, name)")
         .order("name")
         .limit(200);
       if (error) throw new Error(error.message);
       return data ?? [];
     },
   });
+
+  const filteredBuildings = useMemo(() => {
+    const list = buildingsQ.data ?? [];
+    if (!propertyId) return list;
+    return list.filter((b) => {
+      const prop = b.properties as
+        | { id: string; name: string }
+        | { id: string; name: string }[]
+        | null;
+      const pid = Array.isArray(prop) ? prop[0]?.id : prop?.id;
+      return (b.property_id as string) === propertyId || pid === propertyId;
+    });
+  }, [buildingsQ.data, propertyId]);
 
   const consQ = useQuery({
     queryKey: ["edit-consumption", buildingId, year],
@@ -268,14 +283,25 @@ export function DataEditView({
 
         <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">Fastighet</label>
+              <PropertyFilter
+                value={propertyId}
+                onChange={(id) => {
+                  setPropertyId(id);
+                  setBuildingId("");
+                }}
+                triggerClassName="w-full"
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-1">
               <label className="text-sm text-muted-foreground">Byggnad</label>
               <Select value={buildingId} onValueChange={setBuildingId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Välj byggnad" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(buildingsQ.data ?? []).map((b) => {
+                  {filteredBuildings.map((b) => {
                     const prop = b.properties as
                       | { name: string }
                       | { name: string }[]
@@ -284,8 +310,8 @@ export function DataEditView({
                       ? prop[0]?.name
                       : prop?.name;
                     return (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.name}
+                      <SelectItem key={b.id as string} value={b.id as string}>
+                        {b.name as string}
                         {pname ? ` · ${pname}` : ""}
                       </SelectItem>
                     );

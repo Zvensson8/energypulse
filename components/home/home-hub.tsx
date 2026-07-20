@@ -139,7 +139,7 @@ export function HomeHub() {
             {STEPS.map((s) => {
               const Icon = s.icon;
               return (
-                <Link key={s.n} href={s.href} className="quick-tile">
+                <Link key={s.n} href={s.href} className="group quick-tile">
                   <div className="flex items-center justify-between">
                     <span
                       className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${s.color} text-white shadow-sm`}

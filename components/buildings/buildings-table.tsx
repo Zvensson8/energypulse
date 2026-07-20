@@ -17,11 +17,13 @@ import {
   ArrowUpDown,
   Download,
   FileSearch,
-  Filter,
   History,
   LineChart,
   ShieldAlert,
   X,
+  Search,
+  Building2,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -53,7 +55,7 @@ import {
 } from "@/lib/utils";
 import type { DataGapStatus, EnergyClass } from "@/lib/supabase/database.types";
 
-const ROW_H = 26;
+const ROW_H = 48;
 
 export function BuildingsTable({
   initialBuildingId,
@@ -152,7 +154,7 @@ export function BuildingsTable({
         cell: ({ row }) => (
           <button
             type="button"
-            className="truncate text-left hover:text-terminal-accent"
+            className="truncate text-left font-medium text-primary hover:underline"
             onClick={() =>
               setProvenance({
                 buildingId: row.original.building_id,
@@ -485,309 +487,317 @@ export function BuildingsTable({
   const totalPages = data ? Math.max(1, Math.ceil(data.total / pageSize)) : 1;
 
   return (
-    <div className="flex h-full flex-col gap-1.5 p-2">
-      {/* Toolbar */}
-      <div className="panel flex flex-wrap items-center gap-1.5 rounded-md px-2 py-1.5">
-        <span className="mr-1 text-xs font-semibold text-foreground">
-          Byggnader
-        </span>
-        <Filter className="h-3.5 w-3.5 text-terminal-muted" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Sök byggnad eller fastighet…"
-          className="h-7 w-52 text-xs"
-        />
-        <label className="flex items-center gap-1 text-2xs text-terminal-muted">
-          År
-          <Select
-            value={String(year)}
-            onValueChange={(v) => setYear(Number(v))}
-          >
-            <SelectTrigger className="h-7 w-20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[0, 1, 2, 3, 4].map((o) => {
-                const y = new Date().getFullYear() - 1 - o;
-                return (
-                  <SelectItem key={y} value={String(y)}>
-                    {y}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </label>
-
-        {/* One-click data quality filters */}
-        <div className="flex items-center gap-0.5 border-l border-terminal-border pl-1.5">
-          <span className="text-2xs text-terminal-muted">Data:</span>
-          {(
-            [
-              "all",
-              "COMPLETE",
-              "EXTRAPOLATED_WARNING",
-              "INCOMPLETE_DATA",
-            ] as const
-          ).map((s) => (
-            <Button
-              key={s}
-              size="sm"
-              variant={gapFilter === s ? "default" : "terminal"}
-              className="h-7 px-1.5 text-2xs"
-              onClick={() => oneClickGap(s === "all" ? "all" : s)}
-              title={
-                s === "all"
-                  ? "Visa alla"
-                  : s === "COMPLETE"
-                    ? "Komplett data"
-                    : s === "EXTRAPOLATED_WARNING"
-                      ? "Uppskattad data"
-                      : "Saknas data"
-              }
-            >
-              {s === "all"
-                ? "Alla"
-                : s === "COMPLETE"
-                  ? "Komplett"
-                  : s === "EXTRAPOLATED_WARNING"
-                    ? "Uppskattad"
-                    : "Saknas"}
-            </Button>
-          ))}
-        </div>
-
-        {/* One-click energy class */}
-        <div className="flex items-center gap-0.5 border-l border-terminal-border pl-1.5">
-          <span className="text-2xs text-terminal-muted">Klass:</span>
-          {(["all", "A", "B", "C", "D", "E", "F", "G"] as const).map((c) => (
-            <Button
-              key={c}
-              size="sm"
-              variant={classFilter === c ? "default" : "terminal"}
-              className="h-7 min-w-[1.5rem] px-1 text-2xs"
-              onClick={() => oneClickClass(c === "all" ? "all" : c)}
-            >
-              {c === "all" ? "Alla" : c}
-            </Button>
-          ))}
-        </div>
-
-        {/* Risk year filter */}
-        <div className="flex items-center gap-0.5 border-l border-terminal-border pl-1.5">
-          <span className="text-2xs text-terminal-muted">Riskår ≤</span>
-          <Select value={strandingMax} onValueChange={setStrandingMax}>
-            <SelectTrigger className="h-7 w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Alla</SelectItem>
-              <SelectItem value={String(new Date().getFullYear())}>
-                I år
-              </SelectItem>
-              <SelectItem value={String(new Date().getFullYear() + 5)}>
-                Inom 5 år
-              </SelectItem>
-              <SelectItem value={String(new Date().getFullYear() + 10)}>
-                Inom 10 år
-              </SelectItem>
-              <SelectItem value={String(new Date().getFullYear() + 20)}>
-                Inom 20 år
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {(gapFilter !== "all" ||
-          classFilter !== "all" ||
-          strandingMax !== "all" ||
-          search) && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 gap-0.5 text-2xs"
-            onClick={() => {
-              setGapFilter("all");
-              setClassFilter("all");
-              setStrandingMax("all");
-              setSearch("");
-            }}
-          >
-            <X className="h-3 w-3" /> Rensa
-          </Button>
-        )}
-
-        <div className="ml-auto flex items-center gap-1">
-          <span className="text-2xs text-terminal-muted tabular">
-            {data?.total ?? 0} rader
-            {isFetching ? " · …" : ""}
-          </span>
-          <Button
-            size="sm"
-            variant="terminal"
-            className="h-7 gap-1"
-            disabled={exporting}
-            onClick={() => void onExport()}
-            title="Exportera till Excel"
-          >
-            <Download className="h-3 w-3" />
-            Excel
-          </Button>
-          <Button
-            size="sm"
-            variant="terminal"
-            className="h-7 gap-1"
-            disabled={exportingPdf}
-            onClick={() => void onExportPdf()}
-            title="Exportera till PDF"
-          >
-            <Download className="h-3 w-3" />
-            PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="panel relative min-h-0 flex-1 overflow-hidden">
-        <div ref={parentRef} className="h-full overflow-auto">
-          <div
-            style={{
-              height: virtualizer.getTotalSize() + ROW_H,
-              position: "relative",
-            }}
-          >
-            {/* Header */}
-            <div
-              className="sticky top-0 z-20 flex border-b border-terminal-border bg-terminal-row text-2xs font-medium uppercase tracking-wide text-terminal-muted"
-              style={{ height: ROW_H }}
-            >
-              {table.getHeaderGroups().map((hg) =>
-                hg.headers.map((header) => {
-                  const pinned = header.column.getIsPinned();
-                  return (
-                    <div
-                      key={header.id}
-                      className={cn(
-                        "flex shrink-0 items-center gap-0.5 density-cell",
-                        pinned &&
-                          "sticky z-30 border-r border-terminal-border bg-terminal-row",
-                        header.column.getCanSort() &&
-                          "cursor-pointer select-none hover:text-foreground"
-                      )}
-                      style={{
-                        width: header.getSize(),
-                        left:
-                          pinned === "left"
-                            ? `${header.column.getStart("left")}px`
-                            : undefined,
-                      }}
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getCanSort() && (
-                        <span className="opacity-50">
-                          {header.column.getIsSorted() === "asc" ? (
-                            <ArrowUp className="h-2.5 w-2.5" />
-                          ) : header.column.getIsSorted() === "desc" ? (
-                            <ArrowDown className="h-2.5 w-2.5" />
-                          ) : (
-                            <ArrowUpDown className="h-2.5 w-2.5" />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+    <div className="page-shell flex flex-col">
+      <div className="shrink-0 space-y-4 border-b border-border bg-background px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-6 w-6 text-primary" />
+              <h1 className="page-title">Byggnader</h1>
             </div>
+            <p className="page-subtitle">
+              Filtrera, öppna underlag och exportera. Klicka en byggnad för mer
+              detalj.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/import">
+                <Upload className="h-4 w-4" />
+                Importera data
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              disabled={exporting}
+              onClick={() => void onExport()}
+            >
+              <Download className="h-4 w-4" />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              disabled={exportingPdf}
+              onClick={() => void onExportPdf()}
+            >
+              <Download className="h-4 w-4" />
+              PDF
+            </Button>
+          </div>
+        </div>
 
-            {isLoading && (
-              <div className="p-4 text-center text-table text-muted-foreground">
-                Laddar…
-              </div>
-            )}
-            {error && (
-              <div className="p-4 text-center text-table text-destructive">
-                {(error as Error).message}
-              </div>
-            )}
-
-            {virtualizer.getVirtualItems().map((vRow) => {
-              const row = rows[vRow.index]!;
-              return (
-                <div
-                  key={row.id}
-                  className={cn(
-                    "absolute left-0 flex w-full border-b border-terminal-border/40 hover:bg-terminal-row/50",
-                    row.original.data_gap_status === "INCOMPLETE_DATA" &&
-                      "bg-gap-incomplete/5"
-                  )}
-                  style={{
-                    height: ROW_H,
-                    transform: `translateY(${vRow.start + ROW_H}px)`,
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const pinned = cell.column.getIsPinned();
+        {/* Filters */}
+        <div className="mx-auto max-w-7xl space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[14rem] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Sök byggnad eller fastighet…"
+                className="pl-9"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              År
+              <Select
+                value={String(year)}
+                onValueChange={(v) => setYear(Number(v))}
+              >
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[0, 1, 2, 3, 4].map((o) => {
+                    const y = new Date().getFullYear() - 1 - o;
                     return (
-                      <div
-                        key={cell.id}
-                        className={cn(
-                          "flex shrink-0 items-center density-cell font-mono",
-                          pinned &&
-                            "sticky z-10 border-r border-terminal-border bg-terminal-panel"
-                        )}
-                        style={{
-                          width: cell.column.getSize(),
-                          left:
-                            pinned === "left"
-                              ? `${cell.column.getStart("left")}px`
-                              : undefined,
-                        }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </div>
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
                     );
                   })}
-                </div>
-              );
-            })}
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Riskår ≤
+              <Select value={strandingMax} onValueChange={setStrandingMax}>
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alla</SelectItem>
+                  <SelectItem value={String(new Date().getFullYear())}>
+                    I år
+                  </SelectItem>
+                  <SelectItem value={String(new Date().getFullYear() + 5)}>
+                    Inom 5 år
+                  </SelectItem>
+                  <SelectItem value={String(new Date().getFullYear() + 10)}>
+                    Inom 10 år
+                  </SelectItem>
+                  <SelectItem value={String(new Date().getFullYear() + 20)}>
+                    Inom 20 år
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            <span className="ml-auto text-sm tabular text-muted-foreground">
+              {data?.total ?? 0} byggnader
+              {isFetching ? " · …" : ""}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              Datakvalitet:
+            </span>
+            {(
+              [
+                ["all", "Alla"],
+                ["COMPLETE", "Komplett"],
+                ["EXTRAPOLATED_WARNING", "Uppskattad"],
+                ["INCOMPLETE_DATA", "Saknas data"],
+              ] as const
+            ).map(([s, label]) => (
+              <Button
+                key={s}
+                size="sm"
+                variant={gapFilter === s ? "default" : "outline"}
+                onClick={() => oneClickGap(s === "all" ? "all" : s)}
+              >
+                {label}
+              </Button>
+            ))}
+            <span className="ml-2 text-xs font-medium text-muted-foreground">
+              Klass:
+            </span>
+            {(["all", "A", "B", "C", "D", "E", "F", "G"] as const).map((c) => (
+              <Button
+                key={c}
+                size="sm"
+                variant={classFilter === c ? "default" : "outline"}
+                className="min-w-9"
+                onClick={() => oneClickClass(c === "all" ? "all" : c)}
+              >
+                {c === "all" ? "Alla" : c}
+              </Button>
+            ))}
+            {(gapFilter !== "all" ||
+              classFilter !== "all" ||
+              strandingMax !== "all" ||
+              search) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setGapFilter("all");
+                  setClassFilter("all");
+                  setStrandingMax("all");
+                  setSearch("");
+                }}
+              >
+                <X className="h-4 w-4" /> Rensa filter
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between panel px-2 py-1 text-2xs text-terminal-muted">
-        <span className="tabular">
-          Sida {page + 1}/{totalPages} · visat {data?.rows.length ?? 0} av{" "}
-          {data?.total ?? 0}
-        </span>
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="terminal"
-            className="h-6"
-            disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-          >
-            Föregående
-          </Button>
-          <Button
-            size="sm"
-            variant="terminal"
-            className="h-6"
-            disabled={page + 1 >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Nästa
-          </Button>
+      {/* Table */}
+      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
+        <div className="panel relative min-h-0 flex-1 overflow-hidden">
+          <div ref={parentRef} className="h-full overflow-auto">
+            <div
+              style={{
+                height: virtualizer.getTotalSize() + ROW_H,
+                position: "relative",
+              }}
+            >
+              {/* Header */}
+              <div
+                className="sticky top-0 z-20 flex border-b border-border bg-secondary/80 text-xs font-semibold text-muted-foreground backdrop-blur"
+                style={{ height: ROW_H }}
+              >
+                {table.getHeaderGroups().map((hg) =>
+                  hg.headers.map((header) => {
+                    const pinned = header.column.getIsPinned();
+                    return (
+                      <div
+                        key={header.id}
+                        className={cn(
+                          "flex shrink-0 items-center gap-1 px-3 py-2",
+                          pinned &&
+                            "sticky z-30 border-r border-border bg-secondary",
+                          header.column.getCanSort() &&
+                            "cursor-pointer select-none hover:text-foreground"
+                        )}
+                        style={{
+                          width: header.getSize(),
+                          left:
+                            pinned === "left"
+                              ? `${header.column.getStart("left")}px`
+                              : undefined,
+                        }}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getCanSort() && (
+                          <span className="opacity-50">
+                            {header.column.getIsSorted() === "asc" ? (
+                              <ArrowUp className="h-3.5 w-3.5" />
+                            ) : header.column.getIsSorted() === "desc" ? (
+                              <ArrowDown className="h-3.5 w-3.5" />
+                            ) : (
+                              <ArrowUpDown className="h-3.5 w-3.5" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {isLoading && (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  Laddar byggnader…
+                </div>
+              )}
+              {error && (
+                <div className="p-8 text-center text-sm text-red-600">
+                  {(error as Error).message}
+                </div>
+              )}
+              {!isLoading && !error && rows.length === 0 && (
+                <div className="p-10 text-center">
+                  <Building2 className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                  <p className="mt-3 font-medium">Inga byggnader matchar</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Rensa filter eller importera energidata.
+                  </p>
+                  <Button className="mt-4" asChild>
+                    <Link href="/import">
+                      <Upload className="h-4 w-4" /> Importera
+                    </Link>
+                  </Button>
+                </div>
+              )}
+
+              {virtualizer.getVirtualItems().map((vRow) => {
+                const row = rows[vRow.index]!;
+                return (
+                  <div
+                    key={row.id}
+                    className={cn(
+                      "absolute left-0 flex w-full border-b border-border/60 transition hover:bg-secondary/60",
+                      row.original.data_gap_status === "INCOMPLETE_DATA" &&
+                        "bg-red-50/50"
+                    )}
+                    style={{
+                      height: ROW_H,
+                      transform: `translateY(${vRow.start + ROW_H}px)`,
+                    }}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const pinned = cell.column.getIsPinned();
+                      return (
+                        <div
+                          key={cell.id}
+                          className={cn(
+                            "flex shrink-0 items-center px-3 py-2 text-sm",
+                            pinned &&
+                              "sticky z-10 border-r border-border bg-card"
+                          )}
+                          style={{
+                            width: cell.column.getSize(),
+                            left:
+                              pinned === "left"
+                                ? `${cell.column.getStart("left")}px`
+                                : undefined,
+                          }}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Pagination */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm">
+          <span className="tabular">
+            Sida {page + 1} av {totalPages} · {data?.rows.length ?? 0} av{" "}
+            {data?.total ?? 0} visas
+          </span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Föregående
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page + 1 >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Nästa
+            </Button>
+          </div>
         </div>
       </div>
 

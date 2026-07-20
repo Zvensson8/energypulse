@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listPortfolioActions,
   recalculateActionPriorities,
+  type PortfolioActionRow,
 } from "@/app/actions/actions-priority";
 import { createAction } from "@/app/actions/actions-crud";
 import {
@@ -37,17 +38,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatNumber, formatKwh } from "@/lib/utils";
+import { formatNumber, formatKwh, cn } from "@/lib/utils";
 import {
   Loader2,
   RefreshCw,
   Plus,
-  ListTodo,
   TrendingDown,
   CheckCircle2,
   Undo2,
   Sparkles,
   ClipboardList,
+  ListTodo,
+  ArrowRight,
+  Building2,
+  Play,
 } from "lucide-react";
 
 const STATUS_SV: Record<string, string> = {
@@ -134,7 +138,7 @@ export function ActionsView() {
           `Tillämpad: MEPS ${formatNumber(diff.baseline_meps_2030_gap, 1)} → ${formatNumber(diff.result_meps_2030_gap, 1)}, riskår ${diff.baseline_stranding_year ?? "—"} → ${diff.result_stranding_year ?? "—"}`
         );
       } else {
-        setMsg("Åtgärd markerad som klar.");
+        setMsg("Åtgärd markerad som klar – prestanda uppdaterad.");
       }
       invalidate();
     },
@@ -143,7 +147,7 @@ export function ActionsView() {
   const revertMut = useMutation({
     mutationFn: async (applicationId: string) => {
       const reason = window.prompt(
-        "Motivering för att återställa tillämpning (minst 5 tecken):"
+        "Motivering för att återställa (minst 5 tecken):"
       );
       if (!reason || reason.trim().length < 5) {
         throw new Error("Motivering krävs");
@@ -161,311 +165,273 @@ export function ActionsView() {
     },
   });
 
-  const weights = data?.weights;
   const rows = data?.rows ?? [];
+  const weights = data?.weights;
+
+  const stats = useMemo(() => {
+    const proposed = rows.filter((r) => r.status === "proposed").length;
+    const inFlight = rows.filter(
+      (r) => r.status === "approved" || r.status === "in_progress"
+    ).length;
+    const done = rows.filter((r) => r.status === "completed").length;
+    const saving = rows.reduce(
+      (s, r) => s + (r.estimated_saving_kwh ?? 0),
+      0
+    );
+    return { proposed, inFlight, done, saving, total: rows.length };
+  }, [rows]);
+
+  const completeTarget = rows.find((r) => r.id === completeId);
 
   return (
-    <div className="flex h-full flex-col gap-1.5 p-2">
-      <div className="panel flex flex-wrap items-center gap-2 rounded-md px-3 py-2">
-        <div className="flex items-center gap-1.5">
-          <ListTodo className="h-4 w-4 text-terminal-accent" />
-          <h1 className="text-sm font-semibold">Åtgärder</h1>
-          <HelpTip text="När status sätts till Klar tillämpas spar automatiskt (modeled) och prestanda räknas om. Före/efter visas i kolumnen Effekt." />
+    <div className="page-shell">
+      <div className="page-inner">
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="page-title">Åtgärder</h1>
+              <HelpTip text="Markera en åtgärd som Klar för att simulera spar och räkna om MEPS/CRREM. Före/efter visas på kortet." />
+            </div>
+            <p className="page-subtitle">
+              Prioritera, simulera effekt och slutför – så få klick som möjligt.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={detect.isPending}
+              onClick={() => void detect.mutateAsync()}
+            >
+              {detect.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Hitta deklarationsförslag
+            </Button>
+            <Button
+              variant="outline"
+              disabled={recalc.isPending}
+              onClick={() => void recalc.mutateAsync()}
+            >
+              {recalc.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Räkna om prioritet
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Ny åtgärd
+            </Button>
+          </div>
         </div>
 
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="h-8 w-36 text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Alla statusar</SelectItem>
-            {Object.entries(STATUS_SV).map(([k, v]) => (
-              <SelectItem key={k} value={k}>
-                {v}
-              </SelectItem>
+        {/* How-to strip */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <HowCard
+            n="1"
+            title="Välj en åtgärd"
+            body="Sorterad efter prioritet (krav, klimatrisk, payback)."
+          />
+          <HowCard
+            n="2"
+            title="Simulera med Klar"
+            body="Tillämpar spar (modeled) och visar MEPS/riskår före → efter."
+          />
+          <HowCard
+            n="3"
+            title="Skapa plan"
+            body="Paketera flera åtgärder till en renovationsplan per byggnad."
+          />
+        </div>
+
+        {/* KPI summary */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            label="Totalt"
+            value={String(stats.total)}
+            sub={isFetching ? "Uppdaterar…" : "i listan"}
+            onClick={() => setStatus("all")}
+            active={status === "all"}
+          />
+          <StatCard
+            label="Att besluta"
+            value={String(stats.proposed)}
+            sub="föreslagna"
+            tone="text-indigo-600"
+            onClick={() => setStatus("proposed")}
+            active={status === "proposed"}
+          />
+          <StatCard
+            label="Pågår"
+            value={String(stats.inFlight)}
+            sub="godkända / pågår"
+            tone="text-amber-600"
+            onClick={() => setStatus("in_progress")}
+            active={status === "in_progress" || status === "approved"}
+          />
+          <StatCard
+            label="Sparpotential"
+            value={formatKwh(stats.saving)}
+            sub={`${stats.done} klara`}
+            tone="text-emerald-600"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                ["all", "Alla"],
+                ["proposed", "Föreslagna"],
+                ["approved", "Godkända"],
+                ["in_progress", "Pågår"],
+                ["completed", "Klara"],
+              ] as const
+            ).map(([v, label]) => (
+              <Button
+                key={v}
+                size="sm"
+                variant={status === v ? "default" : "outline"}
+                onClick={() => setStatus(v)}
+              >
+                {label}
+              </Button>
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+          <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Prestandaår</span>
+            <Select
+              value={String(year)}
+              onValueChange={(v) => setYear(Number(v))}
+            >
+              <SelectTrigger className="h-10 w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[0, 1, 2, 3, 4].map((o) => {
+                  const y = new Date().getFullYear() - 1 - o;
+                  return (
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+          {weights && (
+            <span className="hidden text-xs text-muted-foreground xl:inline">
+              Vikter: krav {Math.round(weights.meps * 100)}% · klimat{" "}
+              {Math.round(weights.crrem * 100)}% · payback{" "}
+              {Math.round(weights.payback * 100)}%
+            </span>
+          )}
+        </div>
 
-        <label className="flex items-center gap-1 text-2xs text-terminal-muted">
-          Prestandaår
-          <Select
-            value={String(year)}
-            onValueChange={(v) => setYear(Number(v))}
-          >
-            <SelectTrigger className="h-8 w-20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[0, 1, 2, 3, 4].map((o) => {
-                const y = new Date().getFullYear() - 1 - o;
-                return (
-                  <SelectItem key={y} value={String(y)}>
-                    {y}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </label>
-
-        <span className="text-2xs tabular text-terminal-muted">
-          {rows.length} st{isFetching ? " · …" : ""}
-        </span>
-
-        {weights && (
-          <span className="hidden text-2xs text-terminal-muted xl:inline">
-            Vikter: krav {Math.round(weights.meps * 100)}% · klimat{" "}
-            {Math.round(weights.crrem * 100)}% · payback{" "}
-            {Math.round(weights.payback * 100)}%
-          </span>
+        {msg && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {msg}
+          </div>
+        )}
+        {(recalc.isError ||
+          detect.isError ||
+          completeMut.isError ||
+          revertMut.isError ||
+          error) && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {(
+              (recalc.error ||
+                detect.error ||
+                completeMut.error ||
+                revertMut.error ||
+                error) as Error
+            )?.message}
+          </div>
         )}
 
-        <div className="ml-auto flex flex-wrap gap-1.5">
-          <Button
-            size="sm"
-            variant="terminal"
-            className="h-8 gap-1"
-            disabled={detect.isPending}
-            onClick={() => void detect.mutateAsync()}
-            title="Hitta byggnader med förbättring som bör deklareras"
-          >
-            {detect.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" />
-            )}
-            Förbättringsanalys
-          </Button>
-          <Button
-            size="sm"
-            variant="terminal"
-            className="h-8 gap-1"
-            disabled={recalc.isPending}
-            onClick={() => void recalc.mutateAsync()}
-          >
-            {recalc.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
-            )}
-            Räkna om prioritet
-          </Button>
-          <Button
-            size="sm"
-            className="h-8 gap-1"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Ny åtgärd
-          </Button>
-        </div>
-      </div>
-
-      {msg && (
-        <div className="rounded-md border border-gap-complete/30 bg-gap-complete/10 px-3 py-1.5 text-xs text-gap-complete">
-          {msg}
-        </div>
-      )}
-      {(recalc.isError || detect.isError || completeMut.isError || revertMut.isError) && (
-        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive">
-          {(
-            (recalc.error ||
-              detect.error ||
-              completeMut.error ||
-              revertMut.error) as Error
-          )?.message}
-        </div>
-      )}
-      {error && (
-        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive">
-          {(error as Error).message}
-        </div>
-      )}
-
-      <div className="panel min-h-0 flex-1 overflow-auto rounded-md">
+        {/* Action cards */}
         {isLoading && (
-          <div className="p-6 text-center text-xs text-muted-foreground">
+          <div className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
             Laddar åtgärder…
           </div>
         )}
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-terminal-row text-2xs text-terminal-muted">
-            <tr>
-              <th className="px-2 py-2 text-right font-medium">Prio</th>
-              <th className="px-2 py-2 text-left font-medium">Åtgärd</th>
-              <th className="px-2 py-2 text-left font-medium">Byggnad</th>
-              <th className="px-2 py-2 text-left font-medium">Status</th>
-              <th className="px-2 py-2 text-right font-medium">Spar</th>
-              <th className="px-2 py-2 text-right font-medium">
-                Effekt MEPS / riskår
-              </th>
-              <th className="px-2 py-2 text-right font-medium">Plan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={r.id}
-                className="border-t border-terminal-border/50 hover:bg-terminal-row/50"
-              >
-                <td className="px-2 py-1.5 text-right">
-                  <span className="inline-flex min-w-[2.5rem] justify-end rounded-md bg-terminal-accent/15 px-1.5 py-0.5 font-semibold tabular text-terminal-accent">
-                    {r.priority_score != null
-                      ? formatNumber(r.priority_score, 2)
-                      : "—"}
-                  </span>
-                </td>
-                <td className="max-w-[14rem] px-2 py-1.5">
-                  <div className="truncate font-medium" title={r.title}>
-                    {r.title}
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    <span className="text-2xs text-terminal-muted">
-                      {CATEGORY_SV[r.category] ?? r.category}
-                    </span>
-                    {r.source === "improvement_detection" && (
-                      <Badge variant="warning">Deklarationsförslag</Badge>
-                    )}
-                    {r.source === "mitigation_plan" && (
-                      <Badge variant="outline">Från plan</Badge>
-                    )}
-                  </div>
-                </td>
-                <td className="max-w-[9rem] truncate px-2 py-1.5">
-                  <Link
-                    href={`/buildings?building=${r.building_id}`}
-                    className="text-terminal-accent hover:underline"
-                  >
-                    {r.building_name}
-                  </Link>
-                </td>
-                <td className="px-2 py-1.5">
-                  <Badge
-                    variant={
-                      r.status === "completed"
-                        ? "success"
-                        : r.status === "in_progress" || r.status === "approved"
-                          ? "warning"
-                          : "outline"
-                    }
-                  >
-                    {STATUS_SV[r.status] ?? r.status}
-                  </Badge>
-                </td>
-                <td className="px-2 py-1.5 text-right tabular text-terminal-green">
-                  {r.estimated_saving_kwh != null
-                    ? formatKwh(r.estimated_saving_kwh)
-                    : "—"}
-                </td>
-                <td className="px-2 py-1.5 text-right text-2xs">
-                  {r.application_id ? (
-                    <div className="space-y-0.5">
-                      <div className="tabular">
-                        MEPS{" "}
-                        <span className="text-terminal-muted">
-                          {formatNumber(r.applied_baseline_meps, 0)}
-                        </span>
-                        <TrendingDown className="mx-0.5 inline h-3 w-3 text-gap-complete" />
-                        <span className="text-gap-complete">
-                          {formatNumber(r.applied_result_meps, 0)}
-                        </span>
-                      </div>
-                      <div className="tabular text-gap-extrapolated">
-                        Riskår {r.applied_baseline_stranding ?? "—"} →{" "}
-                        {r.applied_result_stranding ?? "—"}
-                      </div>
-                    </div>
-                  ) : r.meps_2030_gap != null ? (
-                    <span className="tabular text-terminal-muted">
-                      Est. {formatNumber(r.meps_2030_gap, 0)}
-                      {r.meps_gap_after != null && (
-                        <>
-                          {" "}
-                          → {formatNumber(r.meps_gap_after, 0)}
-                        </>
-                      )}
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="px-2 py-1.5">
-                  <div className="flex flex-wrap justify-end gap-0.5">
-                    {r.status !== "completed" &&
-                      r.status !== "cancelled" && (
-                        <Button
-                          size="sm"
-                          variant="terminal"
-                          className="h-7 gap-0.5 text-2xs"
-                          onClick={() => setCompleteId(r.id)}
-                        >
-                          <CheckCircle2 className="h-3 w-3" />
-                          Klar
-                        </Button>
-                      )}
-                    {r.application_id && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 gap-0.5 text-2xs"
-                        disabled={revertMut.isPending}
-                        onClick={() =>
-                          void revertMut.mutateAsync(r.application_id!)
-                        }
-                        title="Återställ tillämpning"
-                      >
-                        <Undo2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 gap-0.5 text-2xs"
-                      onClick={() =>
-                        setPlanBuilding({
-                          id: r.building_id,
-                          name: r.building_name,
-                        })
-                      }
-                      title="Generera åtgärdsplan"
-                    >
-                      <ClipboardList className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!isLoading && rows.length === 0 && (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-3 py-10 text-center text-muted-foreground"
-                >
-                  Inga åtgärder. Skapa en eller kör förbättringsanalys.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+
+        {!isLoading && rows.length === 0 && (
+          <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
+            <ListTodo className="mx-auto h-10 w-10 text-muted-foreground/40" />
+            <h3 className="mt-3 text-lg font-semibold">Inga åtgärder ännu</h3>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+              Skapa en åtgärd, kör förbättringsanalys, eller generera en plan
+              från riskscore.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" /> Ny åtgärd
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/risk-scores">Till riskscore</Link>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-3">
+          {rows.map((r) => (
+            <ActionCard
+              key={r.id}
+              row={r}
+              onComplete={() => setCompleteId(r.id)}
+              onRevert={
+                r.application_id
+                  ? () => void revertMut.mutateAsync(r.application_id!)
+                  : undefined
+              }
+              onPlan={() =>
+                setPlanBuilding({ id: r.building_id, name: r.building_name })
+              }
+              reverting={revertMut.isPending}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Complete confirm */}
+      {/* Complete dialog */}
       <Dialog
         open={Boolean(completeId)}
         onOpenChange={(o) => !o && setCompleteId(null)}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Markera åtgärd som klar?</DialogTitle>
+            <DialogTitle>Markera som klar och simulera?</DialogTitle>
             <DialogDescription>
-              Systemet tillämpar uppskattad energibesparing (modeled), räknar om
-              prestanda och visar före/efter för kravgap och riskår. Rå
-              mätvärden ändras inte.
+              {completeTarget ? (
+                <>
+                  <span className="font-medium text-foreground">
+                    {completeTarget.title}
+                  </span>
+                  {" · "}
+                  {completeTarget.building_name}
+                </>
+              ) : (
+                "Tillämpa spar och räkna om prestanda."
+              )}
             </DialogDescription>
           </DialogHeader>
+          <div className="rounded-2xl bg-secondary/80 p-4 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">Vad händer?</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
+              <li>Spar tillämpas som modeled justering (mätvärden orörda)</li>
+              <li>MEPS-gap och klimatriskår räknas om</li>
+              <li>Du ser före → efter på kortet</li>
+            </ul>
+          </div>
           <div className="flex justify-end gap-2">
-            <Button variant="terminal" onClick={() => setCompleteId(null)}>
+            <Button variant="outline" onClick={() => setCompleteId(null)}>
               Avbryt
             </Button>
             <Button
@@ -474,7 +440,15 @@ export function ActionsView() {
                 completeId && void completeMut.mutateAsync(completeId)
               }
             >
-              {completeMut.isPending ? "Tillämpar…" : "Ja, markera klar"}
+              {completeMut.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Simulerar…
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" /> Ja, markera klar
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -494,11 +468,224 @@ export function ActionsView() {
         year={year}
         onClose={() => setPlanBuilding(null)}
         onAccepted={() => {
-          setMsg("Åtgärdsplan accepterad – valda åtgärder godkända.");
+          setMsg("Plan accepterad – valda åtgärder godkända.");
           setPlanBuilding(null);
           invalidate();
         }}
       />
+    </div>
+  );
+}
+
+function HowCard({
+  n,
+  title,
+  body,
+}: {
+  n: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+        {n}
+      </div>
+      <div className="mt-2 text-sm font-semibold">{title}</div>
+      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+        {body}
+      </p>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  tone,
+  onClick,
+  active,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  tone?: string;
+  onClick?: () => void;
+  active?: boolean;
+}) {
+  const Comp = onClick ? "button" : "div";
+  return (
+    <Comp
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={cn(
+        "rounded-2xl border bg-card p-4 text-left shadow-sm transition",
+        onClick && "hover:-translate-y-0.5 hover:shadow-md",
+        active ? "border-primary ring-2 ring-primary/20" : "border-border"
+      )}
+    >
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 text-2xl font-semibold tabular", tone)}>
+        {value}
+      </div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
+    </Comp>
+  );
+}
+
+function ActionCard({
+  row: r,
+  onComplete,
+  onRevert,
+  onPlan,
+  reverting,
+}: {
+  row: PortfolioActionRow;
+  onComplete: () => void;
+  onRevert?: () => void;
+  onPlan: () => void;
+  reverting?: boolean;
+}) {
+  const canComplete =
+    r.status !== "completed" && r.status !== "cancelled";
+
+  return (
+    <article className="group rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5">
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <span className="text-[10px] font-medium uppercase opacity-70">
+            Prio
+          </span>
+          <span className="text-lg font-bold tabular leading-none">
+            {r.priority_score != null
+              ? formatNumber(r.priority_score, 2)
+              : "—"}
+          </span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-foreground">
+              {r.title}
+            </h3>
+            <Badge
+              variant={
+                r.status === "completed"
+                  ? "success"
+                  : r.status === "in_progress" || r.status === "approved"
+                    ? "warning"
+                    : "outline"
+              }
+            >
+              {STATUS_SV[r.status] ?? r.status}
+            </Badge>
+            {r.source === "improvement_detection" && (
+              <Badge variant="warning">Deklarationsförslag</Badge>
+            )}
+            {r.source === "mitigation_plan" && (
+              <Badge variant="secondary">Från plan</Badge>
+            )}
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <Link
+              href={`/buildings?building=${r.building_id}`}
+              className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            >
+              <Building2 className="h-3.5 w-3.5" />
+              {r.building_name}
+            </Link>
+            <span>{CATEGORY_SV[r.category] ?? r.category}</span>
+            {r.estimated_saving_kwh != null && (
+              <span className="text-emerald-600">
+                Spar {formatKwh(r.estimated_saving_kwh)}/år
+              </span>
+            )}
+            {r.investment_cost != null && (
+              <span>{formatNumber(r.investment_cost / 1000, 0)} tkr</span>
+            )}
+            {r.payback_years != null && (
+              <span>Payback {formatNumber(r.payback_years, 1)} år</span>
+            )}
+          </div>
+
+          {/* Effect */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {r.application_id ? (
+              <>
+                <EffectChip
+                  label="MEPS"
+                  before={formatNumber(r.applied_baseline_meps, 0)}
+                  after={formatNumber(r.applied_result_meps, 0)}
+                />
+                <EffectChip
+                  label="Riskår"
+                  before={String(r.applied_baseline_stranding ?? "—")}
+                  after={String(r.applied_result_stranding ?? "—")}
+                />
+              </>
+            ) : r.meps_2030_gap != null ? (
+              <div className="rounded-xl bg-secondary px-3 py-1.5 text-xs text-muted-foreground">
+                Est. gap {formatNumber(r.meps_2030_gap, 0)}
+                {r.meps_gap_after != null && (
+                  <>
+                    {" "}
+                    →{" "}
+                    <span className="font-medium text-emerald-700">
+                      {formatNumber(r.meps_gap_after, 0)}
+                    </span>
+                  </>
+                )}{" "}
+                kWh/m²
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-stretch">
+          {canComplete && (
+            <Button onClick={onComplete} className="sm:min-w-[9rem]">
+              <Play className="h-4 w-4" />
+              Simulera / Klar
+            </Button>
+          )}
+          <Button variant="outline" onClick={onPlan}>
+            <ClipboardList className="h-4 w-4" />
+            Plan
+          </Button>
+          {onRevert && (
+            <Button
+              variant="ghost"
+              disabled={reverting}
+              onClick={onRevert}
+              title="Återställ tillämpning"
+            >
+              <Undo2 className="h-4 w-4" />
+              Återställ
+            </Button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function EffectChip({
+  label,
+  before,
+  after,
+}: {
+  label: string;
+  before: string;
+  after: string;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900">
+      <span className="font-medium">{label}</span>
+      <span className="tabular text-emerald-800/70">{before}</span>
+      <TrendingDown className="h-3.5 w-3.5 text-emerald-600" />
+      <span className="font-semibold tabular">{after}</span>
     </div>
   );
 }
@@ -530,7 +717,9 @@ function PlanDialog({
     },
     onSuccess: (p) => {
       setPlan(p);
-      setSelected(new Set(p.items.filter((i) => i.include_in_plan).map((i) => i.id)));
+      setSelected(
+        new Set(p.items.filter((i) => i.include_in_plan).map((i) => i.id))
+      );
       setError(null);
     },
     onError: (e: Error) => setError(e.message),
@@ -566,56 +755,45 @@ function PlanDialog({
         <DialogHeader>
           <DialogTitle>Åtgärdsplan – {building?.name}</DialogTitle>
           <DialogDescription>
-            Förslag baserat på prioritet. Välj åtgärder att acceptera (status →
-            godkänd).
+            Välj vilka åtgärder som ska godkännas i planen.
           </DialogDescription>
         </DialogHeader>
         {gen.isPending && (
-          <div className="flex items-center gap-2 text-xs text-terminal-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Genererar plan…
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Genererar plan…
           </div>
         )}
-        {error && <div className="text-xs text-destructive">{error}</div>}
+        {error && <div className="text-sm text-red-600">{error}</div>}
         {plan && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="panel rounded-md p-2">
-                <div className="text-2xs text-terminal-muted">Gap 2030 före</div>
-                <div className="font-semibold tabular">
-                  {formatNumber(plan.baseline_meps_2030_gap, 1)}
-                </div>
-              </div>
-              <div className="panel rounded-md p-2">
-                <div className="text-2xs text-terminal-muted">
-                  Förväntad gap-ändring
-                </div>
-                <div className="font-semibold tabular text-gap-complete">
-                  {formatNumber(plan.expected_meps_delta, 1)}
-                </div>
-              </div>
-              <div className="panel rounded-md p-2">
-                <div className="text-2xs text-terminal-muted">Total kostnad</div>
-                <div className="font-semibold tabular">
-                  {plan.total_cost != null
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <MiniStat
+                label="Gap 2030 före"
+                value={formatNumber(plan.baseline_meps_2030_gap, 1)}
+              />
+              <MiniStat
+                label="Förväntad gap-ändring"
+                value={formatNumber(plan.expected_meps_delta, 1)}
+                good
+              />
+              <MiniStat
+                label="Total kostnad"
+                value={
+                  plan.total_cost != null
                     ? `${formatNumber(plan.total_cost / 1000, 0)} tkr`
-                    : "—"}
-                </div>
-              </div>
-              <div className="panel rounded-md p-2">
-                <div className="text-2xs text-terminal-muted">
-                  Riskår före → efter
-                </div>
-                <div className="font-semibold tabular">
-                  {plan.baseline_stranding_year ?? "—"} →{" "}
-                  {plan.expected_stranding_after ?? "—"}
-                </div>
-              </div>
+                    : "—"
+                }
+              />
+              <MiniStat
+                label="Riskår"
+                value={`${plan.baseline_stranding_year ?? "—"} → ${plan.expected_stranding_after ?? "—"}`}
+              />
             </div>
-            <ul className="max-h-48 space-y-1 overflow-auto">
+            <ul className="max-h-48 space-y-2 overflow-auto">
               {plan.items.map((it) => (
                 <li
                   key={it.id}
-                  className="flex items-start gap-2 rounded-md border border-terminal-border px-2 py-1.5 text-xs"
+                  className="flex items-start gap-3 rounded-xl border border-border px-3 py-2.5"
                 >
                   <Checkbox
                     checked={selected.has(it.id)}
@@ -629,8 +807,10 @@ function PlanDialog({
                     }}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium">{it.title_snapshot}</div>
-                    <div className="text-2xs text-terminal-muted">
+                    <div className="text-sm font-medium">
+                      {it.title_snapshot}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
                       Spar{" "}
                       {it.estimated_saving_kwh != null
                         ? formatKwh(it.estimated_saving_kwh)
@@ -641,13 +821,13 @@ function PlanDialog({
                 </li>
               ))}
               {plan.items.length === 0 && (
-                <li className="text-xs text-muted-foreground">
-                  Inga föreslagna/godkända åtgärder för byggnaden.
+                <li className="text-sm text-muted-foreground">
+                  Inga föreslagna åtgärder för byggnaden.
                 </li>
               )}
             </ul>
             <div className="flex justify-end gap-2">
-              <Button variant="terminal" onClick={onClose}>
+              <Button variant="outline" onClick={onClose}>
                 Stäng
               </Button>
               <Button
@@ -655,12 +835,37 @@ function PlanDialog({
                 onClick={() => void accept.mutateAsync()}
               >
                 {accept.isPending ? "Sparar…" : "Acceptera valda"}
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  good,
+}: {
+  label: string;
+  value: string;
+  good?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/40 p-3">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div
+        className={cn(
+          "mt-0.5 text-sm font-semibold tabular",
+          good && "text-emerald-600"
+        )}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -733,14 +938,14 @@ function CreateActionDialog({
         <DialogHeader>
           <DialogTitle>Ny åtgärd</DialogTitle>
           <DialogDescription>
-            Prioritet beräknas från byggnadens kravgap, klimatrisk och payback.
+            Fyll i spar och kostnad – prioritet beräknas automatiskt.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Byggnad *</label>
+        <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Byggnad *</label>
             <Select value={buildingId} onValueChange={setBuildingId}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger>
                 <SelectValue placeholder="Välj byggnad" />
               </SelectTrigger>
               <SelectContent>
@@ -762,19 +967,19 @@ function CreateActionDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Titel *</label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Titel *</label>
             <Input
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="h-9"
+              placeholder="t.ex. LED-byte trapphus"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Kategori</label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Kategori</label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -787,49 +992,52 @@ function CreateActionDialog({
             </Select>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs text-terminal-muted">Kostnad SEK</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Kostnad SEK
+              </label>
               <Input
                 type="number"
                 min={0}
                 value={investment}
                 onChange={(e) => setInvestment(e.target.value)}
-                className="h-9"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-terminal-muted">Spar kWh/år</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Spar kWh/år
+              </label>
               <Input
                 type="number"
                 min={0}
                 value={saving}
                 onChange={(e) => setSaving(e.target.value)}
-                className="h-9"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-terminal-muted">Payback år</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Payback år
+              </label>
               <Input
                 type="number"
                 min={0}
                 step="0.1"
                 value={payback}
                 onChange={(e) => setPayback(e.target.value)}
-                className="h-9"
               />
             </div>
           </div>
-          {error && <div className="text-xs text-destructive">{error}</div>}
+          {error && <div className="text-sm text-red-600">{error}</div>}
           <div className="flex justify-end gap-2">
             <Button
               type="button"
-              variant="terminal"
+              variant="outline"
               onClick={() => onOpenChange(false)}
             >
               Avbryt
             </Button>
             <Button type="submit" disabled={pending || !buildingId || !title}>
-              {pending ? "Sparar…" : "Spara"}
+              {pending ? "Sparar…" : "Spara åtgärd"}
             </Button>
           </div>
         </form>

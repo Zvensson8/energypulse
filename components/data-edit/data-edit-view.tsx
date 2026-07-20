@@ -1,18 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   editArea,
   editEnergyConsumption,
+  insertEnergyConsumption,
   listAreasForBuilding,
   listConsumptionForBuildingYear,
   listDataEditSessions,
+  listEnergySources,
   rollbackDataEdit,
 } from "@/app/actions/data-edit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -21,7 +24,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { HelpTip } from "@/components/ui/help-tip";
-import { Loader2, Pencil, Undo2, Shield } from "lucide-react";
+import { Loader2, Pencil, Undo2, Shield, Plus } from "lucide-react";
+
+const MONTH_SV = [
+  "",
+  "Januari",
+  "Februari",
+  "Mars",
+  "April",
+  "Maj",
+  "Juni",
+  "Juli",
+  "Augusti",
+  "September",
+  "Oktober",
+  "November",
+  "December",
+];
+
+/** Senaste avslutade kalendermånad. */
+function lastCompletedMonth(): { year: number; month: number } {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
 
 export function DataEditView({
   initialBuildingId,
@@ -31,13 +58,21 @@ export function DataEditView({
   initialYear?: number;
 } = {}) {
   const qc = useQueryClient();
+  const lastMonth = useMemo(() => lastCompletedMonth(), []);
   const [buildingId, setBuildingId] = useState(initialBuildingId ?? "");
   const [year, setYear] = useState(
-    initialYear ?? new Date().getFullYear() - 1
+    initialYear ?? lastMonth.year
   );
   const [reason, setReason] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Add new month form
+  const [addMonth, setAddMonth] = useState(String(lastMonth.month));
+  const [addYear, setAddYear] = useState(String(lastMonth.year));
+  const [addSourceId, setAddSourceId] = useState("");
+  const [addKwh, setAddKwh] = useState("");
+  const [addEstimated, setAddEstimated] = useState(false);
 
   const buildingsQ = useQuery({
     queryKey: ["buildings-for-data-edit"],
@@ -81,6 +116,15 @@ export function DataEditView({
     queryKey: ["edit-sessions"],
     queryFn: async () => {
       const res = await listDataEditSessions(30);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+  });
+
+  const sourcesQ = useQuery({
+    queryKey: ["energy-sources"],
+    queryFn: async () => {
+      const res = await listEnergySources();
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
@@ -134,6 +178,46 @@ export function DataEditView({
     onError: (e: Error) => setErr(e.message),
   });
 
+  const insertCons = useMutation({
+    mutationFn: async () => {
+      if (reason.trim().length < 5) {
+        throw new Error("Motivering krävs (minst 5 tecken)");
+      }
+      if (!buildingId) throw new Error("Välj byggnad");
+      if (!addSourceId) throw new Error("Välj energislag");
+      const kwh = Number(addKwh);
+      if (!Number.isFinite(kwh) || kwh < 0) {
+        throw new Error("Ange giltig förbrukning i kWh");
+      }
+      const res = await insertEnergyConsumption({
+        building_id: buildingId,
+        energy_source_id: addSourceId,
+        year: Number(addYear),
+        month: Number(addMonth),
+        consumption_kwh: kwh,
+        reason: reason.trim(),
+        is_estimated: addEstimated,
+      });
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      const m = Number(addMonth);
+      setMsg(
+        `Nytt värde sparat: ${MONTH_SV[m] ?? m} ${addYear} – prestanda omräknad.`
+      );
+      setErr(null);
+      setAddKwh("");
+      void qc.invalidateQueries({ queryKey: ["edit-consumption"] });
+      void qc.invalidateQueries({ queryKey: ["edit-sessions"] });
+      void qc.invalidateQueries({ queryKey: ["buildings-table"] });
+      void qc.invalidateQueries({ queryKey: ["provenance"] });
+      // Sync list year to the year we just added
+      setYear(Number(addYear));
+    },
+    onError: (e: Error) => setErr(e.message),
+  });
+
   const rollback = useMutation({
     mutationFn: async (sessionId: string) => {
       const r =
@@ -166,7 +250,8 @@ export function DataEditView({
           </div>
           <p className="page-subtitle flex items-center gap-1.5">
             <Shield className="h-3.5 w-3.5 text-emerald-600" />
-            Kontrollerad redigering av månadsdata och area-versioner
+            Rätta befintliga värden eller lägg till senast avslutade månad
+            manuellt
           </p>
         </div>
 
@@ -245,10 +330,126 @@ export function DataEditView({
 
         {buildingId && (
           <>
+            {/* Add new month */}
+            <section className="space-y-4 rounded-2xl border border-primary/20 bg-card p-5 shadow-sm ring-1 ring-primary/10">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-primary" />
+                  <h2 className="text-sm font-semibold">
+                    Lägg till nytt månadsvärde
+                  </h2>
+                  <HelpTip text="För senast avslutade månad eller en saknad månad. Kräver motivering. Om värdet redan finns – redigera raden i listan nedan." />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Förifyllt med{" "}
+                  <span className="font-medium text-foreground">
+                    {MONTH_SV[lastMonth.month]} {lastMonth.year}
+                  </span>{" "}
+                  (senaste avslutade månad). Byt vid behov.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm text-muted-foreground">År</label>
+                  <Select value={addYear} onValueChange={setAddYear}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[0, 1, 2, 3].map((o) => {
+                        const y = new Date().getFullYear() - o;
+                        return (
+                          <SelectItem key={y} value={String(y)}>
+                            {y}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-muted-foreground">Månad</label>
+                  <Select value={addMonth} onValueChange={setAddMonth}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTH_SV.slice(1).map((name, i) => (
+                        <SelectItem key={name} value={String(i + 1)}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-sm text-muted-foreground">
+                    Energislag
+                  </label>
+                  <Select value={addSourceId} onValueChange={setAddSourceId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Välj energislag" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(sourcesQ.data ?? []).map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-muted-foreground">
+                    Förbrukning (kWh)
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={addKwh}
+                    onChange={(e) => setAddKwh(e.target.value)}
+                    placeholder="t.ex. 12450"
+                  />
+                </div>
+                <div className="flex items-end gap-2 pb-1 sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={addEstimated}
+                      onCheckedChange={(v) => setAddEstimated(v === true)}
+                    />
+                    Uppskattat värde (inte mätt)
+                  </label>
+                </div>
+                <div className="flex items-end sm:col-span-1 lg:col-span-1">
+                  <Button
+                    className="w-full"
+                    disabled={
+                      insertCons.isPending ||
+                      !buildingId ||
+                      !addSourceId ||
+                      !addKwh
+                    }
+                    onClick={() => void insertCons.mutateAsync()}
+                  >
+                    {insertCons.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Sparar…
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" /> Lägg till
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </section>
+
             <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <div className="border-b border-border px-5 py-3">
                 <h2 className="text-sm font-semibold">
-                  Månadsförbrukning {year}
+                  Befintlig månadsförbrukning {year}
                 </h2>
               </div>
               {consQ.isLoading && (

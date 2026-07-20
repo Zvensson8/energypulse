@@ -68,6 +68,16 @@ export const editConsumptionSchema = z.object({
   reason: z.string().trim().min(5).max(500),
 });
 
+export const insertConsumptionSchema = z.object({
+  building_id: uuidSchema,
+  energy_source_id: uuidSchema,
+  year: z.number().int().min(2000).max(2100),
+  month: z.number().int().min(1).max(12),
+  consumption_kwh: z.number().finite().min(0),
+  reason: z.string().trim().min(5).max(500),
+  is_estimated: z.boolean().optional(),
+});
+
 export const editAreaSchema = z.object({
   area_id: uuidSchema,
   a_temp: z.number().finite().positive(),

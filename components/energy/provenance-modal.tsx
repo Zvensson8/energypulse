@@ -586,19 +586,18 @@ export function ProvenanceModal({
                       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         <PencilLine className="h-4 w-4" />
                       </span>
-                      Rätta enstaka värden
+                      Lägg till eller rätta månad
                       <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
                     </div>
                     <p className="text-xs leading-relaxed text-muted-foreground">
-                      Ändra en månad, en energikälla eller area direkt i
-                      systemet. Kräver motivering och loggas i
-                      ändringshistoriken.
+                      Lägg in senast avslutade månad manuellt, rätta ett
+                      enstaka värde eller area. Kräver motivering och loggas.
                     </p>
                   </Link>
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Tips: efter import eller rättning, öppna den här vyn igen för
-                  att kontrollera att nya siffror slagit igenom.
+                  Tips: efter import eller manuell inmatning, öppna den här vyn
+                  igen för att kontrollera att nya siffror slagit igenom.
                 </p>
               </Section>
             </div>

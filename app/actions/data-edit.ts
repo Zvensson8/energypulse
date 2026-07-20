@@ -9,6 +9,7 @@ import {
 import {
   editAreaSchema,
   editConsumptionSchema,
+  insertConsumptionSchema,
   rollbackEditSchema,
 } from "@/lib/validations/workflow";
 import { logger } from "@/lib/logger";
@@ -66,6 +67,73 @@ export async function editEnergyConsumption(
       sessionId: data,
     });
     return { success: true, data: { session_id: data as string } };
+  } catch (e) {
+    return toError(e);
+  }
+}
+
+/** Lägg till ny månadsförbrukning (t.ex. senaste avslutade månaden). */
+export async function insertEnergyConsumption(
+  raw: unknown
+): Promise<ActionResult<{ session_id: string }>> {
+  try {
+    const input = insertConsumptionSchema.parse(raw);
+    const supabase = await createClient();
+    const user = await requireUser(supabase);
+    assertRole(user, OVERRIDE_ROLES);
+
+    const { data, error } = await supabase.rpc(
+      "insert_energy_consumption_manual",
+      {
+        p_building_id: input.building_id,
+        p_energy_source_id: input.energy_source_id,
+        p_year: input.year,
+        p_month: input.month,
+        p_kwh: input.consumption_kwh,
+        p_reason: input.reason,
+        p_is_estimated: input.is_estimated ?? false,
+        p_quality_class: "B",
+      }
+    );
+    if (error) {
+      const msg = error.message.includes("already exists")
+        ? "Värdet finns redan för den källan och månaden – redigera raden i listan istället."
+        : error.message;
+      return { success: false, error: msg };
+    }
+
+    logger.info("data_edit.consumption_insert", {
+      userId: user.id,
+      sessionId: data,
+      buildingId: input.building_id,
+      year: input.year,
+      month: input.month,
+    });
+    return { success: true, data: { session_id: data as string } };
+  } catch (e) {
+    return toError(e);
+  }
+}
+
+export async function listEnergySources(): Promise<
+  ActionResult<Array<{ id: string; name: string }>>
+> {
+  try {
+    const supabase = await createClient();
+    await requireUser(supabase);
+    const { data, error } = await supabase
+      .from("energy_sources")
+      .select("id, name")
+      .order("name")
+      .limit(100);
+    if (error) return { success: false, error: error.message };
+    return {
+      success: true,
+      data: (data ?? []).map((s) => ({
+        id: s.id as string,
+        name: s.name as string,
+      })),
+    };
   } catch (e) {
     return toError(e);
   }

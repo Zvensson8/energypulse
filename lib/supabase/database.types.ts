@@ -929,6 +929,19 @@ export interface Database {
         };
         Returns: Record<string, unknown>;
       };
+      insert_energy_consumption_manual: {
+        Args: {
+          p_building_id: string;
+          p_energy_source_id: string;
+          p_year: number;
+          p_month: number;
+          p_kwh: number;
+          p_reason: string;
+          p_is_estimated?: boolean;
+          p_quality_class?: string;
+        };
+        Returns: string;
+      };
       revert_action_application: {
         Args: { p_application_id: string; p_reason: string };
         Returns: Record<string, unknown>;

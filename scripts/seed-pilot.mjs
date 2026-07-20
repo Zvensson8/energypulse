@@ -140,7 +140,7 @@ async function seedViaClient() {
 
   await sb.from("portfolios").insert({
     id: PILOT.portfolio,
-    name: "Trophi Pilotportfölj EnergyPulse",
+    name: "EnergyPulse Pilotportfölj",
     description:
       "Pilot: tre kommersiella fastigheter (Stockholm, Göteborg, Malmö).",
     base_currency: "SEK",

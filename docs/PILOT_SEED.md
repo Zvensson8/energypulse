@@ -4,7 +4,7 @@
 
 | Entitet | Antal | Detalj |
 |---------|------:|--------|
-| Portfolio | 1 | Trophi Pilotportfölj EnergyPulse |
+| Portfolio | 1 | EnergyPulse Pilotportfölj |
 | Properties | 3 | Stockholm (III), Göteborg (II), Malmö (I) |
 | Buildings | 6 | Olika byggår, kontor/lager/retail, en K-märkt |
 | Areas | 8 | Atemp-versioner (bl.a. före/efter renovering) |

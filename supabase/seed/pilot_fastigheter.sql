@@ -147,7 +147,7 @@ WHERE NOT EXISTS (SELECT 1 FROM public.data_gap_config WHERE is_default);
 INSERT INTO public.portfolios (id, name, description, base_currency)
 VALUES (
   'a1111111-1111-4111-8111-111111111111',
-  'Trophi Pilotportfölj EnergyPulse',
+  'EnergyPulse Pilotportfölj',
   'Pilot: tre kommersiella fastigheter för MEPS/CRREM-demo (Stockholm, Göteborg, Malmö).',
   'SEK'
 );

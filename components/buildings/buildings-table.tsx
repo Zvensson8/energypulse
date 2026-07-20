@@ -350,7 +350,7 @@ export function BuildingsTable({
             <Button
               variant="ghost"
               size="icon-sm"
-              title="Visa underlag"
+              title="Så räknades resultatet"
               onClick={() => openProvenance(row.original.building_id, row.original.year, row.original)}
             >
               <FileSearch className="h-3 w-3" />

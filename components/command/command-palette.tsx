@@ -201,7 +201,7 @@ export function CommandPalette({
             {hits.length > 0 && (
               <Command.Group
                 heading="Träffar"
-                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-2xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:text-terminal-muted"
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground"
               >
                 {hits.map((hit) => {
                   const Icon = icon(hit.type);
@@ -212,14 +212,14 @@ export function CommandPalette({
                       onSelect={() => go(hit.href)}
                       className={itemClass}
                     >
-                      <Icon className="h-3.5 w-3.5 shrink-0 text-terminal-accent" />
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{hit.title}</div>
-                        <div className="truncate text-2xs text-terminal-muted">
+                        <div className="truncate text-xs text-muted-foreground">
                           {hit.subtitle}
                         </div>
                       </div>
-                      <span className="text-2xs uppercase text-terminal-muted">
+                      <span className="text-[11px] uppercase text-muted-foreground">
                         {hit.meta}
                       </span>
                     </Command.Item>

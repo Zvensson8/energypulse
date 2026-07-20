@@ -36,70 +36,72 @@ export function TopRiskLists({
   }));
 
   return (
-    <div className="grid h-full grid-cols-1 gap-1.5 md:grid-cols-2">
+    <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-2">
       {/* Klimatrisk / stranded */}
-      <div className="panel flex flex-col rounded-md">
-        <div className="panel-header !normal-case !tracking-normal">
-          <span className="inline-flex items-center gap-1">
-            Prioritet: klimatrisk
-            <HelpTip text={TERMS.strandingYear.help} />
-          </span>
-          <span className="font-normal text-terminal-muted">
-            tidigast riskår först
-          </span>
+      <div className="flex flex-col rounded-2xl border border-border bg-card shadow-sm">
+        <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              Prioritet: klimatrisk
+              <HelpTip text={TERMS.strandingYear.help} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              tidigast riskår först
+            </p>
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-terminal-row text-2xs text-terminal-muted">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-secondary/80 text-xs text-muted-foreground backdrop-blur">
               <tr>
-                <th className="px-2 py-1.5 text-left font-medium">Byggnad</th>
-                <th className="px-2 py-1.5 text-center font-medium">Klass</th>
-                <th className="px-2 py-1.5 text-right font-medium">Riskår</th>
-                <th className="px-2 py-1.5 text-left font-medium">Data</th>
+                <th className="px-3 py-2 text-left font-medium">Byggnad</th>
+                <th className="px-3 py-2 text-center font-medium">Klass</th>
+                <th className="px-3 py-2 text-right font-medium">Riskår</th>
+                <th className="px-3 py-2 text-left font-medium">Data</th>
               </tr>
             </thead>
             <tbody>
               {stranded.map((r) => (
                 <tr
                   key={r.building_id}
-                  className="border-t border-terminal-border/50 hover:bg-terminal-row/60"
+                  className="border-t border-border/60 transition hover:bg-secondary/60"
                 >
-                  <td className="max-w-[9rem] truncate px-2 py-1">
+                  <td className="max-w-[9rem] truncate px-3 py-2">
                     <Link
                       href={`/buildings?building=${r.building_id}`}
-                      className="font-medium hover:text-terminal-accent"
+                      className="font-medium text-foreground hover:text-primary"
                     >
                       {r.building_name}
                     </Link>
                   </td>
-                  <td className="px-2 py-1 text-center">
+                  <td className="px-3 py-2 text-center">
                     <EnergyClassBadge value={r.energy_class} />
                   </td>
-                  <td className="px-2 py-1 text-right tabular text-gap-extrapolated">
+                  <td className="px-3 py-2 text-right tabular text-gap-extrapolated">
                     <UiTooltip>
                       <TooltipTrigger asChild>
                         <Link
                           href={`/crrem?building=${r.building_id}&year=${r.year}`}
-                          className="border-b border-dotted border-terminal-muted/50 hover:text-terminal-accent"
+                          className="border-b border-dotted border-muted-foreground/40 hover:text-primary"
                         >
                           {r.crrem_stranding_year}
                         </Link>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs text-2xs">
-                        <div className="font-medium text-terminal-accent">
+                      <TooltipContent className="max-w-xs text-xs">
+                        <div className="font-medium text-primary">
                           Klimatriskår (CRREM)
                         </div>
-                        <div className="mt-1 text-terminal-muted">
+                        <div className="mt-1 text-muted-foreground">
                           {TERMS.strandingYear.help}
                         </div>
-                        <div className="mt-1 text-terminal-muted">
+                        <div className="mt-1 text-muted-foreground">
                           Utsläpp: {formatNumber(r.ghg_intensity, 2)} kg
                           CO₂e/m²
                         </div>
                       </TooltipContent>
                     </UiTooltip>
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-3 py-2">
                     <DataGapBadge
                       status={r.data_gap_status}
                       completeness={r.data_completeness_percent}
@@ -111,7 +113,7 @@ export function TopRiskLists({
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-3 py-6 text-center text-muted-foreground"
+                    className="px-3 py-8 text-center text-sm text-muted-foreground"
                   >
                     Inga byggnader med beräknat riskår för detta år.
                   </td>
@@ -123,15 +125,17 @@ export function TopRiskLists({
       </div>
 
       {/* MEPS gap */}
-      <div className="panel flex flex-col rounded-md">
-        <div className="panel-header !normal-case !tracking-normal">
-          <span className="inline-flex items-center gap-1">
-            Prioritet: kravgap 2030
-            <HelpTip text={TERMS.mepsGap.help} />
-          </span>
-          <span className="font-normal text-terminal-muted">kWh/m² över krav</span>
+      <div className="flex flex-col rounded-2xl border border-border bg-card shadow-sm">
+        <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              Prioritet: kravgap 2030
+              <HelpTip text={TERMS.mepsGap.help} />
+            </div>
+            <p className="text-xs text-muted-foreground">kWh/m² över krav</p>
+          </div>
         </div>
-        <div className="h-28 border-b border-terminal-border px-1 pt-1">
+        <div className="h-28 border-b border-border px-2 pt-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
@@ -139,7 +143,7 @@ export function TopRiskLists({
             >
               <XAxis
                 dataKey="name"
-                tick={{ fill: "#6b7685", fontSize: 9 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 interval={0}
@@ -148,24 +152,26 @@ export function TopRiskLists({
                 height={36}
               />
               <YAxis
-                tick={{ fill: "#6b7685", fontSize: 9 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 width={28}
               />
               <Tooltip
                 contentStyle={{
-                  background: "#12161c",
-                  border: "1px solid #1e2630",
-                  fontSize: 11,
-                  borderRadius: 6,
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  fontSize: 12,
+                  borderRadius: 12,
+                  boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
+                  color: "hsl(var(--foreground))",
                 }}
                 formatter={(v) => [
                   `${formatNumber(Number(v ?? 0), 1)} kWh/m²`,
                   "Kravgap 2030",
                 ]}
               />
-              <Bar dataKey="gap" radius={[3, 3, 0, 0]}>
+              <Bar dataKey="gap" radius={[4, 4, 0, 0]}>
                 {chartData.map((entry, i) => (
                   <Cell
                     key={i}
@@ -177,36 +183,36 @@ export function TopRiskLists({
           </ResponsiveContainer>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-terminal-row text-2xs text-terminal-muted">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-secondary/80 text-xs text-muted-foreground backdrop-blur">
               <tr>
-                <th className="px-2 py-1.5 text-left font-medium">Byggnad</th>
-                <th className="px-2 py-1.5 text-right font-medium">Gap 2030</th>
-                <th className="px-2 py-1.5 text-right font-medium">kWh/m²</th>
-                <th className="px-2 py-1.5 text-left font-medium">Data</th>
+                <th className="px-3 py-2 text-left font-medium">Byggnad</th>
+                <th className="px-3 py-2 text-right font-medium">Gap 2030</th>
+                <th className="px-3 py-2 text-right font-medium">kWh/m²</th>
+                <th className="px-3 py-2 text-left font-medium">Data</th>
               </tr>
             </thead>
             <tbody>
               {mepsGap.map((r) => (
                 <tr
                   key={r.building_id}
-                  className="border-t border-terminal-border/50 hover:bg-terminal-row/60"
+                  className="border-t border-border/60 transition hover:bg-secondary/60"
                 >
-                  <td className="max-w-[9rem] truncate px-2 py-1">
+                  <td className="max-w-[9rem] truncate px-3 py-2">
                     <Link
                       href={`/buildings?building=${r.building_id}`}
-                      className="font-medium hover:text-terminal-accent"
+                      className="font-medium text-foreground hover:text-primary"
                     >
                       {r.building_name}
                     </Link>
                   </td>
-                  <td className="px-2 py-1 text-right tabular text-gap-incomplete">
+                  <td className="px-3 py-2 text-right tabular text-gap-incomplete">
                     {formatNumber(r.meps_2030_gap, 1)}
                   </td>
-                  <td className="px-2 py-1 text-right tabular">
+                  <td className="px-3 py-2 text-right tabular">
                     {formatNumber(r.energy_intensity, 1)}
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-3 py-2">
                     <DataGapBadge
                       status={r.data_gap_status}
                       completeness={r.data_completeness_percent}
@@ -218,7 +224,7 @@ export function TopRiskLists({
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-3 py-6 text-center text-muted-foreground"
+                    className="px-3 py-8 text-center text-sm text-muted-foreground"
                   >
                     Inga byggnader med kravgap för detta år.
                   </td>

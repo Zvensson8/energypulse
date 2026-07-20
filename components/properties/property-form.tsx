@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ArrowLeft, Loader2, MapPinned } from "lucide-react";
 
 type FormState = {
   portfolio_id: string;
@@ -104,179 +106,201 @@ export function PropertyForm({
   }
 
   return (
-    <form
-      className="mx-auto max-w-2xl space-y-3 p-3 sm:p-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        setError(null);
-        mutation.mutate();
-      }}
-    >
-      <div className="panel rounded-md">
-        <div className="panel-header !normal-case !tracking-normal">
-          <span>
-            {mode === "create" ? "Ny fastighet" : "Redigera fastighet"}
-          </span>
-          <span className="font-normal text-terminal-muted">
-            Fält markerade * krävs
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-3 p-4">
-          <Field label="Namn *" className="col-span-2">
-            <Input
-              required
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="t.ex. Klaraberg Kontor"
-              className="h-9 text-sm"
-            />
-          </Field>
-
-          <Field label="Fastighetsbeteckning">
-            <Input
-              value={form.external_id}
-              onChange={(e) => set("external_id", e.target.value)}
-              placeholder="t.ex. STOCKHOLM 1:12"
-              className="h-7 font-mono"
-            />
-          </Field>
-
-          <Field label="Portfölj">
-            <Select
-              value={form.portfolio_id || "auto"}
-              onValueChange={(v) => set("portfolio_id", v === "auto" ? "" : v)}
-            >
-              <SelectTrigger className="h-7">
-                <SelectValue placeholder="Auto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Standardportfölj</SelectItem>
-                {(portfolios.data ?? []).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field label="Adress" className="col-span-2">
-            <Input
-              value={form.address}
-              onChange={(e) => set("address", e.target.value)}
-              className="h-7"
-            />
-          </Field>
-
-          <Field label="Kommun">
-            <Input
-              value={form.municipality}
-              onChange={(e) => set("municipality", e.target.value)}
-              placeholder="Stockholm"
-              className="h-7"
-            />
-          </Field>
-
-          <Field label="Klimatzon (Boverket)">
-            <Select
-              value={form.climate_zone || "none"}
-              onValueChange={(v) =>
-                set("climate_zone", v === "none" ? "" : v)
-              }
-            >
-              <SelectTrigger className="h-7">
-                <SelectValue placeholder="—" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">—</SelectItem>
-                {["I", "II", "III", "IV"].map((z) => (
-                  <SelectItem key={z} value={z}>
-                    Zon {z}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field label="Latitud">
-            <Input
-              value={form.latitude}
-              onChange={(e) => set("latitude", e.target.value)}
-              placeholder="59.33"
-              className="h-7 font-mono"
-            />
-          </Field>
-          <Field label="Longitud">
-            <Input
-              value={form.longitude}
-              onChange={(e) => set("longitude", e.target.value)}
-              placeholder="18.06"
-              className="h-7 font-mono"
-            />
-          </Field>
-
-          <Field label="Ägande">
-            <Select
-              value={form.ownership_type}
-              onValueChange={(v) =>
-                set("ownership_type", v as FormState["ownership_type"])
-              }
-            >
-              <SelectTrigger className="h-7">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="owned">Ägd</SelectItem>
-                <SelectItem value="leased">Hyrd</SelectItem>
-                <SelectItem value="joint_venture">JV</SelectItem>
-                <SelectItem value="other">Övrigt</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field label="Status">
-            <Select
-              value={form.status}
-              onValueChange={(v) =>
-                set("status", v as FormState["status"])
-              }
-            >
-              <SelectTrigger className="h-7">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Aktiv</SelectItem>
-                <SelectItem value="under_development">Under utveckling</SelectItem>
-                <SelectItem value="inactive">Inaktiv</SelectItem>
-                <SelectItem value="disposed">Avyttrad</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
-      </div>
-
-      {error && (
-        <div
-          role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+    <div className="page-shell">
+      <div className="page-inner max-w-3xl">
+        <Link
+          href={propertyId ? `/properties/${propertyId}` : "/properties"}
+          className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
         >
-          {error}
-        </div>
-      )}
+          <ArrowLeft className="h-4 w-4" />
+          {propertyId ? "Tillbaka till fastighet" : "Fastigheter"}
+        </Link>
 
-      <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="terminal"
-          onClick={() => router.back()}
+        <div className="mb-6 flex items-center gap-2">
+          <MapPinned className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="page-title">
+              {mode === "create" ? "Ny fastighet" : "Redigera fastighet"}
+            </h1>
+            <p className="page-subtitle">
+              Fält markerade * krävs. Byggnader läggs till i nästa steg.
+            </p>
+          </div>
+        </div>
+
+        <form
+          className="space-y-6"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setError(null);
+            mutation.mutate();
+          }}
         >
-          Avbryt
-        </Button>
-        <Button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending ? "Sparar…" : "Spara fastighet"}
-        </Button>
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+            <h2 className="text-sm font-semibold">Grunduppgifter</h2>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Namn *" className="sm:col-span-2">
+                <Input
+                  required
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  placeholder="t.ex. Klaraberg Kontor"
+                />
+              </Field>
+
+              <Field label="Fastighetsbeteckning">
+                <Input
+                  value={form.external_id}
+                  onChange={(e) => set("external_id", e.target.value)}
+                  placeholder="t.ex. STOCKHOLM 1:12"
+                />
+              </Field>
+
+              <Field label="Portfölj">
+                <Select
+                  value={form.portfolio_id || "auto"}
+                  onValueChange={(v) =>
+                    set("portfolio_id", v === "auto" ? "" : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Auto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Standardportfölj</SelectItem>
+                    {(portfolios.data ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field label="Adress" className="sm:col-span-2">
+                <Input
+                  value={form.address}
+                  onChange={(e) => set("address", e.target.value)}
+                />
+              </Field>
+
+              <Field label="Kommun">
+                <Input
+                  value={form.municipality}
+                  onChange={(e) => set("municipality", e.target.value)}
+                  placeholder="Stockholm"
+                />
+              </Field>
+
+              <Field label="Klimatzon (Boverket)">
+                <Select
+                  value={form.climate_zone || "none"}
+                  onValueChange={(v) =>
+                    set("climate_zone", v === "none" ? "" : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    {["I", "II", "III", "IV"].map((z) => (
+                      <SelectItem key={z} value={z}>
+                        Zon {z}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+            <h2 className="text-sm font-semibold">Plats & status</h2>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Latitud">
+                <Input
+                  value={form.latitude}
+                  onChange={(e) => set("latitude", e.target.value)}
+                  placeholder="59.33"
+                />
+              </Field>
+              <Field label="Longitud">
+                <Input
+                  value={form.longitude}
+                  onChange={(e) => set("longitude", e.target.value)}
+                  placeholder="18.06"
+                />
+              </Field>
+
+              <Field label="Ägande">
+                <Select
+                  value={form.ownership_type}
+                  onValueChange={(v) =>
+                    set("ownership_type", v as FormState["ownership_type"])
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="owned">Ägd</SelectItem>
+                    <SelectItem value="leased">Hyrd</SelectItem>
+                    <SelectItem value="joint_venture">JV</SelectItem>
+                    <SelectItem value="other">Övrigt</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field label="Status">
+                <Select
+                  value={form.status}
+                  onValueChange={(v) =>
+                    set("status", v as FormState["status"])
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Aktiv</SelectItem>
+                    <SelectItem value="under_development">
+                      Under utveckling
+                    </SelectItem>
+                    <SelectItem value="inactive">Inaktiv</SelectItem>
+                    <SelectItem value="disposed">Avyttrad</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              Avbryt
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Sparar…
+                </>
+              ) : (
+                "Spara fastighet"
+              )}
+            </Button>
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
   );
 }
 
@@ -291,7 +315,7 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label className="mb-1 block text-xs font-medium text-terminal-muted">
+      <label className="mb-1.5 block text-sm font-medium text-muted-foreground">
         {label}
       </label>
       {children}

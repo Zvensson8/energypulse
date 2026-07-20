@@ -104,29 +104,29 @@ export function FormulaTooltip({
       }}
     >
       <TooltipTrigger asChild>
-        <span className="cursor-help border-b border-dotted border-terminal-muted/50">
+        <span className="cursor-help border-b border-dotted border-muted-foreground/40">
           {children}
         </span>
       </TooltipTrigger>
       <TooltipContent
         side="top"
-        className="max-w-sm space-y-1.5 p-2 font-mono"
+        className="max-w-sm space-y-1.5 p-3"
       >
         <div className="flex items-center justify-between gap-2">
-          <div className="text-2xs font-semibold uppercase tracking-wide text-terminal-accent">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
             {meta.title}
           </div>
           {isFetching && (
-            <Loader2 className="h-3 w-3 animate-spin text-terminal-muted" />
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
           )}
         </div>
 
-        <div className="text-2xs text-terminal-text">{formula}</div>
-        <div className="text-2xs text-foreground">{resultLine}</div>
+        <div className="text-xs text-muted-foreground">{formula}</div>
+        <div className="text-xs font-medium text-foreground">{resultLine}</div>
 
-        <div className="space-y-0.5 border-t border-terminal-border pt-1 text-2xs text-terminal-muted">
+        <div className="space-y-0.5 border-t border-border pt-1.5 text-[11px] text-muted-foreground">
           <div>
-            <span className="text-terminal-muted">area: </span>
+            <span className="text-muted-foreground">area: </span>
             {data?.area
               ? `a_temp=${formatNumber(data.area.a_temp, 1)} m² · ${data.area.valid_from}→${data.area.valid_to ?? "∞"} · Q${data.area.quality_class}${data.area.source ? ` · ${data.area.source}` : ""}`
               : row.a_temp != null
@@ -134,7 +134,7 @@ export function FormulaTooltip({
                 : "—"}
           </div>
           <div>
-            <span className="text-terminal-muted">data_gap: </span>
+            <span className="text-muted-foreground">data_gap: </span>
             {data?.data_gap_status ?? row.data_gap_status} ·{" "}
             {formatNumber(
               data?.data_completeness_percent ?? row.data_completeness_percent,
@@ -143,7 +143,7 @@ export function FormulaTooltip({
             %
           </div>
           <div>
-            <span className="text-terminal-muted">crrem_version: </span>
+            <span className="text-muted-foreground">crrem_version: </span>
             {data?.crrem_version_used ?? row.crrem_version_used ?? "—"}
           </div>
           {data?.interpolation_method && (
@@ -155,24 +155,24 @@ export function FormulaTooltip({
         </div>
 
         {/* Consumption rows used */}
-        <div className="border-t border-terminal-border pt-1">
-          <div className="mb-0.5 text-2xs uppercase text-terminal-muted">
+        <div className="border-t border-border pt-1.5">
+          <div className="mb-1 text-[11px] uppercase text-muted-foreground">
             energy_consumption (
             {data?.consumption_summary.length ?? "…"} rader)
           </div>
           <div className="max-h-28 overflow-auto">
-            <table className="w-full text-[10px] leading-tight">
+            <table className="w-full text-[11px] leading-tight">
               <thead>
-                <tr className="text-terminal-muted">
-                  <th className="px-0.5 text-left">M</th>
-                  <th className="px-0.5 text-left">Källa</th>
-                  <th className="px-0.5 text-right">kWh</th>
-                  <th className="px-0.5 text-center">Est</th>
+                <tr className="text-muted-foreground">
+                  <th className="px-0.5 text-left font-medium">M</th>
+                  <th className="px-0.5 text-left font-medium">Källa</th>
+                  <th className="px-0.5 text-right font-medium">kWh</th>
+                  <th className="px-0.5 text-center font-medium">Est</th>
                 </tr>
               </thead>
               <tbody>
                 {(data?.consumption_summary ?? []).slice(0, 24).map((c) => (
-                  <tr key={c.id} className="border-t border-terminal-border/40">
+                  <tr key={c.id} className="border-t border-border/60">
                     <td className="px-0.5">{c.month}</td>
                     <td className="max-w-[7rem] truncate px-0.5">
                       {c.energy_source_name}
@@ -191,7 +191,7 @@ export function FormulaTooltip({
                 ))}
                 {!data && (
                   <tr>
-                    <td colSpan={4} className="px-0.5 py-1 text-terminal-muted">
+                    <td colSpan={4} className="px-0.5 py-1 text-muted-foreground">
                       Hovra för att ladda rader…
                     </td>
                   </tr>
@@ -205,8 +205,8 @@ export function FormulaTooltip({
           <Button
             type="button"
             size="sm"
-            variant="terminal"
-            className="h-6 w-full gap-1 text-2xs"
+            variant="outline"
+            className="h-7 w-full gap-1 text-xs"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

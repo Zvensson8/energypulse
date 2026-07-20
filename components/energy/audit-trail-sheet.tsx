@@ -52,29 +52,29 @@ export function AuditTrailSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="min-h-0 flex-1 px-3 pb-3">
+        <ScrollArea className="min-h-0 flex-1 px-4 pb-4">
           {isLoading && (
-            <div className="py-6 text-center text-table text-muted-foreground">
+            <div className="py-6 text-center text-sm text-muted-foreground">
               Laddar loggar…
             </div>
           )}
           {error && (
-            <div className="py-4 text-table text-destructive">
+            <div className="py-4 text-sm text-destructive">
               {(error as Error).message}
             </div>
           )}
           {data && data.length === 0 && (
-            <div className="py-6 text-center text-table text-muted-foreground">
+            <div className="py-6 text-center text-sm text-muted-foreground">
               Inga loggrader för byggnad/år
             </div>
           )}
-          <div className="space-y-1">
+          <div className="space-y-2">
             {(data ?? []).map((log) => (
               <div
                 key={log.id}
-                className="rounded-sm border border-terminal-border/70 bg-terminal-bg px-2 py-1.5 font-mono text-2xs"
+                className="rounded-xl border border-border bg-card px-3 py-2.5 text-xs shadow-sm"
               >
-                <div className="flex flex-wrap items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <Badge
                     variant={
                       log.operation === "OVERRIDE"
@@ -86,23 +86,23 @@ export function AuditTrailSheet({
                   >
                     {log.operation}
                   </Badge>
-                  <span className="text-terminal-muted">
+                  <span className="text-muted-foreground">
                     {log.entity_type}
                     {log.field ? `.${log.field}` : ""}
                   </span>
-                  <span className="ml-auto tabular text-terminal-muted">
+                  <span className="ml-auto tabular text-muted-foreground">
                     {format(new Date(log.changed_at), "yyyy-MM-dd HH:mm:ss", {
                       locale: sv,
                     })}
                   </span>
                 </div>
                 {log.override_reason && (
-                  <div className="mt-0.5 text-gap-incomplete">
+                  <div className="mt-1 text-gap-incomplete">
                     override_reason: {log.override_reason}
                   </div>
                 )}
                 {(log.old_value || log.new_value) && (
-                  <div className="mt-0.5 grid grid-cols-2 gap-1 text-[10px] text-terminal-muted">
+                  <div className="mt-1 grid grid-cols-2 gap-1 text-[11px] text-muted-foreground">
                     <div className="truncate" title={log.old_value ?? ""}>
                       old: {truncate(log.old_value)}
                     </div>
@@ -112,7 +112,7 @@ export function AuditTrailSheet({
                   </div>
                 )}
                 {log.changed_by && (
-                  <div className="mt-0.5 text-[10px] text-terminal-muted">
+                  <div className="mt-1 text-[11px] text-muted-foreground">
                     by: {log.changed_by.slice(0, 8)}…
                   </div>
                 )}

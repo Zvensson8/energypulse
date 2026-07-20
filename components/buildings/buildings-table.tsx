@@ -180,7 +180,7 @@ export function BuildingsTable({
         header: "Kommun",
         size: 90,
         cell: ({ getValue }) => (
-          <span className="truncate text-terminal-muted">
+          <span className="truncate text-muted-foreground">
             {String(getValue() ?? "—")}
           </span>
         ),
@@ -335,7 +335,7 @@ export function BuildingsTable({
         header: "Atemp m²",
         size: 72,
         cell: ({ getValue }) => (
-          <span className="tabular text-terminal-muted">
+          <span className="tabular text-muted-foreground">
             {formatNumber(getValue() as number | null, 0)}
           </span>
         ),

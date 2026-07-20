@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -33,13 +33,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { HelpTip } from "@/components/ui/help-tip";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, cn } from "@/lib/utils";
 import {
   AlertTriangle,
+  Eye,
+  CheckCircle2,
   Plus,
   Trash2,
   RefreshCw,
   Loader2,
+  MapPin,
+  Scale,
+  ShieldAlert,
 } from "lucide-react";
 import type { RiskWorkflowStatus } from "@/lib/validations/workflow";
 
@@ -79,6 +84,15 @@ function scoreVariant(
   if (score <= 4) return "success";
   if (score <= 9) return "warning";
   return "danger";
+}
+
+function statusVariant(
+  status: string
+): "success" | "warning" | "danger" | "outline" {
+  if (status === "open") return "danger";
+  if (status === "monitoring") return "warning";
+  if (status === "resolved" || status === "dismissed") return "success";
+  return "outline";
 }
 
 export function PhysicalRisksView() {
@@ -131,263 +145,377 @@ export function PhysicalRisksView() {
     },
   });
 
+  const physStats = useMemo(() => {
+    const list = physQ.data ?? [];
+    return {
+      total: list.length,
+      open: list.filter((r) => r.workflow_status === "open").length,
+      monitoring: list.filter((r) => r.workflow_status === "monitoring")
+        .length,
+      high: list.filter((r) => (r.risk_score ?? 0) >= 9).length,
+    };
+  }, [physQ.data]);
+
+  const compStats = useMemo(() => {
+    const list = compQ.data ?? [];
+    return {
+      total: list.length,
+      open: list.filter((r) => r.workflow_status === "open").length,
+      monitoring: list.filter((r) => r.workflow_status === "monitoring")
+        .length,
+      high: list.filter((r) => (r.severity ?? 0) >= 9).length,
+    };
+  }, [compQ.data]);
+
+  const activeStats = tab === "physical" ? physStats : compStats;
+
   return (
-    <div className="flex h-full flex-col gap-1.5 p-2">
-      <div className="panel flex flex-wrap items-center gap-2 rounded-md px-3 py-2">
-        <div className="flex items-center gap-1.5">
-          <AlertTriangle className="h-4 w-4 text-gap-extrapolated" />
-          <h1 className="text-sm font-semibold">Risker & avskrivning</h1>
-          <HelpTip text="Markera risker som bevakning, åtgärdad eller avskriven. Avskrivning/åtgärd kräver motivering och loggas. Stängda risker påverkar inte alerts." />
+    <div className="page-shell">
+      <div className="page-inner">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-6 w-6 text-primary" />
+              <h1 className="page-title">Risker & avskrivning</h1>
+              <HelpTip text="Markera risker som bevakning, åtgärdad eller avskriven. Avskrivning/åtgärd kräver motivering och loggas. Stängda risker påverkar inte alerts." />
+            </div>
+            <p className="page-subtitle">
+              Hantera fysiska klimatrisker och MEPS/CRREM-gap. Stäng med
+              motivering så att alerts speglar aktiva risker.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tab === "compliance" && (
+              <Button
+                variant="outline"
+                disabled={refresh.isPending}
+                onClick={() => void refresh.mutateAsync()}
+              >
+                {refresh.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Synka från prestanda
+              </Button>
+            )}
+            {tab === "physical" && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Ny risk
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-0.5 rounded-md border border-terminal-border p-0.5">
-          <Button
-            size="sm"
-            variant={tab === "physical" ? "default" : "ghost"}
-            className="h-7"
-            onClick={() => setTab("physical")}
-          >
-            Fysiska
-          </Button>
-          <Button
-            size="sm"
-            variant={tab === "compliance" ? "default" : "ghost"}
-            className="h-7"
-            onClick={() => setTab("compliance")}
-          >
-            MEPS / CRREM
-          </Button>
-        </div>
-
-        <label className="flex items-center gap-1.5 text-2xs text-terminal-muted">
-          <Checkbox
-            checked={hideClosed}
-            onCheckedChange={(v) => setHideClosed(v === true)}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Step
+            n="1"
+            title="Identifiera"
+            body="Registrera fysiska risker eller synka MEPS/CRREM från prestanda."
           />
-          Dölj stängda
-        </label>
+          <Step
+            n="2"
+            title="Bevaka"
+            body="Sätt status Bevakning för risker under uppföljning."
+          />
+          <Step
+            n="3"
+            title="Stäng"
+            body="Åtgärdad eller avskriven kräver motivering och loggas."
+          />
+        </div>
 
-        <div className="ml-auto flex gap-1.5">
-          {tab === "compliance" && (
+        {/* Tabs + filter bar */}
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+          <div className="flex gap-1 rounded-xl border border-border bg-secondary/40 p-1">
             <Button
               size="sm"
-              variant="terminal"
-              className="h-8 gap-1"
-              disabled={refresh.isPending}
-              onClick={() => void refresh.mutateAsync()}
+              variant={tab === "physical" ? "default" : "ghost"}
+              className="h-8"
+              onClick={() => setTab("physical")}
             >
-              {refresh.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              Synka från prestanda
+              <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
+              Fysiska
             </Button>
-          )}
-          {tab === "physical" && (
             <Button
               size="sm"
-              className="h-8 gap-1"
-              onClick={() => setCreateOpen(true)}
+              variant={tab === "compliance" ? "default" : "ghost"}
+              className="h-8"
+              onClick={() => setTab("compliance")}
             >
-              <Plus className="h-3.5 w-3.5" />
-              Ny risk
+              <Scale className="mr-1.5 h-3.5 w-3.5" />
+              MEPS / CRREM
             </Button>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {refresh.isSuccess && (
-        <div className="rounded-md border border-gap-complete/30 bg-gap-complete/10 px-3 py-1.5 text-xs text-gap-complete">
-          Synkade år {refresh.data.year}: {refresh.data.created} nya öppna risker.
-        </div>
-      )}
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <Checkbox
+              checked={hideClosed}
+              onCheckedChange={(v) => setHideClosed(v === true)}
+            />
+            Dölj stängda
+          </label>
 
-      {tab === "physical" && (
-        <div className="panel min-h-0 flex-1 overflow-auto rounded-md">
-          {physQ.isLoading && (
-            <div className="p-6 text-center text-xs text-muted-foreground">
-              Laddar…
-            </div>
-          )}
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-terminal-row text-2xs text-terminal-muted">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Fastighet</th>
-                <th className="px-3 py-2 text-left font-medium">Risk</th>
-                <th className="px-3 py-2 text-center font-medium">Poäng</th>
-                <th className="px-3 py-2 text-left font-medium">Status</th>
-                <th className="px-3 py-2 text-left font-medium">Notering</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
+          <span className="ml-auto text-sm tabular text-muted-foreground">
+            {activeStats.total} st
+          </span>
+        </div>
+
+        {/* KPI strip for active tab */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat label="Visade" value={String(activeStats.total)} />
+          <Stat
+            label="Öppna"
+            value={String(activeStats.open)}
+            tone="text-red-600"
+          />
+          <Stat
+            label="Bevakning"
+            value={String(activeStats.monitoring)}
+            tone="text-amber-600"
+          />
+          <Stat
+            label="Hög allvar"
+            value={String(activeStats.high)}
+            tone="text-red-600"
+            help={
+              tab === "physical"
+                ? "Poäng ≥ 9 (sannolikhet × konsekvens)"
+                : "Severity ≥ 9"
+            }
+          />
+        </div>
+
+        {refresh.isSuccess && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            Synkade år {refresh.data.year}: {refresh.data.created} nya öppna
+            risker.
+          </div>
+        )}
+
+        {(physQ.error || compQ.error || refresh.isError || del.isError) && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {(
+              (physQ.error ||
+                compQ.error ||
+                refresh.error ||
+                del.error) as Error
+            )?.message}
+          </div>
+        )}
+
+        {/* Physical risks */}
+        {tab === "physical" && (
+          <>
+            {physQ.isLoading && (
+              <div className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
+                Laddar fysiska risker…
+              </div>
+            )}
+
+            {!physQ.isLoading && (physQ.data?.length ?? 0) === 0 && (
+              <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
+                <AlertTriangle className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                <h3 className="mt-3 text-lg font-semibold">
+                  Inga fysiska risker att visa
+                </h3>
+                <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                  Registrera en klimatrisk per fastighet, eller visa stängda
+                  risker genom att avmarkera «Dölj stängda».
+                </p>
+                <Button className="mt-5" onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  Ny risk
+                </Button>
+              </div>
+            )}
+
+            <div className="grid gap-3">
               {(physQ.data ?? []).map((r) => (
-                <tr
+                <article
                   key={r.id}
-                  className="border-t border-terminal-border/50 hover:bg-terminal-row/50"
+                  className="rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5"
                 >
-                  <td className="px-3 py-1.5">
-                    <Link
-                      href={`/properties/${r.property_id}`}
-                      className="font-medium text-terminal-accent hover:underline"
-                    >
-                      {r.property_name}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    {RISK_SV[r.risk_type] ?? r.risk_type}
-                    <div className="text-2xs text-terminal-muted">
-                      {LEVEL_SV[r.probability]}/{LEVEL_SV[r.consequence]}
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-border bg-secondary/50">
+                      <span
+                        className={cn(
+                          "text-lg font-bold tabular",
+                          (r.risk_score ?? 0) >= 9
+                            ? "text-red-600"
+                            : (r.risk_score ?? 0) >= 5
+                              ? "text-amber-600"
+                              : "text-emerald-600"
+                        )}
+                      >
+                        {r.risk_score != null
+                          ? formatNumber(r.risk_score, 0)
+                          : "—"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        poäng
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-3 py-1.5 text-center">
-                    <Badge variant={scoreVariant(r.risk_score)}>
-                      {r.risk_score != null
-                        ? formatNumber(r.risk_score, 0)
-                        : "—"}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <Badge
-                      variant={
-                        r.workflow_status === "open"
-                          ? "danger"
-                          : r.workflow_status === "monitoring"
-                            ? "warning"
-                            : "success"
-                      }
-                    >
-                      {STATUS_SV[r.workflow_status] ?? r.workflow_status}
-                    </Badge>
-                  </td>
-                  <td className="max-w-[10rem] truncate px-3 py-1.5 text-terminal-muted">
-                    {r.status_reason ?? r.notes ?? "—"}
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <StatusButtons
-                      onStatus={(s) =>
-                        setStatusTarget({
-                          id: r.id,
-                          kind: "physical",
-                          status: s,
-                        })
-                      }
-                      onDelete={() => {
-                        if (confirm("Ta bort risk?"))
-                          void del.mutateAsync(r.id);
-                      }}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {!physQ.isLoading && (physQ.data?.length ?? 0) === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-3 py-10 text-center text-muted-foreground"
-                  >
-                    Inga fysiska risker att visa.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
 
-      {tab === "compliance" && (
-        <div className="panel min-h-0 flex-1 overflow-auto rounded-md">
-          {compQ.isLoading && (
-            <div className="p-6 text-center text-xs text-muted-foreground">
-              Laddar…
-            </div>
-          )}
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-terminal-row text-2xs text-terminal-muted">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Byggnad</th>
-                <th className="px-3 py-2 text-left font-medium">Typ</th>
-                <th className="px-3 py-2 text-right font-medium">Värde</th>
-                <th className="px-3 py-2 text-center font-medium">Allvar</th>
-                <th className="px-3 py-2 text-left font-medium">Status</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {(compQ.data ?? []).map((r) => (
-                <tr
-                  key={r.id}
-                  className="border-t border-terminal-border/50 hover:bg-terminal-row/50"
-                >
-                  <td className="px-3 py-1.5">
-                    <Link
-                      href={`/buildings?building=${r.building_id}`}
-                      className="font-medium text-terminal-accent hover:underline"
-                    >
-                      {r.building_name}
-                    </Link>
-                    <div className="text-2xs text-terminal-muted">
-                      {r.property_name} · {r.year}
-                    </div>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    {KIND_SV[r.risk_kind] ?? r.risk_kind}
-                  </td>
-                  <td className="px-3 py-1.5 text-right tabular">
-                    {formatNumber(r.metric_value, 1)}
-                  </td>
-                  <td className="px-3 py-1.5 text-center">
-                    <Badge variant={scoreVariant(r.severity)}>
-                      {formatNumber(r.severity, 0)}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <Badge
-                      variant={
-                        r.workflow_status === "open"
-                          ? "danger"
-                          : r.workflow_status === "monitoring"
-                            ? "warning"
-                            : "success"
-                      }
-                    >
-                      {STATUS_SV[r.workflow_status] ?? r.workflow_status}
-                    </Badge>
-                    {r.status_reason && (
-                      <div className="max-w-[8rem] truncate text-2xs text-terminal-muted">
-                        {r.status_reason}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/properties/${r.property_id}`}
+                          className="text-base font-semibold text-foreground hover:text-primary"
+                        >
+                          {r.property_name}
+                        </Link>
+                        <Badge variant={statusVariant(r.workflow_status)}>
+                          {STATUS_SV[r.workflow_status] ?? r.workflow_status}
+                        </Badge>
+                        <Badge variant={scoreVariant(r.risk_score)}>
+                          {RISK_SV[r.risk_type] ?? r.risk_type}
+                        </Badge>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <StatusButtons
-                      onStatus={(s) =>
-                        setStatusTarget({
-                          id: r.id,
-                          kind: "compliance",
-                          status: s,
-                        })
-                      }
-                    />
-                  </td>
-                </tr>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {LEVEL_SV[r.probability] ?? r.probability} ×{" "}
+                        {LEVEL_SV[r.consequence] ?? r.consequence}
+                        {r.municipality ? ` · ${r.municipality}` : ""}
+                      </p>
+                      {(r.status_reason || r.notes) && (
+                        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                          {r.status_reason ?? r.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+                      <StatusButtons
+                        onStatus={(s) =>
+                          setStatusTarget({
+                            id: r.id,
+                            kind: "physical",
+                            status: s,
+                          })
+                        }
+                        onDelete={() => {
+                          if (confirm("Ta bort risk?"))
+                            void del.mutateAsync(r.id);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </article>
               ))}
-              {!compQ.isLoading && (compQ.data?.length ?? 0) === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-3 py-10 text-center text-muted-foreground"
-                  >
-                    Inga compliance-risker. Klicka &quot;Synka från
-                    prestanda&quot;.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </div>
+          </>
+        )}
+
+        {/* Compliance risks */}
+        {tab === "compliance" && (
+          <>
+            {compQ.isLoading && (
+              <div className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
+                Laddar compliance-risker…
+              </div>
+            )}
+
+            {!compQ.isLoading && (compQ.data?.length ?? 0) === 0 && (
+              <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
+                <Scale className="mx-auto h-10 w-10 text-muted-foreground/40" />
+                <h3 className="mt-3 text-lg font-semibold">
+                  Inga compliance-risker
+                </h3>
+                <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                  Synka från prestanda för att skapa MEPS- och CRREM-risker
+                  automatiskt, eller visa stängda.
+                </p>
+                <Button
+                  className="mt-5"
+                  disabled={refresh.isPending}
+                  onClick={() => void refresh.mutateAsync()}
+                >
+                  {refresh.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Synka från prestanda
+                </Button>
+              </div>
+            )}
+
+            <div className="grid gap-3">
+              {(compQ.data ?? []).map((r) => (
+                <article
+                  key={r.id}
+                  className="rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5"
+                >
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-border bg-secondary/50">
+                      <span
+                        className={cn(
+                          "text-lg font-bold tabular",
+                          (r.severity ?? 0) >= 9
+                            ? "text-red-600"
+                            : (r.severity ?? 0) >= 5
+                              ? "text-amber-600"
+                              : "text-emerald-600"
+                        )}
+                      >
+                        {formatNumber(r.severity, 0)}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        allvar
+                      </span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/buildings?building=${r.building_id}`}
+                          className="text-base font-semibold text-foreground hover:text-primary"
+                        >
+                          {r.building_name}
+                        </Link>
+                        <Badge variant={statusVariant(r.workflow_status)}>
+                          {STATUS_SV[r.workflow_status] ?? r.workflow_status}
+                        </Badge>
+                        <Badge variant="outline">
+                          {KIND_SV[r.risk_kind] ?? r.risk_kind}
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 inline-flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {r.property_name}
+                        </span>
+                        <span>· År {r.year}</span>
+                        <span className="tabular">
+                          · Värde {formatNumber(r.metric_value, 1)}
+                        </span>
+                      </p>
+                      {r.status_reason && (
+                        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                          {r.status_reason}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+                      <StatusButtons
+                        onStatus={(s) =>
+                          setStatusTarget({
+                            id: r.id,
+                            kind: "compliance",
+                            status: s,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       <StatusDialog
         target={statusTarget}
@@ -412,6 +540,52 @@ export function PhysicalRisksView() {
   );
 }
 
+function Step({
+  n,
+  title,
+  body,
+}: {
+  n: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+        {n}
+      </div>
+      <div className="mt-2 text-sm font-semibold">{title}</div>
+      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+        {body}
+      </p>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+  help,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+  help?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+        {label}
+        {help && <HelpTip text={help} />}
+      </div>
+      <div className={cn("mt-1 text-2xl font-semibold tabular", tone)}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function StatusButtons({
   onStatus,
   onDelete,
@@ -420,27 +594,29 @@ function StatusButtons({
   onDelete?: () => void;
 }) {
   return (
-    <div className="flex flex-wrap justify-end gap-0.5">
+    <div className="flex flex-wrap justify-end gap-1.5">
       <Button
         size="sm"
-        variant="ghost"
-        className="h-7 text-2xs"
+        variant="outline"
+        className="h-8"
         onClick={() => onStatus("monitoring")}
       >
+        <Eye className="h-3.5 w-3.5" />
         Bevaka
       </Button>
       <Button
         size="sm"
-        variant="ghost"
-        className="h-7 text-2xs"
+        variant="outline"
+        className="h-8"
         onClick={() => onStatus("resolved")}
       >
+        <CheckCircle2 className="h-3.5 w-3.5" />
         Åtgärdad
       </Button>
       <Button
         size="sm"
-        variant="ghost"
-        className="h-7 text-2xs"
+        variant="outline"
+        className="h-8"
         onClick={() => onStatus("dismissed")}
       >
         Avskriv
@@ -449,10 +625,11 @@ function StatusButtons({
         <Button
           size="icon-sm"
           variant="ghost"
-          className="text-destructive"
+          className="text-destructive hover:bg-red-50 hover:text-destructive"
           onClick={onDelete}
+          title="Ta bort"
         >
-          <Trash2 className="h-3 w-3" />
+          <Trash2 className="h-3.5 w-3.5" />
         </Button>
       )}
     </div>
@@ -519,15 +696,24 @@ function StatusDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <Textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Motivering…"
-            className="min-h-[72px]"
-          />
-          {error && <div className="text-xs text-destructive">{error}</div>}
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">
+              {needsReason ? "Motivering (minst 5 tecken) *" : "Notering"}
+            </label>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Motivering…"
+              className="min-h-[72px]"
+            />
+          </div>
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
           <div className="flex justify-end gap-2">
-            <Button variant="terminal" onClick={onClose}>
+            <Button variant="outline" onClick={onClose}>
               Avbryt
             </Button>
             <Button
@@ -609,12 +795,12 @@ function CreateRiskDialog({
         <DialogHeader>
           <DialogTitle>Ny fysisk klimatrisk</DialogTitle>
           <DialogDescription>
-            Poäng = sannolikhet × konsekvens.
+            Poäng = sannolikhet × konsekvens. Risken kopplas till en fastighet.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Fastighet *</label>
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">Fastighet *</label>
             <Select value={propertyId} onValueChange={setPropertyId}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Välj fastighet" />
@@ -629,8 +815,8 @@ function CreateRiskDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Risktyp</label>
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">Risktyp</label>
             <Select value={riskType} onValueChange={setRiskType}>
               <SelectTrigger className="h-9">
                 <SelectValue />
@@ -645,8 +831,10 @@ function CreateRiskDialog({
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs text-terminal-muted">Sannolikhet</label>
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">
+                Sannolikhet
+              </label>
               <Select value={probability} onValueChange={setProbability}>
                 <SelectTrigger className="h-9">
                   <SelectValue />
@@ -660,8 +848,8 @@ function CreateRiskDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-terminal-muted">Konsekvens</label>
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">Konsekvens</label>
               <Select value={consequence} onValueChange={setConsequence}>
                 <SelectTrigger className="h-9">
                   <SelectValue />
@@ -676,27 +864,33 @@ function CreateRiskDialog({
               </Select>
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Källa</label>
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">Källa</label>
             <Input
               value={source}
               onChange={(e) => setSource(e.target.value)}
               className="h-9"
+              placeholder="t.ex. MSB, intern bedömning"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Notering</label>
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">Notering</label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="min-h-[60px]"
+              placeholder="Valfri beskrivning…"
             />
           </div>
-          {error && <div className="text-xs text-destructive">{error}</div>}
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <Button
               type="button"
-              variant="terminal"
+              variant="outline"
               onClick={() => onOpenChange(false)}
             >
               Avbryt

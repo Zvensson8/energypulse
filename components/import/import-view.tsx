@@ -212,14 +212,14 @@ export function ImportView() {
           </div>
           <Link
             href="/guide"
-            className="inline-flex items-center gap-1 text-2xs text-terminal-muted hover:text-terminal-accent"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary"
           >
-            <BookOpen className="h-3 w-3" /> Guide
+            <BookOpen className="h-3.5 w-3.5" /> Guide
           </Link>
         </div>
 
         {/* Steps indicator */}
-        <ol className="flex flex-wrap gap-1.5 text-2xs">
+        <ol className="flex flex-wrap gap-1.5 text-xs">
           {(
             [
               ["file", "1. Fil"],
@@ -233,8 +233,8 @@ export function ImportView() {
               className={cn(
                 "rounded-full px-2.5 py-1 font-medium",
                 step === id
-                  ? "bg-terminal-accent/20 text-terminal-accent"
-                  : "bg-terminal-row text-terminal-muted"
+                  ? "bg-primary/10 text-primary"
+                  : "bg-muted text-muted-foreground"
               )}
             >
               {label}
@@ -245,7 +245,7 @@ export function ImportView() {
         {localError && (
           <div
             role="alert"
-            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+            className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           >
             {localError}
           </div>
@@ -298,14 +298,14 @@ export function ImportView() {
                   </span>
                 </Button>
               </label>
-              <Button variant="terminal" className="gap-1.5" asChild>
+              <Button variant="outline" className="gap-1.5" asChild>
                 <a href="/examples/energypulse_exempel_import.csv" download>
                   <Download className="h-3.5 w-3.5" />
                   Ladda ner exempel-CSV
                 </a>
               </Button>
             </div>
-            <p className="max-w-sm text-center text-2xs text-terminal-muted">
+            <p className="max-w-sm text-center text-xs text-muted-foreground">
               Kolumner som behövs: byggnad (namn eller beteckning), energikälla,
               år, månad, kWh. Använd semikolon (;) som avgränsare i CSV. Övriga
               kolumner kan ignoreras.
@@ -315,21 +315,21 @@ export function ImportView() {
 
         {/* Step: mapping */}
         {(step === "mapping" || step === "preview") && fileName && (
-          <div className="panel space-y-3 rounded-md p-4">
+          <div className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs">
-                <FileSpreadsheet className="h-4 w-4 text-terminal-accent" />
+              <div className="flex items-center gap-2 text-sm">
+                <FileSpreadsheet className="h-4 w-4 text-primary" />
                 <span className="font-medium">{fileName}</span>
-                <span className="text-terminal-muted">
+                <span className="text-muted-foreground">
                   {rowCount} rader · {mappedCount} kolumner mappade
                 </span>
               </div>
-              <Button variant="terminal" size="sm" onClick={reset}>
+              <Button variant="outline" size="sm" onClick={reset}>
                 Byt fil
               </Button>
             </div>
 
-            <div className="flex items-center gap-1 text-xs font-medium text-foreground">
+            <div className="flex items-center gap-1 text-sm font-medium text-foreground">
               Kolumnmappning
               <HelpTip text="Koppla filens kolumnrubriker till rätt fält i EnergyPulse. Föreslagen mappning baseras på vanliga svenska/engelska namn." />
             </div>
@@ -340,10 +340,10 @@ export function ImportView() {
                   key={h}
                   className="grid grid-cols-1 items-center gap-1 sm:grid-cols-[1fr_auto_1fr] sm:gap-2"
                 >
-                  <div className="truncate rounded-md bg-terminal-row px-2 py-1.5 text-xs">
+                  <div className="truncate rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm">
                     {h}
                   </div>
-                  <ArrowRight className="mx-auto hidden h-3.5 w-3.5 text-terminal-muted sm:block" />
+                  <ArrowRight className="mx-auto hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
                   <Select
                     value={mapping[h] ?? "__ignore__"}
                     onValueChange={(v) =>
@@ -354,7 +354,7 @@ export function ImportView() {
                     }
                     disabled={step === "preview"}
                   >
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-10 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -416,7 +416,7 @@ export function ImportView() {
 
             {(preview.dataGapNotes.length > 0 ||
               preview.areaCoverageNotes.length > 0) && (
-              <div className="panel rounded-md p-3 text-xs text-terminal-muted">
+              <div className="rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground shadow-sm">
                 {preview.dataGapNotes.map((n, i) => (
                   <p key={`dg-${i}`}>{n}</p>
                 ))}
@@ -427,23 +427,23 @@ export function ImportView() {
             )}
 
             {preview.issues.length > 0 && (
-              <div className="panel max-h-48 overflow-auto rounded-md">
-                <div className="panel-header !normal-case">
+              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-foreground">
                   Problem ({preview.issues.length})
                 </div>
-                <ul className="divide-y divide-terminal-border/50 text-xs">
+                <ul className="max-h-48 divide-y divide-border overflow-auto text-sm">
                   {preview.issues.slice(0, 40).map((iss, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-2 px-3 py-1.5"
+                      className="flex items-start gap-2 px-4 py-2"
                     >
                       {iss.severity === "error" ? (
-                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-gap-incomplete" />
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gap-incomplete" />
                       ) : (
-                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-gap-extrapolated" />
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gap-extrapolated" />
                       )}
                       <span>
-                        <span className="text-terminal-muted">
+                        <span className="text-muted-foreground">
                           Rad {iss.rowNumber}:
                         </span>{" "}
                         {iss.message}
@@ -455,42 +455,44 @@ export function ImportView() {
             )}
 
             {preview.previewRows.length > 0 && (
-              <div className="panel overflow-auto rounded-md">
-                <div className="panel-header !normal-case">
+              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-foreground">
                   Förhandstitt (giltiga rader)
                 </div>
-                <table className="w-full text-xs">
-                  <thead className="bg-terminal-row text-2xs text-terminal-muted">
-                    <tr>
-                      <th className="px-2 py-1.5 text-left">Rad</th>
-                      <th className="px-2 py-1.5 text-left">År</th>
-                      <th className="px-2 py-1.5 text-left">Mån</th>
-                      <th className="px-2 py-1.5 text-right">kWh</th>
-                      <th className="px-2 py-1.5 text-left">Kvalitet</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.previewRows.slice(0, 12).map((r) => (
-                      <tr
-                        key={r.rowNumber}
-                        className="border-t border-terminal-border/40"
-                      >
-                        <td className="px-2 py-1 tabular">{r.rowNumber}</td>
-                        <td className="px-2 py-1 tabular">{r.data.year}</td>
-                        <td className="px-2 py-1 tabular">{r.data.month}</td>
-                        <td className="px-2 py-1 text-right tabular">
-                          {formatNumber(r.data.consumption_kwh, 0)}
-                        </td>
-                        <td className="px-2 py-1">{r.quality_class}</td>
+                <div className="overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-xs text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Rad</th>
+                        <th className="px-3 py-2 text-left font-medium">År</th>
+                        <th className="px-3 py-2 text-left font-medium">Mån</th>
+                        <th className="px-3 py-2 text-right font-medium">kWh</th>
+                        <th className="px-3 py-2 text-left font-medium">Kvalitet</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {preview.previewRows.slice(0, 12).map((r) => (
+                        <tr
+                          key={r.rowNumber}
+                          className="border-t border-border"
+                        >
+                          <td className="px-3 py-1.5 tabular">{r.rowNumber}</td>
+                          <td className="px-3 py-1.5 tabular">{r.data.year}</td>
+                          <td className="px-3 py-1.5 tabular">{r.data.month}</td>
+                          <td className="px-3 py-1.5 text-right tabular">
+                            {formatNumber(r.data.consumption_kwh, 0)}
+                          </td>
+                          <td className="px-3 py-1.5">{r.quality_class}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
-            <div className="panel flex flex-wrap items-center gap-3 rounded-md p-3">
-              <label className="flex cursor-pointer items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <Checkbox
                   checked={acceptWarnings}
                   onCheckedChange={(v) => setAcceptWarnings(v === true)}
@@ -499,7 +501,7 @@ export function ImportView() {
               </label>
               <div className="ml-auto flex gap-2">
                 <Button
-                  variant="terminal"
+                  variant="outline"
                   onClick={() => setStep("mapping")}
                   disabled={busy}
                 >
@@ -524,14 +526,14 @@ export function ImportView() {
 
         {/* Step: done */}
         {step === "done" && commitResult && (
-          <div className="panel space-y-4 rounded-md p-5">
+          <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gap-complete/15 text-gap-complete">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
                 <h2 className="text-base font-semibold">Import klar</h2>
-                <p className="mt-0.5 text-xs text-terminal-muted">
+                <p className="mt-0.5 text-sm text-muted-foreground">
                   {commitResult.upsertedCount} rader sparade
                   {commitResult.deadLettersPersisted > 0 &&
                     ` · ${commitResult.deadLettersPersisted} rader i kö för granskning`}
@@ -541,35 +543,35 @@ export function ImportView() {
 
             {commitResult.performanceRecalculated.length > 0 && (
               <div>
-                <h3 className="mb-1.5 text-xs font-medium text-foreground">
+                <h3 className="mb-2 text-sm font-medium text-foreground">
                   Uppdaterad prestanda
                 </h3>
-                <div className="max-h-48 overflow-auto rounded-md border border-terminal-border">
-                  <table className="w-full text-xs">
-                    <thead className="bg-terminal-row text-2xs text-terminal-muted">
+                <div className="max-h-48 overflow-auto rounded-xl border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-xs text-muted-foreground">
                       <tr>
-                        <th className="px-2 py-1.5 text-left">Byggnad</th>
-                        <th className="px-2 py-1.5 text-left">År</th>
-                        <th className="px-2 py-1.5 text-left">Datakvalitet</th>
-                        <th className="px-2 py-1.5 text-right">Komplett</th>
+                        <th className="px-3 py-2 text-left font-medium">Byggnad</th>
+                        <th className="px-3 py-2 text-left font-medium">År</th>
+                        <th className="px-3 py-2 text-left font-medium">Datakvalitet</th>
+                        <th className="px-3 py-2 text-right font-medium">Komplett</th>
                       </tr>
                     </thead>
                     <tbody>
                       {commitResult.performanceRecalculated.map((p, i) => (
                         <tr
                           key={i}
-                          className="border-t border-terminal-border/40"
+                          className="border-t border-border"
                         >
-                          <td className="px-2 py-1">
+                          <td className="px-3 py-1.5">
                             <Link
                               href={`/buildings?building=${p.building_id}`}
-                              className="text-terminal-accent hover:underline"
+                              className="text-primary hover:underline"
                             >
                               {p.building_id.slice(0, 8)}…
                             </Link>
                           </td>
-                          <td className="px-2 py-1 tabular">{p.year}</td>
-                          <td className="px-2 py-1">
+                          <td className="px-3 py-1.5 tabular">{p.year}</td>
+                          <td className="px-3 py-1.5">
                             <Badge
                               variant={
                                 p.data_gap_status === "COMPLETE"
@@ -588,7 +590,7 @@ export function ImportView() {
                                   : "Saknas data"}
                             </Badge>
                           </td>
-                          <td className="px-2 py-1 text-right tabular">
+                          <td className="px-3 py-1.5 text-right tabular">
                             {formatNumber(p.data_completeness_percent, 0)} %
                           </td>
                         </tr>
@@ -603,10 +605,10 @@ export function ImportView() {
               <Button asChild>
                 <Link href="/dashboard">Till översikt</Link>
               </Button>
-              <Button variant="terminal" asChild>
+              <Button variant="outline" asChild>
                 <Link href="/buildings">Byggnader</Link>
               </Button>
-              <Button variant="terminal" onClick={reset}>
+              <Button variant="outline" onClick={reset}>
                 Importera mer
               </Button>
             </div>
@@ -627,8 +629,8 @@ function Stat({
   tone?: "ok" | "warn" | "err";
 }) {
   return (
-    <div className="panel rounded-md p-2.5">
-      <div className="text-2xs text-terminal-muted">{label}</div>
+    <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+      <div className="text-xs text-muted-foreground">{label}</div>
       <div
         className={cn(
           "mt-0.5 text-lg font-semibold tabular",

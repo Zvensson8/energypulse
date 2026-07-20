@@ -16,7 +16,10 @@ const SheetOverlay = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
-    className={cn("fixed inset-0 z-50 bg-black/70", className)}
+    className={cn(
+      "fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm",
+      className
+    )}
     {...props}
     ref={ref}
   />
@@ -24,7 +27,7 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-50 gap-2 bg-terminal-panel border-terminal-border p-0 shadow-xl transition ease-in-out",
+  "fixed z-50 gap-2 border-border bg-card p-0 shadow-xl transition ease-in-out",
   {
     variants: {
       side: {
@@ -56,7 +59,7 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-2 top-2 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring">
+      <DialogPrimitive.Close className="absolute right-3 top-3 rounded-lg opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -72,7 +75,7 @@ function SheetHeader({
   return (
     <div
       className={cn(
-        "flex flex-col space-y-0.5 border-b border-terminal-border px-3 py-2 pr-10 text-left",
+        "flex flex-col space-y-1 border-b border-border px-5 py-4 pr-12 text-left",
         className
       )}
       {...props}
@@ -86,7 +89,7 @@ function SheetTitle({
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn("font-mono text-sm font-semibold text-foreground", className)}
+      className={cn("text-base font-semibold text-foreground", className)}
       {...props}
     />
   );
@@ -98,7 +101,7 @@ function SheetDescription({
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
-      className={cn("text-2xs text-muted-foreground", className)}
+      className={cn("text-sm text-muted-foreground", className)}
       {...props}
     />
   );

@@ -77,9 +77,9 @@ export function OverrideDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0">
-        <div className="border-b border-terminal-border px-3 py-2 pr-10">
+        <div className="border-b border-border px-5 py-4 pr-12">
           <DialogHeader>
-            <DialogTitle className="font-mono text-sm">
+            <DialogTitle className="text-base">
               Override INCOMPLETE_DATA
             </DialogTitle>
             <DialogDescription>
@@ -88,15 +88,15 @@ export function OverrideDialog({
           </DialogHeader>
         </div>
 
-        <div className="space-y-2 p-3">
+        <div className="space-y-3 p-5">
           {/* Warning */}
-          <div className="flex gap-2 rounded-sm border border-gap-incomplete/50 bg-gap-incomplete/10 p-2 text-table">
+          <div className="flex gap-2 rounded-xl border border-gap-incomplete/50 bg-gap-incomplete/10 p-3 text-sm">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gap-incomplete" />
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="font-medium text-gap-incomplete">
                 Beslut tas på ofullständig data
               </div>
-              <p className="text-2xs text-terminal-muted">
+              <p className="text-xs text-muted-foreground">
                 Override låser upp MEPS- och CRREM-beräkningar trots{" "}
                 <code className="text-gap-incomplete">INCOMPLETE_DATA</code>.
                 Motivering loggas i{" "}
@@ -113,11 +113,11 @@ export function OverrideDialog({
           </div>
 
           {eligibility.isLoading && (
-            <div className="text-2xs text-terminal-muted">Kontrollerar behörighet…</div>
+            <div className="text-xs text-muted-foreground">Kontrollerar behörighet…</div>
           )}
 
           {eligibility.data && !allowed && (
-            <div className="rounded-sm border border-terminal-border bg-terminal-row p-2 text-table text-destructive">
+            <div className="rounded-xl border border-border bg-muted/50 p-3 text-sm text-destructive">
               Override ej tillåten
               {eligibility.data.role ? ` för roll ${eligibility.data.role}` : ""}.
               {eligibility.data.reason ? ` ${eligibility.data.reason}` : ""}
@@ -126,31 +126,31 @@ export function OverrideDialog({
 
           {allowed && (
             <>
-              <div className="space-y-1">
-                <label className="text-2xs uppercase text-terminal-muted">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
                   Motivering (obligatorisk, min 5 tecken)
                 </label>
                 <Textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="T.ex. Godkänt av portföljchef för Q1-rapport – saknad data bedöms ej material…"
-                  className="min-h-[88px] font-mono text-table"
+                  className="min-h-[88px] text-sm"
                 />
-                <div className="text-2xs text-terminal-muted tabular">
+                <div className="text-xs tabular text-muted-foreground">
                   {reason.trim().length}/5+
                 </div>
               </div>
 
               {mutation.isError && (
-                <div className="text-table text-destructive">
+                <div className="text-sm text-destructive">
                   {(mutation.error as Error).message}
                 </div>
               )}
 
-              <div className="flex justify-end gap-1">
+              <div className="flex justify-end gap-2">
                 <Button
                   type="button"
-                  variant="terminal"
+                  variant="outline"
                   size="sm"
                   onClick={() => onOpenChange(false)}
                 >

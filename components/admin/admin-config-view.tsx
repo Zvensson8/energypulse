@@ -88,38 +88,41 @@ export function AdminConfigView() {
   const paybackVal = payback ?? String(w?.payback ?? 0.25);
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-3xl space-y-4 p-3 sm:p-5">
+    <div className="page-shell">
+      <div className="page-inner max-w-3xl">
         <div>
           <div className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5 text-terminal-accent" />
-            <h1 className="text-lg font-semibold">Admin · Inställningar</h1>
+            <Settings2 className="h-6 w-6 text-primary" />
+            <h1 className="page-title">Admin · Inställningar</h1>
           </div>
-          <p className="mt-1 text-xs text-terminal-muted">
+          <p className="page-subtitle">
             Datakvalitetspolicy, prioriteringsvikter och systemkonfiguration.
             Endast administratör kan spara ändringar.
           </p>
         </div>
 
         {msg && (
-          <div className="rounded-md border border-gap-complete/30 bg-gap-complete/10 px-3 py-2 text-xs text-gap-complete">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {msg}
           </div>
         )}
         {err && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {err}
           </div>
         )}
 
         {/* Priority weights */}
-        <section className="panel space-y-3 rounded-md p-4">
-          <div className="flex items-center gap-1.5">
-            <SlidersHorizontal className="h-4 w-4 text-terminal-accent" />
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold">Prioriteringsvikter</h2>
             <HelpTip text="Används när du klickar «Räkna om prioritet» under Åtgärder. Vikterna normaliseras automatiskt till 100 %." />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          {weightsQ.isLoading && (
+            <p className="text-sm text-muted-foreground">Laddar vikter…</p>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <WeightField
               label="Kravgap (MEPS)"
               value={mepsVal}
@@ -157,19 +160,26 @@ export function AdminConfigView() {
         </section>
 
         {/* Data gap config */}
-        <section className="panel space-y-3 rounded-md p-4">
-          <div className="flex items-center gap-1.5">
-            <Shield className="h-4 w-4 text-terminal-accent" />
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold">Datakvalitetspolicy</h2>
             <HelpTip text="Max antal saknade månader innan året markeras som ofullständigt (blockerar MEPS/CRREM utan override)." />
           </div>
           {gapQ.isLoading && (
-            <p className="text-xs text-muted-foreground">Laddar…</p>
+            <div className="rounded-xl bg-secondary/50 p-6 text-center text-sm text-muted-foreground">
+              Laddar…
+            </div>
           )}
           {gapQ.error && (
-            <p className="text-xs text-destructive">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {(gapQ.error as Error).message}
-            </p>
+            </div>
+          )}
+          {!gapQ.isLoading && (gapQ.data?.length ?? 0) === 0 && (
+            <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              Inga datakvalitetspolicys konfigurerade.
+            </div>
           )}
           <div className="space-y-3">
             {(gapQ.data ?? []).map((cfg) => (
@@ -189,12 +199,19 @@ export function AdminConfigView() {
         </section>
 
         {/* System config read/edit key values */}
-        <section className="panel space-y-3 rounded-md p-4">
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="text-sm font-semibold">Systemkonfiguration</h2>
           {sysQ.isLoading && (
-            <p className="text-xs text-muted-foreground">Laddar…</p>
+            <div className="rounded-xl bg-secondary/50 p-6 text-center text-sm text-muted-foreground">
+              Laddar…
+            </div>
           )}
-          <div className="space-y-2">
+          {sysQ.error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {(sysQ.error as Error).message}
+            </div>
+          )}
+          <div className="space-y-3">
             {(sysQ.data ?? []).map((row) => (
               <SystemConfigRow
                 key={row.id}
@@ -227,8 +244,8 @@ function WeightField({
   help: string;
 }) {
   return (
-    <div className="space-y-1">
-      <label className="flex items-center gap-1 text-xs text-terminal-muted">
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1 text-sm text-muted-foreground">
         {label}
         <HelpTip text={help} />
       </label>
@@ -239,7 +256,6 @@ function WeightField({
         step={0.05}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9"
       />
     </div>
   );
@@ -289,15 +305,15 @@ function DataGapRow({
   }
 
   return (
-    <div className="rounded-md border border-terminal-border bg-terminal-row/40 p-3">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium">{cfg.name}</span>
+    <div className="rounded-xl border border-border bg-secondary/30 p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium">{cfg.name}</span>
         {cfg.is_default && <Badge variant="success">Standard</Badge>}
         {!cfg.is_active && <Badge variant="outline">Inaktiv</Badge>}
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="space-y-1">
-          <label className="text-2xs text-terminal-muted">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">
             Max saknade mån
           </label>
           <Input
@@ -306,11 +322,11 @@ function DataGapRow({
             max={12}
             value={maxMissing}
             onChange={(e) => setMaxMissing(e.target.value)}
-            className="h-8"
+            className="h-9"
           />
         </div>
-        <div className="space-y-1">
-          <label className="text-2xs text-terminal-muted">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">
             Varning från mån
           </label>
           <Input
@@ -319,11 +335,11 @@ function DataGapRow({
             max={12}
             value={warning}
             onChange={(e) => setWarning(e.target.value)}
-            className="h-8"
+            className="h-9"
           />
         </div>
         <div className="flex items-end gap-2 pb-1">
-          <label className="flex items-center gap-1.5 text-xs text-terminal-muted">
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Checkbox
               checked={active}
               onCheckedChange={(v) => setActive(v === true)}
@@ -334,16 +350,20 @@ function DataGapRow({
         <div className="flex items-end justify-end">
           <Button
             size="sm"
-            variant="terminal"
-            className="h-8"
+            variant="outline"
+            className="h-9"
             disabled={pending}
             onClick={() => void save()}
           >
-            {pending ? "…" : "Spara"}
+            {pending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              "Spara"
+            )}
           </Button>
         </div>
       </div>
-      <p className="mt-2 text-2xs text-terminal-muted">
+      <p className="mt-3 text-xs text-muted-foreground">
         Metod: {cfg.interpolation_method}
         {cfg.notes ? ` · ${cfg.notes}` : ""}
       </p>
@@ -398,26 +418,32 @@ function SystemConfigRow({
   }
 
   return (
-    <div className="rounded-md border border-terminal-border p-3">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <code className="text-xs text-terminal-accent">{row.key}</code>
+    <div className="rounded-xl border border-border p-4">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <code className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+          {row.key}
+        </code>
         <Button
           size="sm"
-          variant="terminal"
-          className="h-7"
+          variant="outline"
+          className="h-8"
           disabled={pending}
           onClick={() => void save()}
         >
-          {pending ? "…" : "Spara"}
+          {pending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            "Spara"
+          )}
         </Button>
       </div>
       {row.description && (
-        <p className="mb-1.5 text-2xs text-terminal-muted">{row.description}</p>
+        <p className="mb-2 text-xs text-muted-foreground">{row.description}</p>
       )}
       <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="h-8 font-mono text-2xs"
+        className="h-9 font-mono text-xs"
       />
     </div>
   );
@@ -474,29 +500,33 @@ function OverrideRolesEditor({
   }
 
   return (
-    <div className="rounded-md border border-terminal-border p-3">
-      <div className="mb-1 flex items-center justify-between">
-        <code className="text-xs text-terminal-accent">
+    <div className="rounded-xl border border-border p-4">
+      <div className="mb-1.5 flex items-center justify-between">
+        <code className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
           override_enabled_per_role
         </code>
         <Button
           size="sm"
-          variant="terminal"
-          className="h-7"
+          variant="outline"
+          className="h-8"
           disabled={pending}
           onClick={() => void save()}
         >
-          {pending ? "…" : "Spara"}
+          {pending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            "Spara"
+          )}
         </Button>
       </div>
       {description && (
-        <p className="mb-2 text-2xs text-terminal-muted">{description}</p>
+        <p className="mb-3 text-xs text-muted-foreground">{description}</p>
       )}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-4">
         {roles.map((r) => (
           <label
             key={r}
-            className="flex items-center gap-1.5 text-xs text-terminal-muted"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground"
           >
             <Checkbox
               checked={map[r] === true}

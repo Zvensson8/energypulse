@@ -27,7 +27,7 @@ export function HelpTip({
         <button
           type="button"
           className={cn(
-            "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-terminal-muted transition-colors hover:bg-terminal-row hover:text-terminal-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-terminal-accent",
+            "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
             className
           )}
           aria-label={label ?? "Förklaring"}
@@ -35,7 +35,7 @@ export function HelpTip({
           <CircleHelp className="h-3 w-3" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side={side} className="max-w-xs text-left font-sans text-2xs leading-snug normal-case tracking-normal">
+      <TooltipContent side={side} className="max-w-xs text-left font-sans text-xs leading-snug normal-case tracking-normal">
         {text}
       </TooltipContent>
     </Tooltip>

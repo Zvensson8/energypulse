@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -27,14 +27,17 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { HelpTip } from "@/components/ui/help-tip";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, cn } from "@/lib/utils";
 import {
+  Building2,
   DoorOpen,
   Eye,
   EyeOff,
+  Flame,
   Plus,
   Search,
   Shield,
+  Thermometer,
 } from "lucide-react";
 
 const SPACE_TYPE_SV: Record<string, string> = {
@@ -68,150 +71,221 @@ export function SpacesView() {
     },
   });
 
+  const stats = useMemo(() => {
+    const list = data ?? [];
+    return {
+      total: list.length,
+      withTenant: list.filter((s) => s.has_tenant).length,
+      heated: list.filter((s) => s.is_heated).length,
+      loa: list.reduce((sum, s) => sum + (s.loa ?? 0), 0),
+    };
+  }, [data]);
+
   return (
-    <div className="flex h-full flex-col gap-1.5 p-2">
-      <div className="panel flex flex-wrap items-center gap-2 rounded-md px-3 py-2">
-        <div className="flex items-center gap-1.5">
-          <DoorOpen className="h-4 w-4 text-terminal-accent" />
-          <h1 className="text-sm font-semibold">Lokaler</h1>
-          <HelpTip text="Hyresgästnamn visas maskerade av GDPR-skäl. Visa original kräver motivering och loggas." />
+    <div className="page-shell">
+      <div className="page-inner">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <DoorOpen className="h-6 w-6 text-primary" />
+              <h1 className="page-title">Lokaler</h1>
+              <HelpTip text="Hyresgästnamn visas maskerade av GDPR-skäl. Visa original kräver motivering och loggas." />
+            </div>
+            <p className="page-subtitle">
+              Översikt över lokaler i portföljen. Hyresgästuppgifter är
+              skyddade och kräver motivering för att visas.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+              <Shield className="h-3.5 w-3.5" />
+              Hyresgäst maskerad
+            </span>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Ny lokal
+            </Button>
+          </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-terminal-muted" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") setQ(search);
-            }}
-            placeholder="Sök lokal, byggnad…"
-            className="h-8 w-52 pl-7 text-xs"
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Step
+            n="1"
+            title="Hitta lokal"
+            body="Sök på lokalnamn, byggnad eller typ i listan nedan."
+          />
+          <Step
+            n="2"
+            title="Lägg till"
+            body="Skapa lokal kopplad till byggnad. Hyresgäst krypteras automatiskt."
+          />
+          <Step
+            n="3"
+            title="Visa hyresgäst"
+            body="GDPR-skydd: motivering krävs och varje visning loggas."
           />
         </div>
-        <Button
-          size="sm"
-          variant="terminal"
-          className="h-8"
-          onClick={() => setQ(search)}
-        >
-          Sök
-        </Button>
-        <span className="text-2xs tabular text-terminal-muted">
-          {data?.length ?? 0} st{isFetching ? " · …" : ""}
-        </span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="hidden items-center gap-1 text-2xs text-terminal-muted sm:inline-flex">
-            <Shield className="h-3 w-3 text-terminal-green" />
-            Hyresgäst maskerad
-          </span>
-          <Button
-            size="sm"
-            className="h-8 gap-1"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Ny lokal
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat label="Lokaler" value={String(stats.total)} />
+          <Stat
+            label="Med hyresgäst"
+            value={String(stats.withTenant)}
+            tone="text-indigo-600"
+          />
+          <Stat
+            label="Uppvärmda"
+            value={String(stats.heated)}
+            tone="text-amber-600"
+          />
+          <Stat
+            label="Summa LOA"
+            value={
+              stats.loa > 0 ? `${formatNumber(stats.loa, 0)} m²` : "—"
+            }
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+          <div className="relative min-w-[16rem] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") setQ(search);
+              }}
+              placeholder="Sök lokal, byggnad…"
+              className="pl-9"
+            />
+          </div>
+          <Button variant="outline" onClick={() => setQ(search)}>
+            Sök
           </Button>
+          <span className="text-sm tabular text-muted-foreground">
+            {data?.length ?? 0} st{isFetching ? " · …" : ""}
+          </span>
         </div>
-      </div>
 
-      {error && (
-        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          {(error as Error).message}
-        </div>
-      )}
+        {error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {(error as Error).message}
+          </div>
+        )}
 
-      <div className="panel min-h-0 flex-1 overflow-auto rounded-md">
         {isLoading && (
-          <div className="p-6 text-center text-xs text-muted-foreground">
+          <div className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
             Laddar lokaler…
           </div>
         )}
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-terminal-row text-2xs text-terminal-muted">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">Lokal</th>
-              <th className="px-3 py-2 text-left font-medium">Byggnad</th>
-              <th className="px-3 py-2 text-left font-medium">Typ</th>
-              <th className="px-3 py-2 text-left font-medium">Hyresgäst</th>
-              <th className="px-3 py-2 text-right font-medium">LOA</th>
-              <th className="px-3 py-2 text-right font-medium">BOA</th>
-              <th className="px-3 py-2 text-center font-medium">Uppvärmd</th>
-              <th className="px-3 py-2 text-left font-medium">Kontrakt</th>
-              <th className="px-3 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {(data ?? []).map((s) => (
-              <tr
-                key={s.id}
-                className="border-t border-terminal-border/50 hover:bg-terminal-row/50"
-              >
-                <td className="px-3 py-1.5 font-medium">{s.name ?? "—"}</td>
-                <td className="px-3 py-1.5">
-                  <Link
-                    href={`/buildings?building=${s.building_id}`}
-                    className="text-terminal-accent hover:underline"
-                  >
-                    {s.building_name}
-                  </Link>
-                  <div className="text-2xs text-terminal-muted">
-                    {s.property_name}
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 text-terminal-muted">
-                  {SPACE_TYPE_SV[s.space_type] ?? s.space_type}
-                </td>
-                <td className="px-3 py-1.5">
-                  {s.has_tenant ? (
-                    <Badge variant="outline">{s.tenant_name ?? "***"}</Badge>
+
+        {!isLoading && (data?.length ?? 0) === 0 && (
+          <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
+            <DoorOpen className="mx-auto h-10 w-10 text-muted-foreground/40" />
+            <h3 className="mt-3 text-lg font-semibold">Inga lokaler hittades</h3>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              Skapa din första lokal eller justera sökningen. Du kan också köra
+              pilot-seed.
+            </p>
+            <Button className="mt-5" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Skapa lokal
+            </Button>
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {(data ?? []).map((s) => (
+            <article
+              key={s.id}
+              className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <DoorOpen className="h-5 w-5" />
+                </span>
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <Badge variant="outline">
+                    {SPACE_TYPE_SV[s.space_type] ?? s.space_type}
+                  </Badge>
+                  {s.is_heated ? (
+                    <Badge variant="warning">
+                      <Flame className="mr-1 h-3 w-3" />
+                      Uppvärmd
+                    </Badge>
                   ) : (
-                    <span className="text-terminal-muted">—</span>
+                    <Badge variant="outline">
+                      <Thermometer className="mr-1 h-3 w-3" />
+                      Ouppvärmd
+                    </Badge>
                   )}
-                </td>
-                <td className="px-3 py-1.5 text-right tabular">
-                  {s.loa != null ? formatNumber(s.loa, 0) : "—"}
-                </td>
-                <td className="px-3 py-1.5 text-right tabular">
-                  {s.boa != null ? formatNumber(s.boa, 0) : "—"}
-                </td>
-                <td className="px-3 py-1.5 text-center">
-                  {s.is_heated ? "Ja" : "Nej"}
-                </td>
-                <td className="px-3 py-1.5 text-2xs text-terminal-muted">
-                  {s.contract_start ?? "—"}
-                  {s.contract_end ? ` → ${s.contract_end}` : ""}
-                </td>
-                <td className="px-3 py-1.5">
-                  {s.has_tenant && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 gap-1 text-2xs"
-                      onClick={() =>
-                        setReveal({ spaceId: s.id, name: s.name })
-                      }
-                      title="Visa hyresgäst (kräver motivering)"
-                    >
-                      <Eye className="h-3 w-3" />
-                      Visa
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {!isLoading && (data?.length ?? 0) === 0 && (
-              <tr>
-                <td
-                  colSpan={9}
-                  className="px-3 py-10 text-center text-muted-foreground"
+                </div>
+              </div>
+
+              <h3 className="mt-3 text-base font-semibold text-foreground">
+                {s.name ?? "Namnlös lokal"}
+              </h3>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                <Link
+                  href={`/buildings?building=${s.building_id}`}
+                  className="inline-flex items-center gap-1 hover:text-primary"
                 >
-                  Inga lokaler hittades. Skapa en eller kör pilot-seed.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  <Building2 className="h-3.5 w-3.5" />
+                  {s.building_name}
+                </Link>
+                <span className="text-muted-foreground/70">
+                  {" "}
+                  · {s.property_name}
+                </span>
+              </p>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <MiniStat
+                  label="LOA"
+                  value={s.loa != null ? `${formatNumber(s.loa, 0)} m²` : "—"}
+                />
+                <MiniStat
+                  label="BOA"
+                  value={s.boa != null ? `${formatNumber(s.boa, 0)} m²` : "—"}
+                />
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {s.has_tenant ? (
+                  <Badge variant="outline">{s.tenant_name ?? "***"}</Badge>
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Ingen hyresgäst
+                  </span>
+                )}
+              </div>
+
+              {(s.contract_start || s.contract_end) && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Kontrakt: {s.contract_start ?? "—"}
+                  {s.contract_end ? ` → ${s.contract_end}` : ""}
+                </p>
+              )}
+
+              {s.has_tenant && (
+                <div className="mt-4 border-t border-border pt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-1.5"
+                    onClick={() =>
+                      setReveal({ spaceId: s.id, name: s.name })
+                    }
+                    title="Visa hyresgäst (kräver motivering)"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    Visa hyresgäst
+                  </Button>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
       </div>
 
       <RevealTenantDialog
@@ -229,6 +303,56 @@ export function SpacesView() {
           setCreateOpen(false);
         }}
       />
+    </div>
+  );
+}
+
+function Step({
+  n,
+  title,
+  body,
+}: {
+  n: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+        {n}
+      </div>
+      <div className="mt-2 text-sm font-semibold">{title}</div>
+      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+        {body}
+      </p>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 text-2xl font-semibold tabular", tone)}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/30 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-sm font-semibold tabular">{value}</div>
     </div>
   );
 }
@@ -280,7 +404,7 @@ function RevealTenantDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4 text-primary" />
             Visa hyresgäst
           </DialogTitle>
           <DialogDescription>
@@ -290,13 +414,15 @@ function RevealTenantDialog({
         </DialogHeader>
         {plain ? (
           <div className="space-y-3">
-            <div className="rounded-md border border-gap-complete/30 bg-gap-complete/10 px-3 py-3">
-              <div className="text-2xs text-terminal-muted">Hyresgäst</div>
-              <div className="text-sm font-semibold">{plain}</div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <div className="text-sm text-muted-foreground">Hyresgäst</div>
+              <div className="text-base font-semibold text-emerald-800">
+                {plain}
+              </div>
             </div>
             <Button
-              variant="terminal"
-              className="w-full gap-1"
+              variant="outline"
+              className="w-full gap-1.5"
               onClick={() => {
                 setPlain(null);
                 setReason("");
@@ -309,8 +435,8 @@ function RevealTenantDialog({
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs text-terminal-muted">
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">
                 Motivering (minst 5 tecken) *
               </label>
               <Textarea
@@ -321,10 +447,12 @@ function RevealTenantDialog({
               />
             </div>
             {error && (
-              <div className="text-xs text-destructive">{error}</div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
             )}
             <div className="flex justify-end gap-2">
-              <Button variant="terminal" onClick={onClose}>
+              <Button variant="outline" onClick={onClose}>
                 Avbryt
               </Button>
               <Button
@@ -409,8 +537,8 @@ function CreateSpaceDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Byggnad *</label>
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">Byggnad *</label>
             <Select value={buildingId} onValueChange={setBuildingId}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Välj byggnad" />
@@ -434,8 +562,8 @@ function CreateSpaceDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">Lokalnamn</label>
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">Lokalnamn</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -444,8 +572,8 @@ function CreateSpaceDialog({
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs text-terminal-muted">Typ</label>
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">Typ</label>
               <Select value={spaceType} onValueChange={setSpaceType}>
                 <SelectTrigger className="h-9">
                   <SelectValue />
@@ -459,8 +587,8 @@ function CreateSpaceDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-terminal-muted">LOA m²</label>
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">LOA m²</label>
               <Input
                 type="number"
                 min={0}
@@ -470,8 +598,8 @@ function CreateSpaceDialog({
               />
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-terminal-muted">
+          <div className="space-y-1.5">
+            <label className="text-sm text-muted-foreground">
               Hyresgäst (valfritt, krypteras)
             </label>
             <Input
@@ -481,11 +609,15 @@ function CreateSpaceDialog({
               className="h-9"
             />
           </div>
-          {error && <div className="text-xs text-destructive">{error}</div>}
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <Button
               type="button"
-              variant="terminal"
+              variant="outline"
               onClick={() => onOpenChange(false)}
             >
               Avbryt

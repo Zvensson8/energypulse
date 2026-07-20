@@ -37,17 +37,19 @@ export function DataGapChart({ kpis }: { kpis: DashboardKpis }) {
     kpis.completeCount + kpis.extrapolatedCount + kpis.incompleteCount;
 
   return (
-    <div className="panel flex h-full flex-col rounded-md">
-      <div className="panel-header !normal-case !tracking-normal">
-        <span className="inline-flex items-center gap-1">
-          {TERMS.dataQuality.label}
-          <HelpTip text={TERMS.dataQuality.help} />
-        </span>
-        <span className="font-normal text-terminal-muted">
-          snitt {kpis.avgDataCompleteness?.toFixed(0) ?? "—"} %
-        </span>
+    <div className="flex h-full flex-col rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            {TERMS.dataQuality.label}
+            <HelpTip text={TERMS.dataQuality.help} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            snitt {kpis.avgDataCompleteness?.toFixed(0) ?? "—"} %
+          </p>
+        </div>
       </div>
-      <div className="flex min-h-0 flex-1 items-center gap-3 p-3">
+      <div className="flex min-h-0 flex-1 items-center gap-4 p-4">
         <div className="relative h-32 w-32 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -66,10 +68,12 @@ export function DataGapChart({ kpis }: { kpis: DashboardKpis }) {
               </Pie>
               <Tooltip
                 contentStyle={{
-                  background: "#12161c",
-                  border: "1px solid #1e2630",
-                  fontSize: 11,
-                  borderRadius: 6,
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  fontSize: 12,
+                  borderRadius: 12,
+                  boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
+                  color: "hsl(var(--foreground))",
                 }}
                 formatter={(v, name) => [`${v} byggnader`, String(name)]}
               />
@@ -80,28 +84,30 @@ export function DataGapChart({ kpis }: { kpis: DashboardKpis }) {
               <span className="text-base font-semibold tabular text-foreground">
                 {total}
               </span>
-              <span className="text-[10px] text-terminal-muted">byggnader</span>
+              <span className="text-[10px] text-muted-foreground">
+                byggnader
+              </span>
             </div>
           )}
         </div>
-        <div className="min-w-0 flex-1 space-y-2 text-xs">
+        <div className="min-w-0 flex-1 space-y-2.5 text-sm">
           {data.map((d) => (
-            <div key={d.name} className="flex items-start gap-2">
+            <div key={d.name} className="flex items-start gap-2.5">
               <span
-                className="mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+                className="mt-1.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ background: d.color }}
               />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="font-medium text-foreground">{d.name}</span>
                   <span className="tabular text-foreground">{d.value}</span>
                 </div>
-                <div className="text-2xs text-terminal-muted">{d.hint}</div>
+                <div className="text-xs text-muted-foreground">{d.hint}</div>
               </div>
             </div>
           ))}
           {data.length === 0 && (
-            <span className="text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               Ingen beräknad data ännu. Importera energivärden och beräkna
               prestanda.
             </span>

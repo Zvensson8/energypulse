@@ -53,9 +53,9 @@ export function ProvenanceModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-4xl overflow-hidden p-0">
-        <div className="border-b border-terminal-border px-3 py-2 pr-10">
+        <div className="border-b border-border px-5 py-4 pr-12">
           <DialogHeader>
-            <DialogTitle className="font-mono text-sm">
+            <DialogTitle className="text-base">
               Provenance · {data?.building.name ?? "…"}
             </DialogTitle>
             <DialogDescription>
@@ -66,12 +66,12 @@ export function ProvenanceModal({
               · år {year}
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-1 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {onOpenAudit && (
               <Button
                 size="sm"
-                variant="terminal"
-                className="h-6 gap-1 text-2xs"
+                variant="outline"
+                className="h-7 gap-1 text-xs"
                 onClick={onOpenAudit}
               >
                 <History className="h-3 w-3" /> Audit
@@ -80,8 +80,8 @@ export function ProvenanceModal({
             {onOpenCrrem && (
               <Button
                 size="sm"
-                variant="terminal"
-                className="h-6 gap-1 text-2xs"
+                variant="outline"
+                className="h-7 gap-1 text-xs"
                 onClick={onOpenCrrem}
               >
                 CRREM
@@ -91,7 +91,7 @@ export function ProvenanceModal({
               <Button
                 size="sm"
                 variant="destructive"
-                className="h-6 gap-1 text-2xs"
+                className="h-7 gap-1 text-xs"
                 onClick={onOpenOverride}
               >
                 <ShieldAlert className="h-3 w-3" /> Override
@@ -100,28 +100,28 @@ export function ProvenanceModal({
           </div>
         </div>
 
-        <ScrollArea className="max-h-[calc(85vh-4.5rem)] px-3 py-2">
+        <ScrollArea className="max-h-[calc(85vh-5.5rem)] px-5 py-4">
           {isLoading && (
-            <div className="py-8 text-center text-table text-muted-foreground">
+            <div className="py-8 text-center text-sm text-muted-foreground">
               Laddar källdata…
             </div>
           )}
           {error && (
-            <div className="py-4 text-table text-destructive">
+            <div className="py-4 text-sm text-destructive">
               {(error as Error).message}
             </div>
           )}
           {data && (
-            <div className="space-y-3 pb-3">
+            <div className="space-y-4 pb-3">
               {/* Override banner */}
               {data.performance?.override_applied && (
-                <div className="flex gap-2 rounded-sm border border-gap-incomplete/40 bg-gap-incomplete/10 p-2 text-table">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-gap-incomplete" />
+                <div className="flex gap-2 rounded-xl border border-gap-incomplete/40 bg-gap-incomplete/10 p-3 text-sm">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-gap-incomplete" />
                   <div>
                     <div className="font-medium text-gap-incomplete">
                       Override applicerad
                     </div>
-                    <div className="font-mono text-2xs text-terminal-muted">
+                    <div className="text-xs text-muted-foreground">
                       reason: {data.performance.override_reason ?? "—"}
                     </div>
                   </div>
@@ -130,13 +130,13 @@ export function ProvenanceModal({
 
               {/* Interpolation banner */}
               {data.estimated_row_count > 0 && (
-                <div className="rounded-sm border border-gap-extrapolated/40 bg-gap-extrapolated/10 px-2 py-1.5 font-mono text-2xs">
+                <div className="rounded-xl border border-gap-extrapolated/40 bg-gap-extrapolated/10 px-3 py-2 text-xs">
                   <span className="text-gap-extrapolated">
                     Interpolering:{" "}
                     {data.interpolation_method ??
                       "linear_previous_3m_seasonal_graddagar"}
                   </span>
-                  <span className="text-terminal-muted">
+                  <span className="text-muted-foreground">
                     {" "}
                     · {data.estimated_row_count} est / {data.measured_row_count}{" "}
                     mätt rader
@@ -145,9 +145,11 @@ export function ProvenanceModal({
               )}
 
               {/* Performance summary */}
-              <section className="panel">
-                <div className="panel-header">Performance indicators</div>
-                <div className="grid grid-cols-4 gap-px bg-terminal-border text-table">
+              <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-foreground">
+                  Performance indicators
+                </div>
+                <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
                   {[
                     [
                       "Intensitet",
@@ -200,12 +202,12 @@ export function ProvenanceModal({
                   ].map(([label, value]) => (
                     <div
                       key={String(label)}
-                      className="bg-terminal-panel px-2 py-1.5"
+                      className="bg-card px-3 py-2.5"
                     >
-                      <div className="text-2xs uppercase text-terminal-muted">
+                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
                         {label}
                       </div>
-                      <div className="font-mono tabular text-foreground">
+                      <div className="mt-0.5 tabular text-sm text-foreground">
                         {value}
                       </div>
                     </div>
@@ -214,45 +216,50 @@ export function ProvenanceModal({
               </section>
 
               {/* Formulas */}
-              <section className="panel">
-                <div className="panel-header">Exakta formler</div>
-                <div className="space-y-1 p-2 font-mono text-2xs">
+              <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-foreground">
+                  Exakta formler
+                </div>
+                <div className="space-y-1.5 p-4 text-xs">
                   {Object.entries(data.formulas).map(([k, v]) => (
-                    <div key={k} className="text-terminal-text">
-                      <span className="text-terminal-accent">{k}:</span> {v}
+                    <div key={k} className="text-foreground">
+                      <span className="font-medium text-primary">{k}:</span>{" "}
+                      <span className="text-muted-foreground">{v}</span>
                     </div>
                   ))}
                 </div>
               </section>
 
               {/* Area version */}
-              <section className="panel">
-                <div className="panel-header">Area-version</div>
+              <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-foreground">
+                  Area-version
+                </div>
                 {data.area ? (
-                  <div className="grid grid-cols-3 gap-2 p-2 text-table font-mono">
+                  <div className="grid grid-cols-1 gap-2 p-4 text-sm sm:grid-cols-3">
                     <div>
-                      <span className="text-terminal-muted">a_temp </span>
+                      <span className="text-muted-foreground">a_temp </span>
                       {formatNumber(data.area.a_temp, 1)} m²
                     </div>
                     <div>
-                      <span className="text-terminal-muted">valid </span>
+                      <span className="text-muted-foreground">valid </span>
                       {data.area.valid_from} → {data.area.valid_to ?? "∞"}
                     </div>
                     <div>
-                      <span className="text-terminal-muted">source </span>
+                      <span className="text-muted-foreground">source </span>
                       {data.area.source ?? "—"} · Q{data.area.quality_class}
                     </div>
                   </div>
                 ) : (
-                  <div className="p-2 text-table text-muted-foreground">
+                  <div className="p-4 text-sm text-muted-foreground">
                     Ingen area-version
                   </div>
                 )}
               </section>
 
               {/* Consumption rows */}
-              <section className="panel">
-                <div className="panel-header">
+              <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-foreground">
                   energy_consumption ({data.consumption.length} rader
                   {data.estimated_row_count > 0
                     ? ` · ${data.estimated_row_count} interpolerade`
@@ -260,43 +267,43 @@ export function ProvenanceModal({
                   )
                 </div>
                 <div className="max-h-56 overflow-auto">
-                  <table className="w-full text-table font-mono">
-                    <thead className="sticky top-0 bg-terminal-row text-2xs uppercase text-terminal-muted">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-muted/50 text-[11px] uppercase text-muted-foreground">
                       <tr>
-                        <th className="px-1.5 py-1 text-left">Mån</th>
-                        <th className="px-1.5 py-1 text-left">Källa</th>
-                        <th className="px-1.5 py-1 text-right">kWh</th>
-                        <th className="px-1.5 py-1 text-right">PEF</th>
-                        <th className="px-1.5 py-1 text-right">EF</th>
-                        <th className="px-1.5 py-1 text-center">Est.</th>
-                        <th className="px-1.5 py-1 text-center">Q</th>
+                        <th className="px-2 py-1.5 text-left font-medium">Mån</th>
+                        <th className="px-2 py-1.5 text-left font-medium">Källa</th>
+                        <th className="px-2 py-1.5 text-right font-medium">kWh</th>
+                        <th className="px-2 py-1.5 text-right font-medium">PEF</th>
+                        <th className="px-2 py-1.5 text-right font-medium">EF</th>
+                        <th className="px-2 py-1.5 text-center font-medium">Est.</th>
+                        <th className="px-2 py-1.5 text-center font-medium">Q</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.consumption.map((c) => (
                         <tr
                           key={c.id}
-                          className={`border-t border-terminal-border/60 hover:bg-terminal-row/80 ${
+                          className={`border-t border-border hover:bg-muted/40 ${
                             c.is_estimated ? "bg-gap-extrapolated/5" : ""
                           }`}
                         >
-                          <td className="px-1.5 py-0.5">{c.month}</td>
-                          <td className="max-w-[10rem] truncate px-1.5 py-0.5">
+                          <td className="px-2 py-1">{c.month}</td>
+                          <td className="max-w-[10rem] truncate px-2 py-1">
                             {c.energy_source_name}
                           </td>
-                          <td className="px-1.5 py-0.5 text-right tabular">
+                          <td className="px-2 py-1 text-right tabular">
                             {formatNumber(c.consumption_kwh, 0)}
                           </td>
-                          <td className="px-1.5 py-0.5 text-right tabular">
+                          <td className="px-2 py-1 text-right tabular">
                             {formatNumber(c.primary_energy_factor, 2)}
                           </td>
-                          <td className="px-1.5 py-0.5 text-right tabular">
+                          <td className="px-2 py-1 text-right tabular">
                             {formatNumber(
                               c.emission_factor_kg_co2e_per_kwh,
                               4
                             )}
                           </td>
-                          <td className="px-1.5 py-0.5 text-center">
+                          <td className="px-2 py-1 text-center">
                             {c.is_estimated ? (
                               <span
                                 className="text-gap-extrapolated"
@@ -311,7 +318,7 @@ export function ProvenanceModal({
                               "N"
                             )}
                           </td>
-                          <td className="px-1.5 py-0.5 text-center">
+                          <td className="px-2 py-1 text-center">
                             {c.quality_class}
                           </td>
                         </tr>
@@ -320,7 +327,7 @@ export function ProvenanceModal({
                         <tr>
                           <td
                             colSpan={7}
-                            className="px-2 py-3 text-center text-muted-foreground"
+                            className="px-3 py-4 text-center text-muted-foreground"
                           >
                             Ingen consumption för året
                           </td>
@@ -329,7 +336,7 @@ export function ProvenanceModal({
                     </tbody>
                   </table>
                 </div>
-                <div className="border-t border-terminal-border px-2 py-1 text-2xs text-terminal-muted">
+                <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
                   Σ kWh ={" "}
                   {formatKwh(
                     data.consumption.reduce(
@@ -347,20 +354,20 @@ export function ProvenanceModal({
 
               {/* Climate */}
               {data.climate.length > 0 && (
-                <section className="panel">
-                  <div className="panel-header">
+                <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                  <div className="border-b border-border px-4 py-2.5 text-sm font-medium text-foreground">
                     climate_data · {data.building.municipality}
                   </div>
-                  <div className="flex flex-wrap gap-1 p-2">
+                  <div className="flex flex-wrap gap-1.5 p-4">
                     {data.climate
                       .filter((c) => c.month != null)
                       .map((c) => (
                         <div
                           key={c.month}
-                          className="rounded-sm border border-terminal-border bg-terminal-bg px-1.5 py-0.5 font-mono text-2xs"
+                          className="rounded-lg border border-border bg-muted/40 px-2 py-1 text-xs"
                           title={c.source}
                         >
-                          <span className="text-terminal-muted">
+                          <span className="text-muted-foreground">
                             M{c.month}
                           </span>{" "}
                           HDD {formatNumber(c.heating_degree_days, 0)}

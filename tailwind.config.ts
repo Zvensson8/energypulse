@@ -43,21 +43,6 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        /* Mapped to light SaaS tokens so legacy classes still look modern */
-        terminal: {
-          bg: "#f8fafc",
-          panel: "#ffffff",
-          row: "#f1f5f9",
-          border: "#e2e8f0",
-          muted: "#64748b",
-          text: "#0f172a",
-          accent: "#4f46e5",
-          green: "#10b981",
-          yellow: "#f59e0b",
-          orange: "#f97316",
-          red: "#ef4444",
-          amber: "#f59e0b",
-        },
         energy: {
           A: "#10b981",
           B: "#22c55e",

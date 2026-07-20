@@ -62,7 +62,7 @@ DELETE FROM public.buildings
 
 DELETE FROM public.properties WHERE external_id LIKE 'PILOT-%';
 
-DELETE FROM public.portfolios WHERE name = 'Pilotphi Pilotportfölj EnergyPulse';
+DELETE FROM public.portfolios WHERE id = 'a1111111-1111-4111-8111-111111111111';
 
 -- ---------------------------------------------------------------------------
 -- Fasta UUID:er (reproducerbart)

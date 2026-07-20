@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import type { RiskWorkflowStatus } from "@/lib/validations/workflow";
 import { PropertyFilter } from "@/components/filters/property-filter";
+import { RiskDetailSheet } from "@/components/risks/risk-detail-sheet";
 
 const RISK_SV: Record<string, string> = {
   flood: "Översvämning",
@@ -102,6 +103,10 @@ export function PhysicalRisksView() {
   const [hideClosed, setHideClosed] = useState(true);
   const [propertyId, setPropertyId] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [detail, setDetail] = useState<{
+    kind: "physical" | "compliance";
+    id: string;
+  } | null>(null);
   const [statusTarget, setStatusTarget] = useState<{
     id: string;
     kind: "physical" | "compliance";
@@ -344,7 +349,16 @@ export function PhysicalRisksView() {
               {(physQ.data ?? []).map((r) => (
                 <article
                   key={r.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setDetail({ kind: "physical", id: r.id })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setDetail({ kind: "physical", id: r.id });
+                    }
+                  }}
+                  className="cursor-pointer rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5"
                 >
                   <div className="flex flex-wrap items-start gap-4">
                     <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-border bg-secondary/50">
@@ -369,23 +383,19 @@ export function PhysicalRisksView() {
 
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          href={`/properties/${r.property_id}`}
-                          className="text-base font-semibold text-foreground hover:text-primary"
-                        >
-                          {r.property_name}
-                        </Link>
+                        <span className="text-base font-semibold text-foreground">
+                          {RISK_SV[r.risk_type] ?? r.risk_type}
+                        </span>
                         <Badge variant={statusVariant(r.workflow_status)}>
                           {STATUS_SV[r.workflow_status] ?? r.workflow_status}
                         </Badge>
-                        <Badge variant={scoreVariant(r.risk_score)}>
-                          {RISK_SV[r.risk_type] ?? r.risk_type}
-                        </Badge>
+                        <Badge variant="outline">{r.property_name}</Badge>
                       </div>
                       <p className="mt-0.5 text-sm text-muted-foreground">
                         {LEVEL_SV[r.probability] ?? r.probability} ×{" "}
                         {LEVEL_SV[r.consequence] ?? r.consequence}
                         {r.municipality ? ` · ${r.municipality}` : ""}
+                        <span className="ml-2 text-primary">· Öppna detalj</span>
                       </p>
                       {(r.status_reason || r.notes) && (
                         <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
@@ -394,7 +404,10 @@ export function PhysicalRisksView() {
                       )}
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+                    <div
+                      className="flex shrink-0 flex-wrap gap-2 sm:flex-col"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <StatusButtons
                         onStatus={(s) =>
                           setStatusTarget({
@@ -454,7 +467,16 @@ export function PhysicalRisksView() {
               {(compQ.data ?? []).map((r) => (
                 <article
                   key={r.id}
-                  className="rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setDetail({ kind: "compliance", id: r.id })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setDetail({ kind: "compliance", id: r.id });
+                    }
+                  }}
+                  className="cursor-pointer rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5"
                 >
                   <div className="flex flex-wrap items-start gap-4">
                     <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-border bg-secondary/50">
@@ -477,18 +499,13 @@ export function PhysicalRisksView() {
 
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          href={`/buildings?building=${r.building_id}`}
-                          className="text-base font-semibold text-foreground hover:text-primary"
-                        >
-                          {r.building_name}
-                        </Link>
+                        <span className="text-base font-semibold">
+                          {KIND_SV[r.risk_kind] ?? r.risk_kind}
+                        </span>
                         <Badge variant={statusVariant(r.workflow_status)}>
                           {STATUS_SV[r.workflow_status] ?? r.workflow_status}
                         </Badge>
-                        <Badge variant="outline">
-                          {KIND_SV[r.risk_kind] ?? r.risk_kind}
-                        </Badge>
+                        <Badge variant="outline">{r.building_name}</Badge>
                       </div>
                       <p className="mt-0.5 inline-flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
@@ -499,6 +516,7 @@ export function PhysicalRisksView() {
                         <span className="tabular">
                           · Värde {formatNumber(r.metric_value, 1)}
                         </span>
+                        <span className="text-primary">· Öppna detalj</span>
                       </p>
                       {r.status_reason && (
                         <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
@@ -507,7 +525,10 @@ export function PhysicalRisksView() {
                       )}
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
+                    <div
+                      className="flex shrink-0 flex-wrap gap-2 sm:flex-col"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <StatusButtons
                         onStatus={(s) =>
                           setStatusTarget({
@@ -525,6 +546,13 @@ export function PhysicalRisksView() {
           </>
         )}
       </div>
+
+      <RiskDetailSheet
+        open={Boolean(detail)}
+        onOpenChange={(o) => !o && setDetail(null)}
+        kind={detail?.kind ?? null}
+        riskId={detail?.id ?? null}
+      />
 
       <StatusDialog
         target={statusTarget}

@@ -12,6 +12,8 @@ import { createAction } from "@/app/actions/actions-crud";
 import {
   completeAction,
   revertActionApplication,
+  simulateAction,
+  type SimulationResult,
 } from "@/app/actions/action-application";
 import { runImprovementDetection } from "@/app/actions/improvement-detect";
 import {
@@ -77,7 +79,8 @@ export function ActionsView() {
   const [status, setStatus] = useState("all");
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [createOpen, setCreateOpen] = useState(false);
-  const [completeId, setCompleteId] = useState<string | null>(null);
+  const [simulateId, setSimulateId] = useState<string | null>(null);
+  const [simulation, setSimulation] = useState<SimulationResult | null>(null);
   const [planBuilding, setPlanBuilding] = useState<{
     id: string;
     name: string;
@@ -125,21 +128,33 @@ export function ActionsView() {
     },
   });
 
+  const simulateMut = useMutation({
+    mutationFn: async (actionId: string) => {
+      const res = await simulateAction({ action_id: actionId, year });
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (sim) => {
+      setSimulation(sim);
+    },
+  });
+
   const completeMut = useMutation({
     mutationFn: async (actionId: string) => {
-      const res = await completeAction({ action_id: actionId, year });
+      const res = await completeAction({
+        action_id: actionId,
+        year,
+        reason: "Bekräftad efter simulering",
+      });
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
     onSuccess: (diff) => {
-      setCompleteId(null);
-      if (diff) {
-        setMsg(
-          `Tillämpad: MEPS ${formatNumber(diff.baseline_meps_2030_gap, 1)} → ${formatNumber(diff.result_meps_2030_gap, 1)}, riskår ${diff.baseline_stranding_year ?? "—"} → ${diff.result_stranding_year ?? "—"}`
-        );
-      } else {
-        setMsg("Åtgärd markerad som klar – prestanda uppdaterad.");
-      }
+      setSimulateId(null);
+      setSimulation(null);
+      setMsg(
+        `Tillämpad: MEPS ${formatNumber(diff.baseline_meps_2030_gap, 1)} → ${formatNumber(diff.result_meps_2030_gap, 1)}, riskår ${diff.baseline_stranding_year ?? "—"} → ${diff.result_stranding_year ?? "—"}`
+      );
       invalidate();
     },
   });
@@ -181,7 +196,18 @@ export function ActionsView() {
     return { proposed, inFlight, done, saving, total: rows.length };
   }, [rows]);
 
-  const completeTarget = rows.find((r) => r.id === completeId);
+  const simulateTarget = rows.find((r) => r.id === simulateId);
+
+  function openSimulate(actionId: string) {
+    setSimulateId(actionId);
+    setSimulation(null);
+    void simulateMut.mutateAsync(actionId);
+  }
+
+  function closeSimulate() {
+    setSimulateId(null);
+    setSimulation(null);
+  }
 
   return (
     <div className="page-shell">
@@ -191,10 +217,10 @@ export function ActionsView() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="page-title">Åtgärder</h1>
-              <HelpTip text="Markera en åtgärd som Klar för att simulera spar och räkna om MEPS/CRREM. Före/efter visas på kortet." />
+              <HelpTip text="Simulera visar före/efter utan att ändra något. Markera klar tillämpar modeled spar och uppdaterar MEPS/CRREM." />
             </div>
             <p className="page-subtitle">
-              Prioritera, simulera effekt och slutför – så få klick som möjligt.
+              Simulera först – se effekten – sedan markera klar.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -238,13 +264,13 @@ export function ActionsView() {
           />
           <HowCard
             n="2"
-            title="Simulera med Klar"
-            body="Tillämpar spar (modeled) och visar MEPS/riskår före → efter."
+            title="Simulera"
+            body="Se före/efter (MEPS, riskår, riskscore) utan att spara något."
           />
           <HowCard
             n="3"
-            title="Skapa plan"
-            body="Paketera flera åtgärder till en renovationsplan per byggnad."
+            title="Markera klar / plan"
+            body="Tillämpa modeled spar, eller jämför A/B/C-scenarier under Renovering."
           />
         </div>
 
@@ -385,7 +411,7 @@ export function ActionsView() {
             <ActionCard
               key={r.id}
               row={r}
-              onComplete={() => setCompleteId(r.id)}
+              onSimulate={() => openSimulate(r.id)}
               onRevert={
                 r.application_id
                   ? () => void revertMut.mutateAsync(r.application_id!)
@@ -400,53 +426,140 @@ export function ActionsView() {
         </div>
       </div>
 
-      {/* Complete dialog */}
+      {/* Simulate → confirm complete dialog */}
       <Dialog
-        open={Boolean(completeId)}
-        onOpenChange={(o) => !o && setCompleteId(null)}
+        open={Boolean(simulateId)}
+        onOpenChange={(o) => !o && closeSimulate()}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Markera som klar och simulera?</DialogTitle>
+            <DialogTitle>Simulering</DialogTitle>
             <DialogDescription>
-              {completeTarget ? (
+              {simulateTarget ? (
                 <>
                   <span className="font-medium text-foreground">
-                    {completeTarget.title}
+                    {simulateTarget.title}
                   </span>
                   {" · "}
-                  {completeTarget.building_name}
+                  {simulateTarget.building_name}
                 </>
               ) : (
-                "Tillämpa spar och räkna om prestanda."
+                "Dry-run med samma motor som vid Klar – inget sparas ännu."
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-2xl bg-secondary/80 p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">Vad händer?</p>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
-              <li>Spar tillämpas som modeled justering (mätvärden orörda)</li>
-              <li>MEPS-gap och klimatriskår räknas om</li>
-              <li>Du ser före → efter på kortet</li>
-            </ul>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setCompleteId(null)}>
-              Avbryt
+
+          {simulateMut.isPending && (
+            <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Beräknar före → efter…
+            </div>
+          )}
+
+          {simulateMut.isError && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {(simulateMut.error as Error).message}
+            </div>
+          )}
+
+          {simulation && !simulateMut.isPending && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <SimMetric
+                  label="kWh/m²"
+                  before={formatNumber(simulation.baseline.energy_intensity, 1)}
+                  after={formatNumber(simulation.projected.energy_intensity, 1)}
+                />
+                <SimMetric
+                  label="MEPS-gap 2030"
+                  before={formatNumber(simulation.baseline.meps_2030_gap, 1)}
+                  after={formatNumber(simulation.projected.meps_2030_gap, 1)}
+                />
+                <SimMetric
+                  label="Riskår"
+                  before={String(
+                    simulation.baseline.crrem_stranding_year ?? "—"
+                  )}
+                  after={String(
+                    simulation.projected.crrem_stranding_year ?? "—"
+                  )}
+                />
+                <SimMetric
+                  label="Riskscore"
+                  before={formatNumber(simulation.baseline.combined_score, 0)}
+                  after={formatNumber(simulation.projected.combined_score, 0)}
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs">
+                {simulation.projected.meps_status && (
+                  <Badge
+                    variant={
+                      simulation.projected.meps_status === "compliant"
+                        ? "success"
+                        : simulation.projected.meps_status === "at_risk"
+                          ? "warning"
+                          : "danger"
+                    }
+                  >
+                    MEPS: {simulation.projected.meps_status}
+                  </Badge>
+                )}
+                {simulation.projected.financial_risk_flag != null && (
+                  <Badge
+                    variant={
+                      simulation.projected.financial_risk_flag
+                        ? "warning"
+                        : "success"
+                    }
+                  >
+                    {simulation.projected.financial_risk_flag
+                      ? "Finansiell risk kvar"
+                      : "Ingen finansiell risk <2035"}
+                  </Badge>
+                )}
+                <Badge variant="outline">
+                  Spar {formatKwh(simulation.saving_kwh)}/år
+                </Badge>
+              </div>
+
+              {simulation.warnings.length > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {simulation.warnings.map((w) => (
+                    <div key={w}>• {w}</div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Simuleringen sparar inget. «Markera klar» tillämpar modeled spar
+                (mätvärden orörda) och sätter status Klar.
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" onClick={closeSimulate}>
+              Stäng
             </Button>
             <Button
-              disabled={completeMut.isPending || !completeId}
+              disabled={
+                completeMut.isPending ||
+                simulateMut.isPending ||
+                !simulateId ||
+                !simulation
+              }
               onClick={() =>
-                completeId && void completeMut.mutateAsync(completeId)
+                simulateId && void completeMut.mutateAsync(simulateId)
               }
             >
               {completeMut.isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Simulerar…
+                  <Loader2 className="h-4 w-4 animate-spin" /> Tillämpar…
                 </>
               ) : (
                 <>
-                  <Play className="h-4 w-4" /> Ja, markera klar
+                  <CheckCircle2 className="h-4 w-4" /> Markera klar och tillämpa
                 </>
               )}
             </Button>
@@ -534,20 +647,41 @@ function StatCard({
   );
 }
 
+function SimMetric({
+  label,
+  before,
+  after,
+}: {
+  label: string;
+  before: string;
+  after: string;
+}) {
+  return (
+    <div className="rounded-xl bg-secondary/60 px-3 py-2">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-sm font-semibold tabular">
+        <span className="text-muted-foreground">{before}</span>
+        <span className="mx-1 text-muted-foreground">→</span>
+        <span className="text-emerald-700">{after}</span>
+      </div>
+    </div>
+  );
+}
+
 function ActionCard({
   row: r,
-  onComplete,
+  onSimulate,
   onRevert,
   onPlan,
   reverting,
 }: {
   row: PortfolioActionRow;
-  onComplete: () => void;
+  onSimulate: () => void;
   onRevert?: () => void;
   onPlan: () => void;
   reverting?: boolean;
 }) {
-  const canComplete =
+  const canSimulate =
     r.status !== "completed" && r.status !== "cancelled";
 
   return (
@@ -644,10 +778,10 @@ function ActionCard({
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-stretch">
-          {canComplete && (
-            <Button onClick={onComplete} className="sm:min-w-[9rem]">
+          {canSimulate && (
+            <Button onClick={onSimulate} className="sm:min-w-[9rem]">
               <Play className="h-4 w-4" />
-              Simulera / Klar
+              Simulera
             </Button>
           )}
           <Button variant="outline" onClick={onPlan}>

@@ -1014,6 +1014,39 @@ export interface Database {
         };
         Returns: string;
       };
+      simulate_action_impact: {
+        Args: {
+          p_action_id: string;
+          p_year?: number | null;
+        };
+        Returns: Record<string, unknown>;
+      };
+      simulate_actions_package: {
+        Args: {
+          p_building_id: string;
+          p_action_ids: string[];
+          p_year?: number | null;
+        };
+        Returns: Record<string, unknown>;
+      };
+      create_renovation_plan_from_actions: {
+        Args: {
+          p_building_id: string;
+          p_action_ids: string[];
+          p_year?: number | null;
+          p_title?: string | null;
+          p_scenario_key?: string | null;
+        };
+        Returns: string;
+      };
+      project_performance_with_virtual_delta: {
+        Args: {
+          p_building_id: string;
+          p_year: number;
+          p_extra_delta_kwh?: number | null;
+        };
+        Returns: Record<string, unknown>;
+      };
       refresh_all_risk_scores: {
         Args: { p_year: number };
         Returns: number;

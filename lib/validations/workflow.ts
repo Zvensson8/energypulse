@@ -14,6 +14,32 @@ export const completeActionSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
+export const simulateActionSchema = z.object({
+  action_id: uuidSchema,
+  year: z.number().int().min(2000).max(2100).optional(),
+});
+
+export const simulatePackageSchema = z.object({
+  building_id: uuidSchema,
+  action_ids: z.array(uuidSchema).min(1).max(20),
+  year: z.number().int().min(2000).max(2100).optional(),
+});
+
+export const generateScenariosSchema = z.object({
+  building_id: uuidSchema,
+  year: z.number().int().min(2000).max(2100).optional(),
+});
+
+export const selectScenarioSchema = z.object({
+  building_id: uuidSchema,
+  action_ids: z.array(uuidSchema).min(1).max(20),
+  year: z.number().int().min(2000).max(2100).optional(),
+  scenario_key: z
+    .enum(["economy", "balanced", "aggressive", "custom"])
+    .optional(),
+  title: z.string().max(200).optional(),
+});
+
 export const revertApplicationSchema = z.object({
   application_id: uuidSchema,
   reason: z.string().trim().min(5).max(500),

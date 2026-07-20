@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listRenovationPlans,
-  generateRenovationPlan,
+  generateRenovationScenarios,
+  selectRenovationScenario,
   updateRenovationPlanStatus,
   type RenovationPlan,
+  type RenovationScenario,
 } from "@/app/actions/renovation-plans";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +39,9 @@ import {
   ListTodo,
   ClipboardList,
   TrendingDown,
+  GitCompare,
+  Check,
+  X,
 } from "lucide-react";
 
 const STATUS_SV: Record<string, string> = {
@@ -111,10 +116,10 @@ export function RenovationPlansView() {
             <div className="flex items-center gap-2">
               <Hammer className="h-6 w-6 text-primary" />
               <h1 className="page-title">Renovationsplaner</h1>
-              <HelpTip text="Plan kopplar åtgärder till mål för MEPS-status och CRREM misalignment-år. Vid Klar sätts länkade åtgärder till completed och prestanda räknas om." />
+              <HelpTip text="Jämför tre scenarier (billig / balanserad / aggressiv) med samma beräkningsmotor som vid simulering. Välj ett utkast, godkänn och markera klar för att tillämpa." />
             </div>
             <p className="page-subtitle">
-              Paketera åtgärder per byggnad, sätt mål och följ status till klar.
+              Jämför A/B/C-scenarier, välj plan och följ till klar.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -131,8 +136,8 @@ export function RenovationPlansView() {
               </Link>
             </Button>
             <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Ny plan
+              <GitCompare className="h-4 w-4" />
+              Jämför scenarier
             </Button>
           </div>
         </div>
@@ -141,18 +146,18 @@ export function RenovationPlansView() {
         <div className="grid gap-3 sm:grid-cols-3">
           <Step
             n="1"
-            title="Identifiera risk"
-            body="Börja i Kombinerad risk med score ≥ 60 eller finansiell risk."
+            title="Jämför scenarier"
+            body="Billig, balanserad och aggressiv – engine-baserad före/efter."
           />
           <Step
             n="2"
-            title="Generera plan"
-            body="Välj byggnad – åtgärder paketeras efter prioritet med MEPS/CRREM-mål."
+            title="Välj plan"
+            body="Spara utkast med valda åtgärder och projicerad risk."
           />
           <Step
             n="3"
             title="Godkänn → Klar"
-            body="Uppdatera status. Vid Klar slutförs åtgärder och prestanda räknas om."
+            body="Vid Klar slutförs länkade åtgärder och modeled spar tillämpas."
           />
         </div>
 
@@ -562,7 +567,11 @@ function CreatePlanDialog({
 }) {
   const [buildingId, setBuildingId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [scenarios, setScenarios] = useState<RenovationScenario[] | null>(
+    null
+  );
+  const [loadingScenarios, setLoadingScenarios] = useState(false);
+  const [selecting, setSelecting] = useState<string | null>(null);
 
   const buildingsQ = useQuery({
     queryKey: ["buildings-for-renovation"],
@@ -580,35 +589,74 @@ function CreatePlanDialog({
     },
   });
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setPending(true);
+  async function runCompare() {
+    if (!buildingId) return;
+    setLoadingScenarios(true);
+    setError(null);
+    setScenarios(null);
+    try {
+      const res = await generateRenovationScenarios({
+        building_id: buildingId,
+      });
+      if (!res.success) throw new Error(res.error);
+      setScenarios(res.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Fel");
+    } finally {
+      setLoadingScenarios(false);
+    }
+  }
+
+  async function choose(s: RenovationScenario) {
+    setSelecting(s.key);
     setError(null);
     try {
-      const res = await generateRenovationPlan({ building_id: buildingId });
+      const res = await selectRenovationScenario({
+        building_id: buildingId,
+        action_ids: s.action_ids,
+        scenario_key: s.key,
+      });
       if (!res.success) throw new Error(res.error);
+      setScenarios(null);
+      setBuildingId("");
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fel");
     } finally {
-      setPending(false);
+      setSelecting(null);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setScenarios(null);
+          setError(null);
+        }
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Ny renovationsplan</DialogTitle>
+          <DialogTitle>Jämför renovationsscenarier</DialogTitle>
           <DialogDescription>
-            Väljer föreslagna/godkända åtgärder efter prioritet och sätter mål
-            för MEPS och CRREM.
+            Billig / balanserad / aggressiv – samma motor som vid simulering.
+            Välj ett paket för att spara utkast.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <div className="space-y-1.5">
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[14rem] flex-1 space-y-1.5">
             <label className="text-sm text-muted-foreground">Byggnad *</label>
-            <Select value={buildingId} onValueChange={setBuildingId}>
+            <Select
+              value={buildingId}
+              onValueChange={(v) => {
+                setBuildingId(v);
+                setScenarios(null);
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Välj byggnad" />
               </SelectTrigger>
@@ -631,30 +679,108 @@ function CreatePlanDialog({
               </SelectContent>
             </Select>
           </div>
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Avbryt
-            </Button>
-            <Button type="submit" disabled={pending || !buildingId}>
-              {pending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Genererar…
-                </>
-              ) : (
-                "Generera plan"
-              )}
-            </Button>
+          <Button
+            disabled={!buildingId || loadingScenarios}
+            onClick={() => void runCompare()}
+          >
+            {loadingScenarios ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Simulerar…
+              </>
+            ) : (
+              <>
+                <GitCompare className="h-4 w-4" /> Jämför
+              </>
+            )}
+          </Button>
+        </div>
+
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
           </div>
-        </form>
+        )}
+
+        {scenarios && scenarios.length > 0 && (
+          <div className="grid gap-3 md:grid-cols-3">
+            {scenarios.map((s) => {
+              const base = s.simulation.baseline.combined_score;
+              const proj = s.simulation.projected.combined_score;
+              return (
+                <div
+                  key={s.key}
+                  className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-semibold">{s.label}</h3>
+                    <Badge variant="outline">{s.actions.length} st</Badge>
+                  </div>
+                  <div className="mt-3 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Kostnad</span>
+                      <span className="font-medium tabular">
+                        {s.total_cost > 0
+                          ? `${formatNumber(s.total_cost / 1000, 0)} tkr`
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Risk</span>
+                      <span className="font-medium tabular">
+                        {formatNumber(base, 0)} →{" "}
+                        <span className="text-emerald-700">
+                          {formatNumber(proj, 0)}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="inline-flex items-center gap-1">
+                        {s.meets_meps_2030 ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 text-red-500" />
+                        )}
+                        MEPS 2030
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        {s.meets_misalign_2035 ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 text-red-500" />
+                        )}
+                        Misalign ≥2035
+                      </span>
+                    </div>
+                  </div>
+                  <ul className="mt-3 max-h-28 flex-1 space-y-1 overflow-auto text-xs text-muted-foreground">
+                    {s.actions.map((a) => (
+                      <li key={a.id} className="truncate">
+                        · {a.title}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    className="mt-4 w-full"
+                    disabled={selecting != null}
+                    onClick={() => void choose(s)}
+                  >
+                    {selecting === s.key ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Välj denna plan"
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Stäng
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

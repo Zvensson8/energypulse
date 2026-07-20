@@ -9,7 +9,7 @@ import {
   getPortfolioRiskSummary,
   type RiskScoreRow,
 } from "@/app/actions/risk-scores";
-import { generateRenovationPlan } from "@/app/actions/renovation-plans";
+// Plan generation moved to /renovation scenario compare
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -101,21 +101,6 @@ export function RiskScoresView() {
     },
   });
 
-  const genPlan = useMutation({
-    mutationFn: async (buildingId: string) => {
-      const res = await generateRenovationPlan({
-        building_id: buildingId,
-        year,
-      });
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-    onSuccess: (p) => {
-      setMsg(`Renovationsplan skapad: ${p.title}`);
-      void qc.invalidateQueries({ queryKey: ["renovation-plans"] });
-    },
-  });
-
   const s = summaryQ.data;
   const rows = useMemo(() => {
     let list = listQ.data ?? [];
@@ -196,8 +181,8 @@ export function RiskScoresView() {
           />
           <Step
             n="3"
-            title="Skapa plan"
-            body="Generera renovationsplan och slutför åtgärder på Åtgärder-sidan."
+            title="Jämför planer"
+            body="Öppna Renovering och jämför billig / balanserad / aggressiv."
           />
         </div>
 
@@ -245,11 +230,9 @@ export function RiskScoresView() {
             )}
           </div>
         )}
-        {(refresh.isError || listQ.error || genPlan.isError) && (
+        {(refresh.isError || listQ.error) && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {(
-              (refresh.error || listQ.error || genPlan.error) as Error
-            )?.message}
+            {((refresh.error || listQ.error) as Error)?.message}
             {" · "}Kör Fas 8-migrering om tabellen saknas.
           </div>
         )}
@@ -287,8 +270,7 @@ export function RiskScoresView() {
             <RiskCard
               key={r.building_id}
               row={r}
-              onPlan={() => void genPlan.mutateAsync(r.building_id)}
-              planning={genPlan.isPending}
+
             />
           ))}
         </div>
@@ -356,15 +338,7 @@ function Kpi({
   );
 }
 
-function RiskCard({
-  row: r,
-  onPlan,
-  planning,
-}: {
-  row: RiskScoreRow;
-  onPlan: () => void;
-  planning?: boolean;
-}) {
+function RiskCard({ row: r }: { row: RiskScoreRow }) {
   const tone = scoreTone(r.combined_score);
 
   return (
@@ -435,17 +409,11 @@ function RiskCard({
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col">
-          <Button
-            onClick={onPlan}
-            disabled={planning}
-            className="sm:min-w-[10rem]"
-          >
-            {planning ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
+          <Button asChild className="sm:min-w-[10rem]">
+            <Link href="/renovation">
               <ClipboardList className="h-4 w-4" />
-            )}
-            Skapa plan
+              Jämför planer
+            </Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href={`/buildings?building=${r.building_id}`}>

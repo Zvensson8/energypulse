@@ -23,10 +23,18 @@ import {
 import { HelpTip } from "@/components/ui/help-tip";
 import { Loader2, Pencil, Undo2, Shield } from "lucide-react";
 
-export function DataEditView() {
+export function DataEditView({
+  initialBuildingId,
+  initialYear,
+}: {
+  initialBuildingId?: string;
+  initialYear?: number;
+} = {}) {
   const qc = useQueryClient();
-  const [buildingId, setBuildingId] = useState("");
-  const [year, setYear] = useState(new Date().getFullYear() - 1);
+  const [buildingId, setBuildingId] = useState(initialBuildingId ?? "");
+  const [year, setYear] = useState(
+    initialYear ?? new Date().getFullYear() - 1
+  );
   const [reason, setReason] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);

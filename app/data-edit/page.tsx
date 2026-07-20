@@ -5,6 +5,19 @@ export const metadata = {
   description: "Kontrollerad manuell redigering med audit och rollback",
 };
 
-export default function DataEditPage() {
-  return <DataEditView />;
+export default async function DataEditPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ building?: string; year?: string }>;
+}) {
+  const sp = await searchParams;
+  const yearNum = sp.year ? Number(sp.year) : undefined;
+  return (
+    <DataEditView
+      initialBuildingId={sp.building}
+      initialYear={
+        yearNum != null && Number.isFinite(yearNum) ? yearNum : undefined
+      }
+    />
+  );
 }

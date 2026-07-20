@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 16% 6%;
+    --foreground: 210 20% 92%;
+    --card: 220 16% 8%;
+    --card-foreground: 210 20% 92%;
+    --popover: 220 16% 9%;
+    --popover-foreground: 210 20% 92%;
+    --primary: 210 100% 58%;
+    --primary-foreground: 220 16% 6%;
+    --secondary: 220 14% 14%;
+    --secondary-foreground: 210 20% 92%;
+    --muted: 220 12% 14%;
+    --muted-foreground: 215 12% 55%;
+    --accent: 220 14% 16%;
+    --accent-foreground: 210 20% 92%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 14% 16%;
+    --input: 220 14% 16%;
+    --ring: 210 100% 58%;
+    --radius: 0.35rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "tnum" 1, "ss01" 1;
+  }
+
+  /* Dense scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0b0e11;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a3340;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3b4656;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .density-cell {
+    @apply px-1.5 py-0.5 text-table tabular leading-tight;
+  }
+
+  .panel {
+    @apply border border-terminal-border bg-terminal-panel;
+  }
+
+  .panel-header {
+    @apply flex min-h-8 items-center justify-between gap-2 border-b border-terminal-border px-2.5 py-1.5 text-xs font-medium text-terminal-muted;
+  }
+}

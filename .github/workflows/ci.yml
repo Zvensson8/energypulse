@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  typecheck-and-build:
+    name: Typecheck + Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder' }}
+
+  migration-validate:
+    name: Migration validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate migration filenames are unique
+        run: |
+          set -euo pipefail
+          ls supabase/migrations/*.sql
+          # Fail on duplicate version prefixes (first 14 digits)
+          ls supabase/migrations/*.sql | xargs -n1 basename | cut -c1-14 | sort | uniq -d | tee /tmp/dups
+          if [ -s /tmp/dups ]; then
+            echo "Duplicate migration versions:"
+            cat /tmp/dups
+            exit 1
+          fi
+
+      - name: SQL syntax smoke (fas files exist)
+        run: |
+          test -f supabase/migrations/20260719120000_energypulse_v2_fas1.sql
+          test -f supabase/migrations/20260719130000_energypulse_v2_fas2.sql
+          test -f supabase/migrations/20260719140000_fix_interpolate_month_kwh.sql
+          test -f supabase/migrations/20260719150000_monitoring_metrics.sql
+
+      - name: db lint against linked project (optional)
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && vars.SUPABASE_PROJECT_REF != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          npx supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
+          npx supabase db lint || true
+          npx supabase migration list
+
+  e2e:
+    name: Playwright e2e
+    runs-on: ubuntu-latest
+    needs: [typecheck-and-build]
+    if: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          CI: "true"
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  security-sql-artifact:
+    name: Package security audit SQL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload security audit script
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-sql
+          path: |
+            supabase/tests/security_audit.sql
+            docs/SECURITY_AUDIT.md

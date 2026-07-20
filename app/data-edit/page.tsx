@@ -1,0 +1,10 @@
+import { DataEditView } from "@/components/data-edit/data-edit-view";
+
+export const metadata = {
+  title: "Dataredigering · EnergyPulse",
+  description: "Kontrollerad manuell redigering med audit och rollback",
+};
+
+export default function DataEditPage() {
+  return <DataEditView />;
+}

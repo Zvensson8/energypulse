@@ -9,8 +9,11 @@ import {
   updateProperty,
   listPortfolios,
 } from "@/app/actions/properties-crud";
+import { geocodeAddress } from "@/app/actions/geocode";
+import { suggestClimateZone, CLIMATE_ZONE_HELP } from "@/lib/geo/climate-zones";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HelpTip } from "@/components/ui/help-tip";
 import {
   Select,
   SelectContent,
@@ -18,7 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, MapPinned } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  MapPinned,
+  Map,
+  Sparkles,
+} from "lucide-react";
 
 type FormState = {
   portfolio_id: string;
@@ -59,6 +68,7 @@ export function PropertyForm({
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState>({ ...empty, ...initial });
   const [error, setError] = useState<string | null>(null);
+  const [geoMsg, setGeoMsg] = useState<string | null>(null);
 
   const portfolios = useQuery({
     queryKey: ["portfolios"],
@@ -101,9 +111,72 @@ export function PropertyForm({
     onError: (e: Error) => setError(e.message),
   });
 
+  const geoMut = useMutation({
+    mutationFn: async () => {
+      const q =
+        form.address.trim() ||
+        [form.name, form.municipality].filter(Boolean).join(", ");
+      if (q.length < 3) {
+        throw new Error("Ange minst adress eller ort först.");
+      }
+      const res = await geocodeAddress({ query: q });
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (g) => {
+      setForm((f) => ({
+        ...f,
+        latitude: String(g.latitude),
+        longitude: String(g.longitude),
+        municipality: g.municipality ?? f.municipality,
+        climate_zone: g.climate_zone ?? f.climate_zone,
+      }));
+      const parts = [
+        g.display_name,
+        g.climate_zone
+          ? `Klimatzon ${g.climate_zone} föreslagen från ${g.climate_zone_source ?? "plats"}`
+          : null,
+      ].filter(Boolean);
+      setGeoMsg(parts.join(" · "));
+      setError(null);
+    },
+    onError: (e: Error) => {
+      setGeoMsg(null);
+      setError(e.message);
+    },
+  });
+
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((f) => ({ ...f, [key]: value }));
+    setForm((f) => {
+      const next = { ...f, [key]: value };
+      // Föreslå klimatzon när kommun ändras – skriv inte över manuell zon
+      if (key === "municipality" && typeof value === "string" && !f.climate_zone) {
+        const sug = suggestClimateZone({ municipality: value });
+        if (sug.zone) next.climate_zone = sug.zone;
+      }
+      return next;
+    });
   }
+
+  function applyZoneFromMunicipality() {
+    const sug = suggestClimateZone({ municipality: form.municipality });
+    if (sug.zone) {
+      set("climate_zone", sug.zone);
+      setGeoMsg(
+        `Klimatzon ${sug.zone} satt från kommun «${form.municipality}». ${CLIMATE_ZONE_HELP[sug.zone]}`
+      );
+    } else {
+      setError(
+        "Kunde inte matcha kommun till klimatzon. Välj zon manuellt (I–IV)."
+      );
+    }
+  }
+
+  const zoneHint = form.climate_zone
+    ? CLIMATE_ZONE_HELP[
+        form.climate_zone as keyof typeof CLIMATE_ZONE_HELP
+      ]
+    : null;
 
   return (
     <div className="page-shell">
@@ -123,7 +196,8 @@ export function PropertyForm({
               {mode === "create" ? "Ny fastighet" : "Redigera fastighet"}
             </h1>
             <p className="page-subtitle">
-              Fält markerade * krävs. Byggnader läggs till i nästa steg.
+              Fyll i adress – hämta automatiskt lat/long, kommun och klimatzon.
+              Byggnader läggs till i nästa steg.
             </p>
           </div>
         </div>
@@ -177,52 +251,129 @@ export function PropertyForm({
                 </Select>
               </Field>
 
-              <Field label="Adress" className="sm:col-span-2">
-                <Input
-                  value={form.address}
-                  onChange={(e) => set("address", e.target.value)}
-                />
+              <Field
+                label="Adress"
+                className="sm:col-span-2"
+                hint="Gata, postnummer och ort räcker – klicka «Hämta från adress»."
+              >
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    className="flex-1"
+                    value={form.address}
+                    onChange={(e) => set("address", e.target.value)}
+                    placeholder="t.ex. Klarabergsgatan 12, 111 21 Stockholm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    disabled={geoMut.isPending}
+                    onClick={() => void geoMut.mutateAsync()}
+                  >
+                    {geoMut.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Hämtar…
+                      </>
+                    ) : (
+                      <>
+                        <Map className="h-4 w-4" /> Hämta från adress
+                      </>
+                    )}
+                  </Button>
+                </div>
               </Field>
 
-              <Field label="Kommun">
-                <Input
-                  value={form.municipality}
-                  onChange={(e) => set("municipality", e.target.value)}
-                  placeholder="Stockholm"
-                />
+              <Field
+                label="Kommun"
+                hint="Fylls ofta i automatiskt. Används till klimatzon och graddagar."
+              >
+                <div className="flex gap-2">
+                  <Input
+                    value={form.municipality}
+                    onChange={(e) => set("municipality", e.target.value)}
+                    onBlur={() => {
+                      if (form.municipality && !form.climate_zone) {
+                        const sug = suggestClimateZone({
+                          municipality: form.municipality,
+                        });
+                        if (sug.zone) set("climate_zone", sug.zone);
+                      }
+                    }}
+                    placeholder="Stockholm"
+                  />
+                </div>
               </Field>
 
-              <Field label="Klimatzon (Boverket)">
-                <Select
-                  value={form.climate_zone || "none"}
-                  onValueChange={(v) =>
-                    set("climate_zone", v === "none" ? "" : v)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="—" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">—</SelectItem>
-                    {["I", "II", "III", "IV"].map((z) => (
-                      <SelectItem key={z} value={z}>
-                        Zon {z}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <Field
+                label={
+                  <span className="inline-flex items-center gap-1">
+                    Klimatzon (Boverket)
+                    <HelpTip text="Boverkets klimatzoner I–IV styr energiberäkning. Zon I är kallast (norr), zon IV mildast (söder). Föreslås från kommun/adress – du kan ändra." />
+                  </span>
+                }
+              >
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Select
+                      value={form.climate_zone || "none"}
+                      onValueChange={(v) =>
+                        set("climate_zone", v === "none" ? "" : v)
+                      }
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        {(
+                          [
+                            ["I", "I – Norrland (kallast)"],
+                            ["II", "II – Södra Norrland / norra Svealand"],
+                            ["III", "III – Mellansverige"],
+                            ["IV", "IV – Södra Sverige (mildast)"],
+                          ] as const
+                        ).map(([z, label]) => (
+                          <SelectItem key={z} value={z}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      disabled={!form.municipality.trim()}
+                      title="Matcha zon från kommunnamn"
+                      onClick={applyZoneFromMunicipality}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Från kommun
+                    </Button>
+                  </div>
+                  {zoneHint && (
+                    <p className="text-xs text-muted-foreground">{zoneHint}</p>
+                  )}
+                </div>
               </Field>
             </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-            <h2 className="text-sm font-semibold">Plats & status</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Plats & status</h2>
+              <p className="text-xs text-muted-foreground">
+                Lat/long fylls i med «Hämta från adress» (OpenStreetMap).
+              </p>
+            </div>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Latitud">
                 <Input
                   value={form.latitude}
                   onChange={(e) => set("latitude", e.target.value)}
                   placeholder="59.33"
+                  inputMode="decimal"
                 />
               </Field>
               <Field label="Longitud">
@@ -230,6 +381,7 @@ export function PropertyForm({
                   value={form.longitude}
                   onChange={(e) => set("longitude", e.target.value)}
                   placeholder="18.06"
+                  inputMode="decimal"
                 />
               </Field>
 
@@ -275,6 +427,12 @@ export function PropertyForm({
             </div>
           </div>
 
+          {geoMsg && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              {geoMsg}
+            </div>
+          )}
+
           {error && (
             <div
               role="alert"
@@ -285,7 +443,11 @@ export function PropertyForm({
           )}
 
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+            >
               Avbryt
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
@@ -308,10 +470,12 @@ function Field({
   label,
   children,
   className,
+  hint,
 }: {
-  label: string;
+  label: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  hint?: string;
 }) {
   return (
     <div className={className}>
@@ -319,6 +483,9 @@ function Field({
         {label}
       </label>
       {children}
+      {hint && (
+        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+      )}
     </div>
   );
 }

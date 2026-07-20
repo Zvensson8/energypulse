@@ -216,7 +216,7 @@ export function HomeHub() {
         {/* Legend */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="text-sm font-semibold">Färger du ser överallt</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Legend
               color="bg-emerald-500"
               title="Grönt – OK"

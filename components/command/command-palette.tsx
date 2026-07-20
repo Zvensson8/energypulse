@@ -63,42 +63,48 @@ export function CommandPalette({
   return (
     <div className="fixed inset-0 z-[100]">
       <div
-        className="absolute inset-0 bg-black/70"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         onClick={() => onOpenChange(false)}
       />
-      <div className="absolute left-1/2 top-[15%] w-full max-w-xl -translate-x-1/2">
+      <div className="absolute left-1/2 top-[12%] w-full max-w-xl -translate-x-1/2 px-3">
         <Command
-          className="overflow-hidden rounded-md border border-terminal-border bg-terminal-panel shadow-2xl"
+          className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft"
           shouldFilter={false}
           label="Global sök"
         >
-          <div className="flex items-center gap-2 border-b border-terminal-border px-2">
-            <Search className="h-3.5 w-3.5 text-terminal-muted" />
+          <div className="flex items-center gap-2 border-b border-border px-3">
+            <Search className="h-4 w-4 text-muted-foreground" />
             <Command.Input
               value={query}
               onValueChange={setQuery}
               placeholder="Sök fastighet, byggnad, åtgärd…"
-              className="h-9 w-full bg-transparent text-table outline-none placeholder:text-terminal-muted"
+              className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               autoFocus
             />
             {pending && (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-terminal-muted" />
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             )}
-            <kbd className="rounded border border-terminal-border px-1 text-2xs text-terminal-muted">
+            <kbd className="rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
               ESC
             </kbd>
           </div>
 
-          <Command.List className="max-h-80 overflow-auto p-1">
-            <Command.Empty className="py-6 text-center text-table text-terminal-muted">
+          <Command.List className="max-h-80 overflow-auto p-2">
+            <Command.Empty className="py-8 text-center text-sm text-muted-foreground">
               {query ? "Inga träffar" : "Skriv för att söka…"}
             </Command.Empty>
 
             {!query && (
               <Command.Group
                 heading="Gå till"
-                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-2xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:text-terminal-muted"
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground"
               >
+                <Command.Item
+                  onSelect={() => go("/")}
+                  className={itemClass}
+                >
+                  Hem – vad vill du göra?
+                </Command.Item>
                 <Command.Item
                   onSelect={() => go("/dashboard")}
                   className={itemClass}
@@ -229,7 +235,7 @@ export function CommandPalette({
 }
 
 const itemClass = cn(
-  "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-table",
-  "aria-selected:bg-terminal-row aria-selected:text-foreground",
-  "data-[selected=true]:bg-terminal-row"
+  "flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-sm",
+  "aria-selected:bg-secondary aria-selected:text-foreground",
+  "data-[selected=true]:bg-secondary"
 );

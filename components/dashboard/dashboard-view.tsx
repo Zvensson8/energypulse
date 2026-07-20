@@ -21,10 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help-tip";
 import { TERMS } from "@/lib/labels";
-import { BookOpen, AlertTriangle, Sparkles } from "lucide-react";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import {
+  AlertTriangle,
+  Sparkles,
+  Upload,
+  ListTodo,
+  Activity,
+} from "lucide-react";
 
 export function DashboardView() {
   const [year, setYear] = useState(new Date().getFullYear() - 1);
@@ -75,148 +81,142 @@ export function DashboardView() {
   });
 
   return (
-    <div className="flex h-full flex-col gap-1.5 p-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="text-sm font-semibold text-foreground">
-            {TERMS.overview.label}
-          </h1>
-          <HelpTip text={TERMS.overview.help} />
-          <span className="hidden text-xs text-terminal-muted sm:inline">
-            Portföljens energi, krav och datakvalitet
-          </span>
-          {(kpisQ.isFetching || heatQ.isFetching || topQ.isFetching) && (
-            <span className="text-2xs text-terminal-muted">Uppdaterar…</span>
-          )}
+    <div className="page-shell">
+      <div className="page-inner">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="page-title">{TERMS.overview.label}</h1>
+              <HelpTip text={TERMS.overview.help} />
+            </div>
+            <p className="page-subtitle">
+              Klicka på ett KPI-kort för att gå vidare. Rött = prioritera.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              År
+              <Select
+                value={String(year)}
+                onValueChange={(v) => setYear(Number(v))}
+              >
+                <SelectTrigger className="h-10 w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[0, 1, 2, 3, 4].map((o) => {
+                    const y = new Date().getFullYear() - 1 - o;
+                    return (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </label>
+            <Button variant="outline" asChild>
+              <Link href="/import">
+                <Upload className="h-4 w-4" />
+                Importera
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/actions">
+                <ListTodo className="h-4 w-4" />
+                Åtgärder
+              </Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/guide"
-            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-2xs text-terminal-muted transition hover:bg-terminal-row hover:text-terminal-accent"
-          >
-            <BookOpen className="h-3 w-3" />
-            Guide
-          </Link>
-          <label className="flex items-center gap-1.5 text-2xs text-terminal-muted">
-            <span>År</span>
-            <Select
-              value={String(year)}
-              onValueChange={(v) => setYear(Number(v))}
-            >
-              <SelectTrigger className="h-7 w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[0, 1, 2, 3, 4].map((o) => {
-                  const y = new Date().getFullYear() - 1 - o;
-                  return (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </label>
-        </div>
-      </div>
 
-      {kpisQ.error && (
-        <div className="panel rounded-md px-3 py-2 text-xs text-destructive">
-          {(kpisQ.error as Error).message}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        {riskSumQ.data && (
-          <>
+        {/* Alerts */}
+        <div className="flex flex-wrap gap-2">
+          {riskSumQ.data && (
             <Link
               href="/risk-scores"
-              className="inline-flex items-center gap-1.5 rounded-md border border-terminal-accent/40 bg-terminal-accent/10 px-2.5 py-1 text-2xs text-terminal-accent hover:bg-terminal-accent/20"
+              className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
             >
+              <Activity className="h-3.5 w-3.5" />
               Snitt risk {riskSumQ.data.avgCombined ?? "—"} ·{" "}
               {riskSumQ.data.highRiskCount} hög
             </Link>
-            {riskSumQ.data.financialRiskCount > 0 && (
-              <Link
-                href="/risk-scores"
-                className="inline-flex items-center gap-1.5 rounded-md border border-gap-extrapolated/40 bg-gap-extrapolated/10 px-2.5 py-1 text-2xs text-gap-extrapolated hover:bg-gap-extrapolated/20"
-              >
-                <AlertTriangle className="h-3 w-3" />
-                {riskSumQ.data.financialRiskCount} finansiell risk (&lt;2035)
-              </Link>
+          )}
+          {riskSumQ.data && riskSumQ.data.financialRiskCount > 0 && (
+            <Link
+              href="/risk-scores"
+              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-100"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {riskSumQ.data.financialRiskCount} med misalignment före 2035
+            </Link>
+          )}
+          {alertsQ.data && alertsQ.data.openCompliance > 0 && (
+            <Link
+              href="/risks"
+              className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {alertsQ.data.openCompliance} öppna MEPS/CRREM-risker
+            </Link>
+          )}
+          {alertsQ.data && alertsQ.data.declarationSuggestions > 0 && (
+            <Link
+              href="/actions"
+              className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {alertsQ.data.declarationSuggestions} deklarationsförslag
+            </Link>
+          )}
+        </div>
+
+        {kpisQ.error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {(kpisQ.error as Error).message}
+          </div>
+        )}
+
+        {kpisQ.data && <KpiCards kpis={kpisQ.data} />}
+
+        {(kpisQ.isFetching || heatQ.isFetching || topQ.isFetching) && (
+          <p className="text-xs text-muted-foreground">Uppdaterar…</p>
+        )}
+
+        <div className="grid gap-4 lg:grid-cols-5">
+          <div className="min-h-[280px] lg:col-span-3">
+            {heatQ.data ? (
+              <RiskHeatmap cells={heatQ.data} />
+            ) : (
+              <div className="panel flex h-full min-h-[280px] items-center justify-center text-sm text-muted-foreground">
+                {heatQ.isLoading
+                  ? "Laddar risköversikt…"
+                  : "Ingen data – importera energivärden först"}
+              </div>
             )}
-          </>
-        )}
-        {alertsQ.data && alertsQ.data.openCompliance > 0 && (
-          <Link
-            href="/risks"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gap-incomplete/40 bg-gap-incomplete/10 px-2.5 py-1 text-2xs text-gap-incomplete hover:bg-gap-incomplete/20"
-          >
-            <AlertTriangle className="h-3 w-3" />
-            {alertsQ.data.openCompliance} öppna MEPS/CRREM-risker
-          </Link>
-        )}
-        {alertsQ.data && alertsQ.data.openPhysical > 0 && (
-          <Link
-            href="/risks"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gap-extrapolated/40 bg-gap-extrapolated/10 px-2.5 py-1 text-2xs text-gap-extrapolated hover:bg-gap-extrapolated/20"
-          >
-            <AlertTriangle className="h-3 w-3" />
-            {alertsQ.data.openPhysical} öppna fysiska risker
-          </Link>
-        )}
-        {alertsQ.data && alertsQ.data.declarationSuggestions > 0 && (
-          <Link
-            href="/actions"
-            className="inline-flex items-center gap-1.5 rounded-md border border-terminal-accent/40 bg-terminal-accent/10 px-2.5 py-1 text-2xs text-terminal-accent hover:bg-terminal-accent/20"
-          >
-            <Sparkles className="h-3 w-3" />
-            {alertsQ.data.declarationSuggestions} deklarationsförslag
-          </Link>
-        )}
-      </div>
+          </div>
+          <div className="min-h-[280px] lg:col-span-2">
+            {kpisQ.data ? (
+              <DataGapChart kpis={kpisQ.data} />
+            ) : (
+              <div className="panel h-full min-h-[280px]" />
+            )}
+          </div>
+        </div>
 
-      {kpisQ.data && <KpiCards kpis={kpisQ.data} />}
-
-      <Group orientation="vertical" className="min-h-0 flex-1">
-        <Panel defaultSize="48" minSize="20" className="min-h-0">
-          <Group orientation="horizontal" className="h-full">
-            <Panel defaultSize="55" minSize="30" className="min-h-0">
-              {heatQ.data ? (
-                <RiskHeatmap cells={heatQ.data} />
-              ) : (
-                <div className="panel flex h-full items-center justify-center rounded-md text-xs text-muted-foreground">
-                  {heatQ.isLoading
-                    ? "Laddar risköversikt…"
-                    : "Ingen data för valt år"}
-                </div>
-              )}
-            </Panel>
-            <Separator className="w-1.5 bg-terminal-border transition hover:bg-terminal-accent" />
-            <Panel defaultSize="45" minSize="25" className="min-h-0">
-              {kpisQ.data ? (
-                <DataGapChart kpis={kpisQ.data} />
-              ) : (
-                <div className="panel h-full rounded-md" />
-              )}
-            </Panel>
-          </Group>
-        </Panel>
-        <Separator className="h-1.5 bg-terminal-border transition hover:bg-terminal-accent" />
-        <Panel defaultSize="52" minSize="25" className="min-h-0">
+        <div className="min-h-[320px]">
           {topQ.data ? (
             <TopRiskLists
               stranded={topQ.data.stranded}
               mepsGap={topQ.data.mepsGap}
             />
           ) : (
-            <div className="panel flex h-full items-center justify-center rounded-md text-xs text-muted-foreground">
+            <div className="panel flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
               {topQ.isLoading ? "Laddar prioriteringslistor…" : "Ingen data"}
             </div>
           )}
-        </Panel>
-      </Group>
+        </div>
+      </div>
     </div>
   );
 }

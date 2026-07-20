@@ -28,13 +28,15 @@ export default function LoginPage() {
       if (authError) {
         const msg = authError.message.toLowerCase();
         if (msg.includes("invalid") || msg.includes("credentials")) {
-          setError("Fel e-post eller lösenord. Kontrollera uppgifterna och försök igen.");
+          setError(
+            "Fel e-post eller lösenord. Kontrollera uppgifterna och försök igen."
+          );
         } else {
           setError(authError.message);
         }
         return;
       }
-      router.replace("/dashboard");
+      router.replace("/");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Inloggning misslyckades");
@@ -44,26 +46,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex h-full items-center justify-center overflow-hidden bg-terminal-bg p-4">
-      {/* Soft ambient background */}
+    <div className="relative flex h-full items-center justify-center overflow-hidden bg-background p-4">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/4 top-1/4 h-64 w-64 rounded-full bg-terminal-accent/10 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-48 w-48 rounded-full bg-terminal-green/5 blur-3xl" />
+        <div className="absolute left-1/4 top-1/4 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
       </div>
 
       <form
         onSubmit={onSubmit}
-        className="panel relative w-full max-w-md space-y-4 rounded-lg p-6 shadow-xl"
+        className="relative w-full max-w-md space-y-5 rounded-3xl border border-border bg-card p-8 shadow-soft"
       >
         <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-terminal-accent/15 text-terminal-accent">
-            <Leaf className="h-6 w-6" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+            <Leaf className="h-7 w-7" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight">
               EnergyPulse
             </h1>
-            <p className="mt-1 text-xs leading-relaxed text-terminal-muted">
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
               {APP_TAGLINE}
             </p>
           </div>
@@ -73,7 +74,7 @@ export default function LoginPage() {
           <div className="space-y-1.5">
             <label
               htmlFor="email"
-              className="text-xs font-medium text-terminal-muted"
+              className="text-sm font-medium text-foreground"
             >
               E-postadress
             </label>
@@ -85,13 +86,12 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="fornamn.efternamn@foretag.se"
-              className="h-10 text-sm"
             />
           </div>
           <div className="space-y-1.5">
             <label
               htmlFor="password"
-              className="text-xs font-medium text-terminal-muted"
+              className="text-sm font-medium text-foreground"
             >
               Lösenord
             </label>
@@ -102,7 +102,6 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="h-10 text-sm"
             />
           </div>
         </div>
@@ -110,21 +109,20 @@ export default function LoginPage() {
         {error && (
           <div
             role="alert"
-            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+            className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
           >
             {error}
           </div>
         )}
 
-        <Button type="submit" className="h-10 w-full text-sm" disabled={loading}>
+        <Button type="submit" className="w-full" size="lg" disabled={loading}>
           {loading ? "Loggar in…" : "Logga in"}
         </Button>
 
-        <div className="flex items-start gap-2 rounded-md bg-terminal-row/60 px-3 py-2 text-2xs leading-snug text-terminal-muted">
-          <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-terminal-green" />
+        <div className="flex items-start gap-2 rounded-xl bg-secondary/80 px-3 py-2.5 text-xs leading-snug text-muted-foreground">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
           <span>
-            Du ser bara de fastigheter din organisation har gett dig tillgång
-            till. Kontakta din administratör om du saknar behörighet.
+            Du ser bara de fastigheter din organisation gett dig tillgång till.
           </span>
         </div>
       </form>

@@ -4,26 +4,30 @@
 
 @layer base {
   :root {
-    --background: 220 16% 6%;
-    --foreground: 210 20% 92%;
-    --card: 220 16% 8%;
-    --card-foreground: 210 20% 92%;
-    --popover: 220 16% 9%;
-    --popover-foreground: 210 20% 92%;
-    --primary: 210 100% 58%;
-    --primary-foreground: 220 16% 6%;
-    --secondary: 220 14% 14%;
-    --secondary-foreground: 210 20% 92%;
-    --muted: 220 12% 14%;
-    --muted-foreground: 215 12% 55%;
-    --accent: 220 14% 16%;
-    --accent-foreground: 210 20% 92%;
+    /* Modern light SaaS (Linear / Stripe-inspired) */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 239 84% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 32% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 214 32% 96%;
+    --accent-foreground: 222 47% 11%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 14% 16%;
-    --input: 220 14% 16%;
-    --ring: 210 100% 58%;
-    --radius: 0.35rem;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 239 84% 57%;
+    --radius: 0.75rem;
+    --sidebar: 0 0% 100%;
+    --success: 160 84% 39%;
+    --warning: 38 92% 50%;
   }
 
   * {
@@ -40,20 +44,65 @@
     font-feature-settings: "tnum" 1, "ss01" 1;
   }
 
-  /* Dense scrollbars */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: #0b0e11;
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a3340;
-    border-radius: 4px;
+    background: #cbd5e1;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3b4656;
+    background: #94a3b8;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl border border-border bg-card shadow-sm;
+  }
+
+  .panel-header {
+    @apply flex min-h-11 items-center justify-between gap-2 border-b border-border px-4 py-2.5 text-sm font-medium text-muted-foreground;
+  }
+
+  .card-soft {
+    @apply rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md;
+  }
+
+  .page-shell {
+    @apply h-full overflow-auto bg-background;
+  }
+
+  .page-inner {
+    @apply mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-foreground;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-sm text-muted-foreground;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground;
+  }
+
+  .nav-item-active {
+    @apply bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary;
+  }
+
+  .quick-tile {
+    @apply group flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
   }
 }
 
@@ -63,14 +112,6 @@
   }
 
   .density-cell {
-    @apply px-1.5 py-0.5 text-table tabular leading-tight;
-  }
-
-  .panel {
-    @apply border border-terminal-border bg-terminal-panel;
-  }
-
-  .panel-header {
-    @apply flex min-h-8 items-center justify-between gap-2 border-b border-terminal-border px-2.5 py-1.5 text-xs font-medium text-terminal-muted;
+    @apply px-2 py-1.5 text-sm tabular leading-tight;
   }
 }

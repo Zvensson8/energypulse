@@ -199,17 +199,15 @@ export function ImportView() {
   );
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-3xl space-y-4 p-3 sm:p-5">
+    <div className="page-shell">
+      <div className="page-inner max-w-3xl">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h1 className="text-lg font-semibold tracking-tight">
-              Importera energidata
-            </h1>
-            <p className="mt-0.5 max-w-xl text-xs leading-relaxed text-terminal-muted">
-              Ladda upp månadsförbrukning (CSV eller Excel). Systemet validerar,
-              sparar och räknar om prestanda automatiskt.
+            <h1 className="page-title">Importera energidata</h1>
+            <p className="page-subtitle max-w-xl">
+              Dra in CSV eller Excel. Vi visar förhandsgranskning innan något
+              sparas – sedan räknas prestanda om automatiskt.
             </p>
           </div>
           <Link
@@ -263,20 +261,20 @@ export function ImportView() {
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
             className={cn(
-              "panel flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-4 py-12 transition",
+              "flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed bg-card px-6 py-14 shadow-sm transition",
               dragOver
-                ? "border-terminal-accent bg-terminal-accent/5"
-                : "border-terminal-border"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/40"
             )}
           >
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-terminal-accent/10 text-terminal-accent">
-              <Upload className="h-7 w-7" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Upload className="h-8 w-8" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium">
+              <p className="text-base font-semibold">
                 Dra och släpp fil här
               </p>
-              <p className="mt-1 text-xs text-terminal-muted">
+              <p className="mt-1 text-sm text-muted-foreground">
                 eller välj CSV / Excel (.xlsx) med månadsdata
               </p>
             </div>

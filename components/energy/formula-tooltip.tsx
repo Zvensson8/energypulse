@@ -214,7 +214,7 @@ export function FormulaTooltip({
             }}
           >
             <FileSearch className="h-3 w-3" />
-            Öppna provenance
+            Så räknades resultatet
           </Button>
         )}
       </TooltipContent>

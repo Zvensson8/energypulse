@@ -26,7 +26,7 @@ CREATE OR REPLACE FUNCTION app.score_combined_risk_virtual(
   p_meps_2030_gap numeric,
   p_crrem_stranding_year int,
   p_data_completeness_percent numeric,
-  p_data_gap_status text
+  p_data_gap_status public.data_gap_status
 )
 RETURNS numeric
 LANGUAGE plpgsql
@@ -47,7 +47,10 @@ DECLARE
   v_phys_avg numeric;
   v_property_id uuid;
   v_years_out numeric;
+  v_gap_status text;
 BEGIN
+  v_gap_status := p_data_gap_status::text;
+
   BEGIN
     SELECT value INTO v_w FROM public.system_config WHERE key = 'combined_risk_weights';
     IF v_w IS NOT NULL THEN
@@ -100,9 +103,9 @@ BEGIN
   ELSE
     v_dq_score := GREATEST(0, 100 - p_data_completeness_percent);
   END IF;
-  IF p_data_gap_status = 'INCOMPLETE_DATA' THEN
+  IF v_gap_status = 'INCOMPLETE_DATA' THEN
     v_dq_score := GREATEST(v_dq_score, 80);
-  ELSIF p_data_gap_status = 'EXTRAPOLATED_WARNING' THEN
+  ELSIF v_gap_status = 'EXTRAPOLATED_WARNING' THEN
     v_dq_score := GREATEST(v_dq_score, 40);
   END IF;
 
@@ -620,7 +623,7 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 7. Grants
 -- ---------------------------------------------------------------------------
-GRANT EXECUTE ON FUNCTION app.score_combined_risk_virtual(uuid, int, numeric, int, numeric, text)
+GRANT EXECUTE ON FUNCTION app.score_combined_risk_virtual(uuid, int, numeric, int, numeric, public.data_gap_status)
   TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.project_performance_with_virtual_delta(uuid, int, numeric)
   TO authenticated, service_role;

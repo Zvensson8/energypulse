@@ -22,6 +22,7 @@ import {
   X,
   Home,
   ChevronRight,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/command/command-palette";
@@ -78,6 +79,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       },
       { href: "/renovation", label: "Renovationsplaner", icon: Hammer },
       { href: "/risks", label: "Riskregister", icon: AlertTriangle },
+      {
+        href: "/reports",
+        label: "Rapporter",
+        icon: FileText,
+        hint: "PDF till ledning & CSRD",
+      },
     ],
   },
   {
@@ -121,6 +128,10 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/renovation": {
     title: "Renovationsplaner",
     subtitle: "Paketera åtgärder mot MEPS och klimatriskår",
+  },
+  "/reports": {
+    title: "Rapporter",
+    subtitle: "Ledning, CSRD, fastighet och renovering",
   },
   "/guide": { title: "Guide", subtitle: "Kom igång på några minuter" },
   "/admin": {

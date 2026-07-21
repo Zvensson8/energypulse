@@ -166,6 +166,12 @@ export function CommandPalette({
                   Renovationsplaner
                 </Command.Item>
                 <Command.Item
+                  onSelect={() => go("/reports")}
+                  className={itemClass}
+                >
+                  Rapporter – ledning, CSRD, fastighet
+                </Command.Item>
+                <Command.Item
                   onSelect={() => go("/crrem")}
                   className={itemClass}
                 >

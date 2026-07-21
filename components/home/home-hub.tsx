@@ -7,6 +7,7 @@ import {
   Activity,
   ArrowRight,
   FileSpreadsheet,
+  FileText,
   CheckCircle2,
   Sparkles,
   Hammer,
@@ -45,10 +46,10 @@ const STEPS = [
   {
     n: "4",
     title: "Exportera underlag",
-    body: "Ladda ner besluts-PDF till ledningen från byggnadens betygssida.",
-    href: "/risk-scores",
-    cta: "Börja med riskscore",
-    icon: LayoutDashboard,
+    body: "Ta ut PDF till ledning, CSRD, fastighet eller renovering under Rapporter.",
+    href: "/reports",
+    cta: "Till rapporter",
+    icon: FileText,
     color: "from-sky-500 to-cyan-500",
   },
 ];
@@ -84,6 +85,12 @@ const SHORTCUTS = [
     href: "/examples/energypulse_exempel_import.csv",
     icon: FileSpreadsheet,
     download: true,
+  },
+  {
+    title: "Rapporter",
+    desc: "PDF till ledning & CSRD",
+    href: "/reports",
+    icon: FileText,
   },
   {
     title: "Guide",

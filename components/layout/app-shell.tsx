@@ -103,8 +103,8 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "Betyg → simulera → plan → beslutsunderlag",
   },
   "/dashboard": {
-    title: "Portföljöversikt",
-    subtitle: "Energi, krav och risk i hela beståndet",
+    title: "Beslutstavla",
+    subtitle: "Prioriteringar, år-mot-år och CSRD-nyckeltal",
   },
   "/properties": {
     title: "Fastigheter",

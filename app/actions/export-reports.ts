@@ -426,6 +426,13 @@ export async function exportCsrdReport(raw?: {
     });
     await requireUser(await createClient());
 
+    const { getCsrdMetrics } = await import("@/app/actions/csrd-metrics");
+    const metricsRes = await getCsrdMetrics({
+      year,
+      propertyId: input.propertyId,
+    });
+    const m = metricsRes.success ? metricsRes.data : null;
+
     const [scoresRes, risksRes, plansRes, actionsRes] = await Promise.all([
       listRiskScores({ year }),
       listPhysicalRisks({
@@ -448,89 +455,106 @@ export async function exportCsrdReport(raw?: {
       actions = actions.filter((a) => a.property_id === input.propertyId);
     }
 
-    const avgScore =
-      scores.length > 0
-        ? scores.reduce((s, r) => s + (r.combined_score ?? 0), 0) / scores.length
-        : null;
-    const financial = scores.filter((s) => s.financial_risk_flag).length;
-    const nonCompliant = scores.filter(
-      (s) => s.meps_status === "non_compliant"
-    ).length;
-    const openRisks = risks.filter(
-      (r) => r.workflow_status === "open" || r.workflow_status === "monitoring"
-    ).length;
-    const transitionCost = plans
-      .filter((p) => p.status !== "completed")
-      .reduce((s, p) => s + (p.total_estimated_cost ?? 0), 0);
-
-    const scope = input.propertyId
-      ? scores[0]?.property_name ??
-        risks[0]?.property_name ??
-        "Vald fastighet"
-      : "Hela portföljen";
+    const scope = m?.scopeLabel ?? (input.propertyId ? "Vald fastighet" : "Hela portföljen");
 
     const lines: PdfLine[] = [
       ...header(
-        "EnergyPulse – CSRD / ESRS E1 underlag",
-        "Klimatrelaterad information för hållbarhetsrapportering (utkast baserat på systemdata)",
-        `Omfattning: ${scope}  |  Rapporteringsår: ${year}  |  Genererad: ${today()}`
+        "CSRD / ESRS E1 – underlag",
+        "Klimatrelaterad information för hållbarhetsrapportering (data från EnergyPulse)",
+        `Omfattning: ${scope}  ·  Rapporteringsår: ${year}  ·  Genererad: ${today()}`
       ),
       {
         type: "text",
-        text: "Denna rapport är ett dataunderlag – inte en fullständig CSRD-deklaration. Använd sektionerna nedan som checklista för vad som bör ingå i ESRS E1.",
+        text: "Detta är ett dataunderlag – inte en fullständig CSRD-deklaration. Avsnitten följer ESRS E1-strukturen.",
       },
-      { type: "space", h: 8 },
+      { type: "space", h: 6 },
 
-      { type: "subtitle", text: "A. Vad som bör ingå i en CSRD-klimatrapport (ESRS E1)" },
+      { type: "subtitle", text: "A. ESRS E1 – vad som ska täckas" },
       {
-        type: "text",
-        text: "1) Styrning – roller för klimat- och energiförvaltning, beslutsprocess för renovering.",
+        type: "bullet",
+        text: "GOV: styrning och ansvar för klimat- och energifrågor",
       },
       {
-        type: "text",
-        text: "2) Strategi – hur klimatkrav (MEPS/EPBD) och CRREM-banor påverkar beståndet och affärsmodellen.",
+        type: "bullet",
+        text: "SBM: strategi och affärsmodell – påverkan av MEPS/EPBD och CRREM",
       },
       {
-        type: "text",
-        text: "3) Klimatrisker – fysiska risker (översvämning, värme m.m.) och övergångsrisker (lagkrav, stranding).",
+        type: "bullet",
+        text: "IRO: fysiska klimatrisker och övergångsrisker (lagkrav, stranding)",
       },
       {
-        type: "text",
-        text: "4) Metriker – energianvändning, intensitet (kWh/m²), GHG om tillgänglig, energiklass, datakvalitet.",
+        type: "bullet",
+        text: "Metriker: energi, intensitet, GHG, lagkrav, datakvalitet",
       },
       {
-        type: "text",
-        text: "5) Mål och omställningsplan – renovationsplaner, tidsplan, investeringsbehov, förväntad effekt.",
+        type: "bullet",
+        text: "Mål & omställningsplan: renovationsplaner, CapEx, tidsplan",
       },
       {
-        type: "text",
-        text: "6) Policyer & åtgärder – godkända åtgärder, status, ansvar, uppföljning.",
+        type: "bullet",
+        text: "Policyer & åtgärder: status, kostnad, uppföljning",
       },
-      {
-        type: "text",
-        text: "7) Datakvalitet & gap – saknad data, uppskattningar, override/audit.",
-      },
-      { type: "space", h: 8 },
+      { type: "space", h: 6 },
 
-      { type: "subtitle", text: "B. Nuläge i EnergyPulse (metriker)" },
+      { type: "subtitle", text: "B. Nyckeltal (live från systemet)" },
       {
-        type: "text",
-        text: `Byggnader med riskscore: ${scores.length}  |  Snitt riskscore: ${fmt(avgScore, 1)} / 100`,
+        type: "kpi_row",
+        items: [
+          {
+            label: "Energi",
+            value: m ? `${fmt(m.totalEnergyKwh / 1e6, 2)} GWh` : "—",
+          },
+          {
+            label: "kWh/m² snitt",
+            value: m?.avgEnergyIntensity != null ? fmt(m.avgEnergyIntensity, 1) : "—",
+          },
+          {
+            label: "GHG uppsk.",
+            value:
+              m?.estimatedGhgTco2e != null
+                ? `${fmt(m.estimatedGhgTco2e, 1)} t`
+                : "—",
+          },
+          {
+            label: "CapEx omställn.",
+            value: m ? tkr(m.totalTransitionCapexSek || null) : "—",
+          },
+        ],
       },
       {
         type: "text",
-        text: `Finansiell risk (klimatar <2035): ${financial}  |  MEPS ej uppfyllt: ${nonCompliant}`,
+        text: m
+          ? `Byggnader: ${m.buildingCount}  ·  MEPS uppfyller ${m.mepsCompliant} / risk ${m.mepsAtRisk} / ej ${m.mepsNonCompliant}  ·  Fin.risk <2035: ${m.financialRiskCount}  ·  Fysiska risker öppna: ${m.openPhysicalRisks}`
+          : "Metriker kunde inte hämtas.",
       },
       {
         type: "text",
-        text: `Aktiva fysiska risker (öppen/bevakning): ${openRisks}  |  Renovationsplaner: ${plans.length}`,
-      },
-      {
-        type: "text",
-        text: `Uppskattad investering i omställningsplaner: ${tkr(transitionCost || null)}`,
+        text: m
+          ? `Data: komplett ${m.dataComplete}, uppskattad ${m.dataExtrapolated}, ofullständig ${m.dataIncomplete}. ${m.coverageNote}`
+          : "",
       },
       { type: "space", h: 6 },
     ];
+
+    if (m && m.capexByYear.length > 0) {
+      lines.push({ type: "subtitle", text: "B2. CapEx per år (planer + åtgärder)" });
+      lines.push({
+        type: "table",
+        headers: ["År", "Planer tkr", "Åtgärder tkr", "Summa tkr", "Antal planer"],
+        widths: [70, 100, 100, 100, 90],
+        rows: m.capexByYear.map((c) => [
+          String(c.year),
+          fmt(c.planCostSek / 1000, 0),
+          fmt(c.actionCostSek / 1000, 0),
+          fmt(c.totalSek / 1000, 0),
+          String(c.planCount),
+        ]),
+      });
+    }
+
+    lines.push({ type: "space", h: 4 });
+    lines.push({ type: "subtitle", text: "C. Riskscore per byggnad" });
+    lines.push({ type: "space", h: 2 });
 
     if (scores.length > 0) {
       lines.push({

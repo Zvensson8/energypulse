@@ -212,31 +212,52 @@ export function RiskScoresView({
             value={
               s?.avgCombined != null ? formatNumber(s.avgCombined, 1) : "—"
             }
-            help="Portföljsnitt 0–100"
+            sub="0–100 · portfölj"
+            help="Genomsnittlig samlad risk (0–100) för alla byggnader med score det valda året. Högre = mer brådska. Grönt under 40, gult 40–60, rött från 60. Klicka för att visa alla hus."
+            tone={avgRiskTone(s?.avgCombined ?? null)}
+            badge={avgRiskBadge(s?.avgCombined ?? null)}
             active={filter === "all"}
             onClick={() => setFilter("all")}
           />
           <Kpi
             label="Hög risk ≥60"
             value={String(s?.highRiskCount ?? "—")}
-            tone="text-red-600"
+            sub="byggnader att prioritera"
+            help="Antal hus med samlad risk 60 eller mer. Klicka för att filtrera listan till dessa. Börja här när du ska agera."
+            tone={countTone(s?.highRiskCount, "danger")}
+            badge={countBadge(s?.highRiskCount, "danger")}
             active={filter === "high"}
             onClick={() => setFilter("high")}
           />
           <Kpi
-            label="MEPS ej uppfyllt"
+            label="Lagkrav 2030 ej uppfyllt"
             value={String(s?.nonCompliantCount ?? "—")}
-            tone="text-red-600"
+            sub="kravgap (MEPS)"
+            help="Byggnader som enligt beräkning inte uppfyller energikravet för 2030 (MEPS/EPBD). Kräver ofta åtgärder eller bättre data – öppna husets betygssida."
+            tone={countTone(s?.nonCompliantCount, "danger")}
+            badge={countBadge(s?.nonCompliantCount, "danger")}
           />
           <Kpi
             label="Finansiell risk"
             value={String(s?.financialRiskCount ?? "—")}
-            help="Misalignment < 2035"
-            tone="text-amber-600"
+            sub="klimatriskår före 2035"
+            help="Hus där klimatriskåret (CRREM) infaller före 2035. Extra viktig flagga för ledning och CSRD. Klicka för att filtrera listan."
+            tone={countTone(s?.financialRiskCount, "warning")}
+            badge={countBadge(s?.financialRiskCount, "warning")}
             active={filter === "financial"}
             onClick={() => setFilter("financial")}
           />
-          <Kpi label="Byggnader" value={String(s?.buildingCount ?? "—")} />
+          <Kpi
+            label="Byggnader i listan"
+            value={String(s?.buildingCount ?? "—")}
+            sub={`år ${s?.year ?? "—"}`}
+            help="Antal byggnader som har risk-/prestandadata för det valda året. Om talet är 0: importera energi och klicka «Räkna om portfölj»."
+            tone="text-slate-800"
+            badge={{
+              label: "Underlag",
+              className: "bg-slate-100 text-slate-600",
+            }}
+          />
         </div>
 
         {msg && (
@@ -320,18 +341,64 @@ function Step({
   );
 }
 
+type KpiBadge = { label: string; className: string };
+
+function avgRiskTone(avg: number | null): string {
+  if (avg == null) return "text-muted-foreground";
+  if (avg >= 60) return "text-red-600";
+  if (avg >= 40) return "text-amber-600";
+  return "text-emerald-600";
+}
+
+function avgRiskBadge(avg: number | null): KpiBadge {
+  if (avg == null)
+    return { label: "Saknas", className: "bg-secondary text-muted-foreground" };
+  if (avg >= 60)
+    return { label: "Prioritera", className: "bg-red-50 text-red-700" };
+  if (avg >= 40)
+    return { label: "Kolla", className: "bg-amber-50 text-amber-800" };
+  return { label: "OK", className: "bg-emerald-50 text-emerald-700" };
+}
+
+/** 0 = grönt (bra), >0 = varning/fara beroende på kind */
+function countTone(
+  n: number | null | undefined,
+  kind: "danger" | "warning"
+): string {
+  if (n == null) return "text-muted-foreground";
+  if (n === 0) return "text-emerald-600";
+  return kind === "danger" ? "text-red-600" : "text-amber-600";
+}
+
+function countBadge(
+  n: number | null | undefined,
+  kind: "danger" | "warning"
+): KpiBadge {
+  if (n == null)
+    return { label: "—", className: "bg-secondary text-muted-foreground" };
+  if (n === 0)
+    return { label: "OK", className: "bg-emerald-50 text-emerald-700" };
+  if (kind === "danger")
+    return { label: "Prioritera", className: "bg-red-50 text-red-700" };
+  return { label: "Kolla", className: "bg-amber-50 text-amber-800" };
+}
+
 function Kpi({
   label,
   value,
+  sub,
   help,
   tone,
+  badge,
   onClick,
   active,
 }: {
   label: string;
   value: string;
-  help?: string;
+  sub?: string;
+  help: string;
   tone?: string;
+  badge?: KpiBadge;
   onClick?: () => void;
   active?: boolean;
 }) {
@@ -342,17 +409,34 @@ function Kpi({
       onClick={onClick}
       className={cn(
         "rounded-2xl border bg-card p-4 text-left shadow-sm transition",
-        onClick && "hover:-translate-y-0.5 hover:shadow-md",
-        active ? "border-primary ring-2 ring-primary/20" : "border-border"
+        onClick && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md",
+        active
+          ? "border-primary ring-2 ring-primary/20"
+          : "border-border hover:border-primary/20"
       )}
     >
-      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-        {label}
-        {help && <HelpTip text={help} />}
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+          <span className="leading-snug">{label}</span>
+          <HelpTip text={help} label={`Om ${label}`} />
+        </div>
+        {badge && (
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+              active ? "bg-primary/15 text-primary" : badge.className
+            )}
+          >
+            {active ? "Vald" : badge.label}
+          </span>
+        )}
       </div>
-      <div className={cn("mt-1 text-2xl font-semibold tabular", tone)}>
+      <div className={cn("mt-2 text-2xl font-semibold tabular", tone)}>
         {value}
       </div>
+      {sub && (
+        <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
+      )}
     </Comp>
   );
 }

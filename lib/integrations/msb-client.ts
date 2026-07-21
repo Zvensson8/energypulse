@@ -2,16 +2,19 @@
  * MSB översvämningskartering – öppna ArcGIS REST (ingen API-nyckel).
  * https://gisapp.msb.se/Apps/oversvamningsportal/
  *
- * - Vattendrag: 100/200-årsflöde, beräknat högsta, klimatanpassade flöden
- * - Kust: utbredning vid havsvattenstånd 0,1–5,0 m RH2000
+ * Performance notes:
+ * - River identify with few layers: ~1–3 s
+ * - Coast identify with many layers: 20–40 s+ (often timeouts)
+ * - Coast with ONE layer at a time: ~4 s → we sample 2.0 m then refine
+ * - Partial success: river/coast independent
  */
 
 import type { HazardSuggestion, RiskLevel } from "./types";
-import { fetchJson, toWebMercator } from "./geo-utils";
+import { toWebMercator } from "./geo-utils";
 
-const RIVER =
+const RIVER_URL =
   "https://gisapp.msb.se/arcgis/rest/services/Oversvamningskarteringar/karteringar/MapServer";
-const COAST =
+const COAST_URL =
   "https://gisapp.msb.se/arcgis/rest/services/Oversvamningskarteringar/kustoversvamning/MapServer";
 
 /** Layer ids of interest on river MapServer */
@@ -36,12 +39,26 @@ const RIVER_LAYERS = {
   },
 } as const;
 
+const RIVER_LAYER_IDS = "visible:2,3,4,5,6,15";
+
+/**
+ * Coastal MapServer: layer id N ≈ (N+1)/10 m RH2000
+ * 9 → 1.0 m, 19 → 2.0 m, 29 → 3.0 m
+ */
+const COAST_LEVELS = {
+  m1: { id: 9, meters: 1.0 },
+  m2: { id: 19, meters: 2.0 },
+  m3: { id: 29, meters: 3.0 },
+} as const;
+
+type IdentifyHit = {
+  layerId: number;
+  layerName: string;
+  attributes?: Record<string, unknown>;
+};
+
 type IdentifyResult = {
-  results?: Array<{
-    layerId: number;
-    layerName: string;
-    attributes?: Record<string, unknown>;
-  }>;
+  results?: IdentifyHit[];
   error?: { message?: string };
 };
 
@@ -52,43 +69,136 @@ function levelFromScore(score: number): RiskLevel {
   return "low";
 }
 
-async function identify(
+function isTimeoutError(e: unknown): boolean {
+  if (!(e instanceof Error)) return false;
+  const m = e.message.toLowerCase();
+  return (
+    m.includes("timeout") ||
+    m.includes("aborted") ||
+    e.name === "TimeoutError" ||
+    e.name === "AbortError"
+  );
+}
+
+async function identifyOnce(
   mapServer: string,
   lon: number,
   lat: number,
   layers: string,
-  padM = 2500,
-  tolerance = 12
-): Promise<IdentifyResult["results"]> {
+  opts: { padM: number; tolerance: number; timeoutMs: number }
+): Promise<IdentifyHit[]> {
   const { x, y } = toWebMercator(lon, lat);
+  const pad = opts.padM;
   const params = new URLSearchParams({
-    geometry: JSON.stringify({ x, y }),
+    geometry: `${x},${y}`,
     geometryType: "esriGeometryPoint",
     sr: "3857",
     layers,
-    tolerance: String(tolerance),
-    mapExtent: `${x - padM},${y - padM},${x + padM},${y + padM}`,
-    imageDisplay: "800,600,96",
+    tolerance: String(opts.tolerance),
+    mapExtent: `${x - pad},${y - pad},${x + pad},${y + pad}`,
+    imageDisplay: "200,200,96",
     returnGeometry: "false",
     f: "json",
   });
-  const data = await fetchJson<IdentifyResult>(
-    `${mapServer}/identify?${params}`,
-    { timeoutMs: 50_000 }
-  );
+
+  const res = await fetch(`${mapServer}/identify?${params}`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(opts.timeoutMs),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`MSB HTTP ${res.status}`);
+  }
+
+  const data = (await res.json()) as IdentifyResult;
   if (data.error?.message) {
     throw new Error(data.error.message);
   }
   return data.results ?? [];
 }
 
+async function identifyWithRetry(
+  mapServer: string,
+  lon: number,
+  lat: number,
+  layers: string,
+  opts: { padM: number; tolerance: number; timeoutMs: number }
+): Promise<IdentifyHit[]> {
+  try {
+    return await identifyOnce(mapServer, lon, lat, layers, opts);
+  } catch (e) {
+    if (!isTimeoutError(e) && !(e instanceof TypeError)) throw e;
+    return await identifyOnce(mapServer, lon, lat, layers, {
+      ...opts,
+      timeoutMs: Math.min(opts.timeoutMs + 12_000, 45_000),
+    });
+  }
+}
+
+/**
+ * Coast: sample one layer at a time (multi-layer identify is too slow).
+ * 1) 2.0 m screen  2) if hit → 1.0 m severity  3) if miss → 3.0 m lower severity
+ */
+async function analyzeCoast(
+  lon: number,
+  lat: number
+): Promise<{ minM: number | null; hits: number; layersTried: number[] }> {
+  const base = {
+    padM: 1500,
+    tolerance: 6,
+    timeoutMs: 15_000,
+  };
+  const layersTried: number[] = [];
+
+  const probe = async (layerId: number) => {
+    layersTried.push(layerId);
+    const hits = await identifyWithRetry(
+      COAST_URL,
+      lon,
+      lat,
+      `visible:${layerId}`,
+      base
+    );
+    return hits.length > 0;
+  };
+
+  // Screen at 2.0 m (most useful climate/planning threshold)
+  const hit2 = await probe(COAST_LEVELS.m2.id);
+  if (hit2) {
+    // Refine: is it already under water at 1.0 m?
+    try {
+      const hit1 = await probe(COAST_LEVELS.m1.id);
+      return {
+        minM: hit1 ? COAST_LEVELS.m1.meters : COAST_LEVELS.m2.meters,
+        hits: hit1 ? 2 : 1,
+        layersTried,
+      };
+    } catch {
+      return { minM: COAST_LEVELS.m2.meters, hits: 1, layersTried };
+    }
+  }
+
+  // Not at 2.0 m – check 3.0 m for lower severity coastal exposure
+  try {
+    const hit3 = await probe(COAST_LEVELS.m3.id);
+    if (hit3) {
+      return { minM: COAST_LEVELS.m3.meters, hits: 1, layersTried };
+    }
+  } catch {
+    // ignore – treat as no coastal hit
+  }
+
+  return { minM: null, hits: 0, layersTried };
+}
+
 export type MsbAnalysis = {
   riverHits: Array<{ layerId: number; layerName: string; kartering?: string }>;
-  /** Lowest coastal water level (m) where point is inundated, if any */
   coastMinM: number | null;
   coastHits: number;
   suggestions: HazardSuggestion[];
   fetchedAt: string;
+  warnings: string[];
 };
 
 export async function analyzeMsbPoint(
@@ -97,21 +207,39 @@ export async function analyzeMsbPoint(
 ): Promise<MsbAnalysis> {
   const fetchedAt = new Date().toISOString();
   const suggestions: HazardSuggestion[] = [];
+  const warnings: string[] = [];
 
-  const [riverRaw, coastRaw] = await Promise.all([
-    identify(RIVER, lon, lat, "all", 3000, 15),
-    identify(
-      COAST,
-      lon,
-      lat,
-      // Sample every 0.5 m from 0.5–4.0 m to keep payload small
-      "visible:4,9,14,19,24,29,34,39",
-      2000,
-      8
-    ),
-  ]);
-  const riverResults = riverRaw ?? [];
-  const coastResults = coastRaw ?? [];
+  const riverP = identifyWithRetry(RIVER_URL, lon, lat, RIVER_LAYER_IDS, {
+    padM: 2500,
+    tolerance: 12,
+    timeoutMs: 18_000,
+  }).then(
+    (r) => ({ ok: true as const, results: r }),
+    (e: unknown) => ({
+      ok: false as const,
+      error: e instanceof Error ? e.message : String(e),
+    })
+  );
+
+  const coastP = analyzeCoast(lon, lat).then(
+    (r) => ({ ok: true as const, ...r }),
+    (e: unknown) => ({
+      ok: false as const,
+      error: e instanceof Error ? e.message : String(e),
+    })
+  );
+
+  const [riverOut, coastOut] = await Promise.all([riverP, coastP]);
+
+  if (!riverOut.ok && !coastOut.ok) {
+    throw new Error(
+      `Vattendrag: ${riverOut.error}; Kust: ${"error" in coastOut ? coastOut.error : "okänt"}`
+    );
+  }
+
+  const riverResults = riverOut.ok ? riverOut.results : [];
+  if (!riverOut.ok) warnings.push(`Vattendrag: ${riverOut.error}`);
+  if (!coastOut.ok) warnings.push(`Kust: ${coastOut.error}`);
 
   const riverHits: MsbAnalysis["riverHits"] = [];
   let bestRiverScore = 0;
@@ -145,23 +273,8 @@ export async function analyzeMsbPoint(
     });
   }
 
-  // Coastal: layer id N ≈ (N+1)/10 m  (id 0 = 0.1 m, id 9 = 1.0 m, id 19 = 2.0 m)
-  let coastMinM: number | null = null;
-  for (const r of coastResults) {
-    const m = Math.round((r.layerId + 1) * 10) / 100; // 0.1, 0.2, …
-    if (coastMinM == null || m < coastMinM) coastMinM = m;
-  }
-
-  // Also parse layer name like "2,0 m" if present
-  for (const r of coastResults) {
-    const match = String(r.layerName).match(/(\d+)[,.](\d+)\s*m/i);
-    if (match) {
-      const m = Number(`${match[1]}.${match[2]}`);
-      if (Number.isFinite(m) && (coastMinM == null || m < coastMinM)) {
-        coastMinM = m;
-      }
-    }
-  }
+  const coastMinM = coastOut.ok ? coastOut.minM : null;
+  const coastHits = coastOut.ok ? coastOut.hits : 0;
 
   if (coastMinM != null) {
     let score = 1;
@@ -185,8 +298,9 @@ export async function analyzeMsbPoint(
   return {
     riverHits,
     coastMinM,
-    coastHits: coastResults.length,
+    coastHits,
     suggestions,
     fetchedAt,
+    warnings,
   };
 }

@@ -125,12 +125,13 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
     (statusQ.data ?? []).map((r) => [r.source, r])
   );
 
+  // Optional-chain every nested field – partial/legacy reports must not crash UI
   const hazardSuggestions = [
-    ...(lastReport?.msb.suggestions ?? []),
-    ...(lastReport?.sgi.suggestions ?? []),
+    ...(lastReport?.msb?.suggestions ?? []),
+    ...(lastReport?.sgi?.suggestions ?? []),
   ];
   const anyEnabled = flagsQ.data?.anyEnabled ?? true;
-  const boverketNotes = lastReport?.boverket.notes ?? [];
+  const boverketNotes = lastReport?.boverket?.notes ?? [];
 
   return (
     <section className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
@@ -178,22 +179,22 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
           const Icon = ui.icon;
           const last = lastBySource.get(s.id);
           const liveStatus =
-            lastReport && s.id === "boverket"
-              ? lastReport.boverket.status
-              : lastReport && s.id === "msb"
-                ? lastReport.msb.status
-                : lastReport && s.id === "sgi"
-                  ? lastReport.sgi.status
+            s.id === "boverket"
+              ? lastReport?.boverket?.status
+              : s.id === "msb"
+                ? lastReport?.msb?.status
+                : s.id === "sgi"
+                  ? lastReport?.sgi?.status
                   : null;
           const status =
             liveStatus ?? last?.status ?? (s.enabled ? "ok" : "disabled");
           const liveMessage =
-            lastReport && s.id === "boverket"
-              ? lastReport.boverket.message
-              : lastReport && s.id === "msb"
-                ? lastReport.msb.message
-                : lastReport && s.id === "sgi"
-                  ? lastReport.sgi.message
+            s.id === "boverket"
+              ? lastReport?.boverket?.message
+              : s.id === "msb"
+                ? lastReport?.msb?.message
+                : s.id === "sgi"
+                  ? lastReport?.sgi?.message
                   : null;
           return (
             <div
@@ -274,12 +275,12 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
         </div>
       )}
 
-      {refresh.isSuccess && (
+      {refresh.isSuccess && refresh.data && (
         <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
           <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
-            Klart. Snapshots: {refresh.data.snapshotIds.length}
-            {refresh.data.appliedRiskIds.length > 0
+            Klart. Snapshots: {refresh.data.snapshotIds?.length ?? 0}
+            {(refresh.data.appliedRiskIds?.length ?? 0) > 0
               ? ` · nya risker: ${refresh.data.appliedRiskIds.length}`
               : applySuggestions
                 ? " · inga nya risker (inga förslag eller redan sparade)"

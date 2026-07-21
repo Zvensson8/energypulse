@@ -45,6 +45,10 @@ export const msbProvider: GeoHazardProvider = {
     try {
       const analysis = await analyzeMsbPoint(ctx.latitude, ctx.longitude);
       const n = analysis.suggestions.length;
+      const warn =
+        analysis.warnings.length > 0
+          ? ` Delvis: ${analysis.warnings.join(" · ")}`
+          : "";
       return {
         source: "msb",
         status: "ok",
@@ -54,11 +58,12 @@ export const msbProvider: GeoHazardProvider = {
           riverHits: analysis.riverHits,
           coastMinM: analysis.coastMinM,
           coastHits: analysis.coastHits,
+          warnings: analysis.warnings,
         },
         message:
           n > 0
-            ? `MSB: ${n} översvämningsindikator(er) (vattendrag/kust).`
-            : "MSB: ingen träff i karterade flöden/kustnivåer vid punkten (kartering saknas eller plats utanför utbredning).",
+            ? `MSB: ${n} översvämningsindikator(er) (vattendrag/kust).${warn}`
+            : `MSB: ingen träff i karterade flöden/kustnivåer vid punkten (kartering saknas eller plats utanför utbredning).${warn}`,
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Okänt MSB-fel";

@@ -54,6 +54,7 @@ EXTERNAL_DATA_GSI_ENABLED=false
   - **storm** – max vind / byvind (m/s)
   - **flood** – max dygnsnederbörd / summa (proxy för översvämningsbelastning)
 - **UI:** Fastighet → Externa datakällor → «Hämta från SMHI» (+ valfritt spara som physical_risks)
+- **Auto-trigger:** Vid `createProperty` / `updateProperty` när lat/lon **sätts eller ändras** körs SMHI i bakgrunden med `applySuggestions: true` (misslyckad SMHI stoppar inte sparning). Oförändrade koordinater hoppas över (~11 m tröskel).
 - **Krav:** `properties.latitude` / `longitude` (geokod)
 
 ## Flöde

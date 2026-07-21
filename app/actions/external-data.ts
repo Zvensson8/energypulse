@@ -117,6 +117,82 @@ export async function getExternalDataStatus(
  * Kör alla adapters, sparar snapshots.
  * applySuggestions=true skapar physical_risks från förslag (inte i stub som default).
  */
+/** ~11 m – treat as same point */
+const COORD_EPS = 0.0001;
+
+function coordsChanged(
+  lat: number,
+  lon: number,
+  prevLat?: number | null,
+  prevLon?: number | null
+): boolean {
+  if (prevLat == null || prevLon == null) return true;
+  return (
+    Math.abs(prevLat - lat) >= COORD_EPS ||
+    Math.abs(prevLon - lon) >= COORD_EPS
+  );
+}
+
+/**
+ * Fire-and-forget SMHI (m.fl.) when coordinates are set/changed on a property.
+ * Never throws – property save must not fail if SMHI is down.
+ */
+export async function autoRefreshSmhiForProperty(opts: {
+  propertyId: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  previousLatitude?: number | null;
+  previousLongitude?: number | null;
+  /** Default true – save heat/storm/flood suggestions as physical_risks */
+  applySuggestions?: boolean;
+}): Promise<{ triggered: boolean; reason?: string }> {
+  const lat = opts.latitude;
+  const lon = opts.longitude;
+  if (lat == null || lon == null || Number.isNaN(lat) || Number.isNaN(lon)) {
+    return { triggered: false, reason: "missing_coords" };
+  }
+  if (
+    !coordsChanged(
+      lat,
+      lon,
+      opts.previousLatitude,
+      opts.previousLongitude
+    )
+  ) {
+    return { triggered: false, reason: "coords_unchanged" };
+  }
+
+  try {
+    const res = await refreshPropertyExternalData({
+      propertyId: opts.propertyId,
+      applySuggestions: opts.applySuggestions ?? true,
+    });
+    if (!res.success) {
+      logger.warn("external_data.auto_smhi_failed", {
+        propertyId: opts.propertyId,
+        error: res.error,
+      });
+      return { triggered: false, reason: res.error };
+    }
+    logger.info("external_data.auto_smhi", {
+      propertyId: opts.propertyId,
+      suggestions: res.data.smhi.suggestions.length,
+      applied: res.data.appliedRiskIds.length,
+      status: res.data.smhi.status,
+    });
+    return { triggered: true };
+  } catch (e) {
+    logger.warn("external_data.auto_smhi_error", {
+      propertyId: opts.propertyId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return {
+      triggered: false,
+      reason: e instanceof Error ? e.message : "error",
+    };
+  }
+}
+
 export async function refreshPropertyExternalData(raw: {
   propertyId: string;
   applySuggestions?: boolean;

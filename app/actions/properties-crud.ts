@@ -265,6 +265,19 @@ export async function createProperty(raw: unknown) {
       });
     }
 
+    // Auto SMHI when new property has coordinates
+    if (data.latitude != null && data.longitude != null) {
+      const { autoRefreshSmhiForProperty } = await import(
+        "@/app/actions/external-data"
+      );
+      void autoRefreshSmhiForProperty({
+        propertyId: data.id as string,
+        latitude: Number(data.latitude),
+        longitude: Number(data.longitude),
+        applySuggestions: true,
+      });
+    }
+
     logger.info("property.created", { id: data.id, userId: user.id });
     return { success: true as const, data };
   } catch (e) {
@@ -280,6 +293,13 @@ export async function updateProperty(raw: unknown) {
     const user = await requireUser(supabase);
     assertRole(user, WRITE_ROLES);
 
+    // Previous coords – only re-fetch SMHI when location changes
+    const { data: prev } = await supabase
+      .from("properties")
+      .select("latitude, longitude")
+      .eq("id", id)
+      .maybeSingle();
+
     const { data, error } = await supabase
       .from("properties")
       .update({
@@ -291,6 +311,30 @@ export async function updateProperty(raw: unknown) {
       .single();
 
     if (error) return { success: false as const, error: error.message };
+
+    const nextLat =
+      data.latitude != null ? Number(data.latitude) : null;
+    const nextLon =
+      data.longitude != null ? Number(data.longitude) : null;
+    const prevLat =
+      prev?.latitude != null ? Number(prev.latitude) : null;
+    const prevLon =
+      prev?.longitude != null ? Number(prev.longitude) : null;
+
+    if (nextLat != null && nextLon != null) {
+      const { autoRefreshSmhiForProperty } = await import(
+        "@/app/actions/external-data"
+      );
+      void autoRefreshSmhiForProperty({
+        propertyId: id,
+        latitude: nextLat,
+        longitude: nextLon,
+        previousLatitude: prevLat,
+        previousLongitude: prevLon,
+        applySuggestions: true,
+      });
+    }
+
     logger.info("property.updated", { id, userId: user.id });
     return { success: true as const, data };
   } catch (e) {

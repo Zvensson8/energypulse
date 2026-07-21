@@ -136,6 +136,7 @@ export function PropertyForm({
         g.climate_zone
           ? `Klimatzon ${g.climate_zone} föreslagen från ${g.climate_zone_source ?? "plats"}`
           : null,
+        "SMHI hämtas automatiskt när du sparar fastigheten (kräver koordinater).",
       ].filter(Boolean);
       setGeoMsg(parts.join(" · "));
       setError(null);

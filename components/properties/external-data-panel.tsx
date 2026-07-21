@@ -136,8 +136,8 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
             <HelpTip text="SMHI hämtar observationer från närmaste mätstation (öppen data, ingen API-nyckel). Förslag om värme, vind och nederbörd kan sparas som fysiska risker. Boverket/GSI är förberedda men avstängda tills vidare." />
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            SMHI är aktiv. Kräver att fastigheten har koordinater (geokoda
-            adress).
+            SMHI körs automatiskt när koordinater sparas/ändras. Du kan också
+            hämta manuellt här (kräver geokodad adress).
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">

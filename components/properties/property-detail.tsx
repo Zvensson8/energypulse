@@ -71,6 +71,13 @@ import { RiskScoresView } from "@/components/risk/risk-scores-view";
 import { PhysicalRisksView } from "@/components/risks/physical-risks-view";
 import { ActionsView } from "@/components/actions/actions-view";
 import { RenovationPlansView } from "@/components/renovation/renovation-plans-view";
+import {
+  PropertyJourney,
+  buildPropertyJourneySteps,
+} from "@/components/properties/property-journey";
+import { EmptyState } from "@/components/ui/empty-state";
+import { listPortfolioActions } from "@/app/actions/actions-priority";
+import { listRenovationPlans } from "@/app/actions/renovation-plans";
 
 type TabId =
   | "overview"
@@ -151,6 +158,45 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
       return res.data;
     },
     enabled: tab === "spaces" || tab === "overview",
+  });
+
+  const journeyQ = useQuery({
+    queryKey: ["property-journey-meta", propertyId],
+    queryFn: async () => {
+      const propRes = await getProperty(propertyId);
+      const buildingIds = new Set(
+        propRes.success
+          ? (propRes.data.buildings as Array<{ id: string }>).map((b) => b.id)
+          : []
+      );
+      const [actionsRes, plansRes] = await Promise.all([
+        listPortfolioActions({ status: null }),
+        listRenovationPlans({}),
+      ]);
+      const actions = actionsRes.success
+        ? actionsRes.data.rows.filter(
+            (a) =>
+              a.property_id === propertyId &&
+              (a.status === "proposed" ||
+                a.status === "approved" ||
+                a.status === "in_progress")
+          )
+        : [];
+      const plans = plansRes.success
+        ? plansRes.data.filter(
+            (p) =>
+              p.property_id === propertyId ||
+              (p.building_id != null && buildingIds.has(p.building_id))
+          )
+        : [];
+      return {
+        openActions: actions.length,
+        planCount: plans.length,
+        draftPlans: plans.filter((p) => p.status === "draft").length,
+      };
+    },
+    enabled: tab === "overview",
+    staleTime: 30_000,
   });
 
   const deactivate = useMutation({
@@ -235,6 +281,25 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
   }, 0);
 
   const withPerf = buildings.filter((b) => piByBuilding.has(b.id)).length;
+  const incompletePerf = buildings.filter((b) => {
+    const pi = piByBuilding.get(b.id) as
+      | { data_gap_status?: string }
+      | undefined;
+    return pi?.data_gap_status === "INCOMPLETE_DATA";
+  }).length;
+  const highRiskBuildings = buildings.filter((b) => {
+    const pi = piByBuilding.get(b.id) as
+      | {
+          meps_2030_gap?: number | null;
+          crrem_stranding_year?: number | null;
+        }
+      | undefined;
+    if (!pi) return false;
+    if (pi.meps_2030_gap != null && pi.meps_2030_gap > 0) return true;
+    if (pi.crrem_stranding_year != null && pi.crrem_stranding_year < 2035)
+      return true;
+    return false;
+  }).length;
   const risks = data.physical_risks as Array<{
     id: string;
     risk_type: string;
@@ -244,6 +309,21 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
     notes: string | null;
   }>;
   const spaceCount = spacesQ.data?.length ?? null;
+
+  const journeySteps = buildPropertyJourneySteps({
+    propertyId,
+    buildingCount: buildings.length,
+    withPerf,
+    incompletePerf,
+    riskCount: risks.length,
+    highRiskBuildings,
+    openActions: journeyQ.data?.openActions ?? 0,
+    planCount: journeyQ.data?.planCount ?? 0,
+    draftPlans: journeyQ.data?.draftPlans ?? 0,
+    onTab: (t) => {
+      if (VALID_TABS.has(t as TabId)) setTab(t as TabId);
+    },
+  });
 
   return (
     <div className="page-shell">
@@ -365,26 +445,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
 
         {tab === "overview" && (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Step
-                n="1"
-                title="Byggnader & lokaler"
-                body="Struktur under fastigheten – hus, Atemp och hyresgäster."
-                onClick={() => setTab("buildings")}
-              />
-              <Step
-                n="2"
-                title="Riskscore & risker"
-                body="Se score och registrera fysiska risker här – eller i menyn."
-                onClick={() => setTab("risk-scores")}
-              />
-              <Step
-                n="3"
-                title="Åtgärder & planer"
-                body="Skapa åtgärder och renovationsplaner kopplade till husen."
-                onClick={() => setTab("actions")}
-              />
-            </div>
+            <PropertyJourney steps={journeySteps} />
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <MetaCard
@@ -761,16 +822,14 @@ function BuildingsPanel({
       </div>
 
       {buildings.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
-          <Building2 className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <h3 className="mt-3 text-lg font-semibold">Inga byggnader</h3>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Lägg till en byggnad med Atemp för att börja spåra energi och risk.
-          </p>
-          <Button className="mt-5" onClick={onAdd}>
-            <Plus className="h-4 w-4" /> Lägg till byggnad
-          </Button>
-        </div>
+        <EmptyState
+          icon={Building2}
+          title="Inga byggnader ännu"
+          body="Lägg till minst ett hus med Atemp (uppvärmd yta) under den här fastigheten."
+          why="Utan byggnad kan vi inte räkna energi, riskscore eller renovationsplaner."
+          ctaLabel="Lägg till byggnad"
+          onCta={onAdd}
+        />
       ) : (
         <div className="grid gap-3">
           {buildings.map((b) => {
@@ -1006,17 +1065,14 @@ function SpacesPanel({
           )}
 
           {!isLoading && rows.length === 0 && (
-            <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
-              <DoorOpen className="mx-auto h-10 w-10 text-muted-foreground/40" />
-              <h3 className="mt-3 text-lg font-semibold">Inga lokaler</h3>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                Skapa en lokal och koppla den till en byggnad under den här
-                fastigheten.
-              </p>
-              <Button className="mt-5" onClick={onAdd}>
-                <Plus className="h-4 w-4" /> Skapa lokal
-              </Button>
-            </div>
+            <EmptyState
+              icon={DoorOpen}
+              title="Inga lokaler ännu"
+              body="Skapa en lokal och koppla den till en byggnad under den här fastigheten."
+              why="Lokaler ger översikt över ytor och hyresgäster (namn maskeras av GDPR-skäl)."
+              ctaLabel="Skapa lokal"
+              onCta={onAdd}
+            />
           )}
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

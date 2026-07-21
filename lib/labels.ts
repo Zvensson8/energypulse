@@ -98,6 +98,22 @@ export const TERMS = {
     label: "Kravgap 2030",
     help: "Hur mycket energianvändningen (kWh/m²) överskrider kravnivån för 2030. Positivt tal = behov av förbättring.",
   },
+  meps: {
+    label: "Lagkrav energi 2030",
+    help: "MEPS/EPBD – hur byggnaden ligger mot lagkravet för energiprestanda 2030.",
+  },
+  combinedRisk: {
+    label: "Samlad risk (0–100)",
+    help: "Viktad poäng från lagkrav, klimatriskår, fysiska risker och datakvalitet. Högre = mer akut.",
+  },
+  climateYear: {
+    label: "Klimatriskår",
+    help: "År då byggnaden enligt CRREM riskerar att bli olönsam ur klimatsynpunkt om inget görs (stranding/misalignment).",
+  },
+  nextStep: {
+    label: "Nästa steg",
+    help: "Rekommenderad handling baserat på data, risk och planer för objektet.",
+  },
   strandingYear: {
     label: "Riskår",
     help: "Första år då byggnadens utsläpp enligt CRREM överstiger banan (pathway). Tidigare år = högre prioritet.",

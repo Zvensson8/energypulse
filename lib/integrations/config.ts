@@ -9,10 +9,25 @@ function flag(name: string, defaultValue = false): boolean {
   return v === "1" || v.toLowerCase() === "true" || v === "yes";
 }
 
+/**
+ * SMHI Open Data requires no key – default ON unless explicitly disabled.
+ * Boverket/GSI default OFF until configured.
+ */
+function smhiEnabled(): boolean {
+  const v = process.env.EXTERNAL_DATA_SMHI_ENABLED;
+  if (v == null || v === "") return true;
+  return !(
+    v === "0" ||
+    v.toLowerCase() === "false" ||
+    v.toLowerCase() === "no" ||
+    v.toLowerCase() === "off"
+  );
+}
+
 export function getExternalIntegrationConfig() {
   return {
     smhi: {
-      enabled: flag("EXTERNAL_DATA_SMHI_ENABLED"),
+      enabled: smhiEnabled(),
       apiKey: process.env.SMHI_API_KEY ?? null,
     },
     boverket: {

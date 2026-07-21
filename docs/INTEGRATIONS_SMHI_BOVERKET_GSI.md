@@ -32,17 +32,29 @@ Tabell: external_data_snapshots
 ## Environment
 
 ```env
-# Feature flags (default: av)
-EXTERNAL_DATA_SMHI_ENABLED=false
+# SMHI Open Data – default ON (ingen nyckel). Sätt false för att stänga av.
+# EXTERNAL_DATA_SMHI_ENABLED=true
+
+# Boverket / GSI – default av
 EXTERNAL_DATA_BOVERKET_ENABLED=false
 EXTERNAL_DATA_GSI_ENABLED=false
 
-# Framtida nycklar (används inte i stub-läge)
-# SMHI_API_KEY=
+# Framtida nycklar
 # BOVERKET_API_KEY=
 # GSI_API_URL=
 # GSI_API_KEY=
 ```
+
+## SMHI live (metobs)
+
+- **API:** `https://opendata-download-metobs.smhi.se/api/version/1.0`
+- **Flöde:** närmaste aktiva station (temp/vind/nederbörd) → `period/latest-months`
+- **Mappning till riskförslag:**
+  - **heat** – max °C och antal dygn ≥25 °C
+  - **storm** – max vind / byvind (m/s)
+  - **flood** – max dygnsnederbörd / summa (proxy för översvämningsbelastning)
+- **UI:** Fastighet → Externa datakällor → «Hämta från SMHI» (+ valfritt spara som physical_risks)
+- **Krav:** `properties.latitude` / `longitude` (geokod)
 
 ## Flöde
 

@@ -219,13 +219,38 @@ export async function refreshPropertyExternalData(raw: {
       if (snap?.id) snapshotIds.push(snap.id as string);
     }
 
-    // Apply hazard suggestions only when explicitly requested and status ok/stub with items
+    // Apply hazard suggestions only when explicitly requested
     if (input.applySuggestions) {
       const all = [
         ...result.smhi.suggestions,
         ...result.gsi.suggestions,
       ];
+
+      // Avoid duplicates: same source ref already open/monitoring
+      const { data: existing } = await supabase
+        .from("physical_risks")
+        .select("id, source, risk_type, workflow_status")
+        .eq("property_id", input.propertyId)
+        .in("workflow_status", ["open", "monitoring"]);
+
+      const existingKeys = new Set(
+        (existing ?? []).map(
+          (r) =>
+            `${(r.source as string | null) ?? ""}|${r.risk_type as string}`
+        )
+      );
+
       for (const h of all) {
+        const key = `${h.sourceRef}|${h.risk_type}`;
+        if (existingKeys.has(key)) continue;
+        // also skip same risk_type from smhi: prefix
+        const sameType = (existing ?? []).some(
+          (r) =>
+            r.risk_type === h.risk_type &&
+            String(r.source ?? "").startsWith("smhi:")
+        );
+        if (sameType && h.sourceRef.startsWith("smhi:")) continue;
+
         const scoreMap: Record<string, number> = {
           low: 1,
           medium: 2,
@@ -250,7 +275,10 @@ export async function refreshPropertyExternalData(raw: {
           .select("id")
           .single();
 
-        if (!error && risk?.id) appliedRiskIds.push(risk.id as string);
+        if (!error && risk?.id) {
+          appliedRiskIds.push(risk.id as string);
+          existingKeys.add(key);
+        }
       }
     }
 

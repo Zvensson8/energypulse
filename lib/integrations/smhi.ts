@@ -1,6 +1,5 @@
 /**
- * SMHI – klimat/väder → fysiska riskförslag.
- * Stub tills EXTERNAL_DATA_SMHI_ENABLED=true och live-klient implementeras.
+ * SMHI – klimat/väder → fysiska riskförslag (live via Open Data metobs).
  */
 
 import type {
@@ -9,6 +8,7 @@ import type {
   PropertyGeoContext,
 } from "./types";
 import { getExternalIntegrationConfig } from "./config";
+import { analyzeSmhiPoint } from "./smhi-client";
 
 function nowIso() {
   return new Date().toISOString();
@@ -21,6 +21,7 @@ export const smhiProvider: ClimateHazardProvider = {
     const { smhi } = getExternalIntegrationConfig();
     const fetchedAt = nowIso();
 
+    // Open data – enabled by default unless explicitly disabled
     if (!smhi.enabled) {
       return {
         source: "smhi",
@@ -28,7 +29,7 @@ export const smhiProvider: ClimateHazardProvider = {
         fetchedAt,
         suggestions: [],
         message:
-          "SMHI är avstängt (EXTERNAL_DATA_SMHI_ENABLED). Aktivera när API är konfigurerat.",
+          "SMHI är avstängt (EXTERNAL_DATA_SMHI_ENABLED=false). Sätt true eller ta bort flaggan för att aktivera.",
       };
     }
 
@@ -43,21 +44,40 @@ export const smhiProvider: ClimateHazardProvider = {
       };
     }
 
-    // Live: anropa SMHI Open Data med lat/lon, mappa till HazardSuggestion.
-    // Stub: tom lista – ingen falsk risk skapas i production.
-    return {
-      source: "smhi",
-      status: "stub",
-      fetchedAt,
-      suggestions: [],
-      raw: {
-        mode: "stub",
-        lat: ctx.latitude,
-        lon: ctx.longitude,
-        note: "Replace with SMHI Open Data client",
-      },
-      message:
-        "SMHI-stub aktiv. Live-hämtning av klimatindikatorer är inte inkopplad ännu.",
-    };
+    try {
+      const analysis = await analyzeSmhiPoint(ctx.latitude, ctx.longitude);
+      const st =
+        analysis.station.temp?.name ??
+        analysis.station.wind?.name ??
+        analysis.station.precip?.name;
+
+      return {
+        source: "smhi",
+        status: "ok",
+        fetchedAt: analysis.fetchedAt,
+        suggestions: analysis.suggestions,
+        raw: {
+          mode: "live",
+          lat: ctx.latitude,
+          lon: ctx.longitude,
+          stations: analysis.station,
+          stats: analysis.stats,
+        },
+        message:
+          analysis.suggestions.length > 0
+            ? `SMHI: ${analysis.suggestions.length} riskförslag från observationer nära ${st ?? "platsen"} (senaste månaderna).`
+            : `SMHI: data hämtad (${st ?? "station"}). Inga tröskelvärden överskridna för värme/vind/nederbörd i perioden – inga automatiska riskförslag.`,
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Okänt SMHI-fel";
+      return {
+        source: "smhi",
+        status: "error",
+        fetchedAt,
+        suggestions: [],
+        message: `SMHI-anrop misslyckades: ${msg}`,
+        raw: { error: msg },
+      };
+    }
   },
 };

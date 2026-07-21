@@ -221,7 +221,7 @@ export function RiskScoresView({
           </div>
         )}
 
-        {/* Summary KPIs */}
+        {/* Summary KPIs – help text follows property vs portfolio scope */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Kpi
             label="Snitt risk"
@@ -233,7 +233,11 @@ export function RiskScoresView({
                 ? "0–100 · vald fastighet"
                 : "0–100 · hela portföljen"
             }
-            help="Genomsnittlig samlad risk (0–100) för byggnader i urvalet (portfölj eller vald fastighet). Högre = mer brådska. Grönt under 40, gult 40–60, rött från 60. Klicka för att nollställa listfilter."
+            help={
+              effectivePropertyId
+                ? "Genomsnittlig samlad risk (0–100) för husen under den valda fastigheten det valda året. Högre = mer brådska. Grönt under 40, gult 40–60, rött från 60. Klicka för att nollställa listfilter (hög risk / finansiell)."
+                : "Genomsnittlig samlad risk (0–100) för alla byggnader i portföljen med score det valda året. Högre = mer brådska. Grönt under 40, gult 40–60, rött från 60. Klicka för att nollställa listfilter."
+            }
             tone={avgRiskTone(s?.avgCombined ?? null)}
             badge={avgRiskBadge(s?.avgCombined ?? null)}
             active={filter === "all"}
@@ -242,8 +246,16 @@ export function RiskScoresView({
           <Kpi
             label="Hög risk ≥60"
             value={String(s?.highRiskCount ?? "—")}
-            sub="byggnader att prioritera"
-            help="Antal hus med samlad risk 60 eller mer. Klicka för att filtrera listan till dessa. Börja här när du ska agera."
+            sub={
+              effectivePropertyId
+                ? "hus på fastigheten"
+                : "byggnader att prioritera"
+            }
+            help={
+              effectivePropertyId
+                ? "Antal hus under den valda fastigheten med samlad risk 60 eller mer. Klicka för att filtrera listan till dessa hus. Börja här när du ska agera på just den här fastigheten."
+                : "Antal hus i portföljen med samlad risk 60 eller mer. Klicka för att filtrera listan till dessa. Börja här när du ska agera."
+            }
             tone={countTone(s?.highRiskCount, "danger")}
             badge={countBadge(s?.highRiskCount, "danger")}
             active={filter === "high"}
@@ -252,16 +264,32 @@ export function RiskScoresView({
           <Kpi
             label="Lagkrav 2030 ej uppfyllt"
             value={String(s?.nonCompliantCount ?? "—")}
-            sub="kravgap (MEPS)"
-            help="Byggnader som enligt beräkning inte uppfyller energikravet för 2030 (MEPS/EPBD). Kräver ofta åtgärder eller bättre data – öppna husets betygssida."
+            sub={
+              effectivePropertyId
+                ? "kravgap på fastigheten"
+                : "kravgap (MEPS) i portföljen"
+            }
+            help={
+              effectivePropertyId
+                ? "Hus under den valda fastigheten som inte uppfyller energikravet för 2030 (MEPS/EPBD). Öppna husets betygssida för gap och åtgärder. Siffran gäller bara den här fastigheten."
+                : "Byggnader i portföljen som enligt beräkning inte uppfyller energikravet för 2030 (MEPS/EPBD). Kräver ofta åtgärder eller bättre data – öppna husets betygssida."
+            }
             tone={countTone(s?.nonCompliantCount, "danger")}
             badge={countBadge(s?.nonCompliantCount, "danger")}
           />
           <Kpi
             label="Finansiell risk"
             value={String(s?.financialRiskCount ?? "—")}
-            sub="klimatriskår före 2035"
-            help="Hus där klimatriskåret (CRREM) infaller före 2035. Extra viktig flagga för ledning och CSRD. Klicka för att filtrera listan."
+            sub={
+              effectivePropertyId
+                ? "klimatriskår <2035 · fastighet"
+                : "klimatriskår före 2035"
+            }
+            help={
+              effectivePropertyId
+                ? "Hus under den valda fastigheten där klimatriskåret (CRREM) infaller före 2035. Viktigt för ledning och CSRD på just den här fastigheten. Klicka för att filtrera listan."
+                : "Hus i portföljen där klimatriskåret (CRREM) infaller före 2035. Extra viktig flagga för ledning och CSRD. Klicka för att filtrera listan."
+            }
             tone={countTone(s?.financialRiskCount, "warning")}
             badge={countBadge(s?.financialRiskCount, "warning")}
             active={filter === "financial"}
@@ -270,11 +298,15 @@ export function RiskScoresView({
           <Kpi
             label="Byggnader i listan"
             value={String(s?.buildingCount ?? "—")}
-            sub={`år ${s?.year ?? "—"}`}
+            sub={
+              effectivePropertyId
+                ? `år ${s?.year ?? "—"} · fastighet`
+                : `år ${s?.year ?? "—"} · portfölj`
+            }
             help={
               effectivePropertyId
-                ? "Antal byggnader under den valda fastigheten som har riskscore för året. Om 0: importera energi och räkna om."
-                : "Antal byggnader i portföljen med riskscore för det valda året. Om 0: importera energi och klicka «Räkna om portfölj»."
+                ? "Antal byggnader under den valda fastigheten som har riskscore för det valda året. KPI ovan gäller samma hus. Om 0: importera energi och räkna om risk."
+                : "Antal byggnader i hela portföljen med riskscore för det valda året. Om 0: importera energi och klicka «Räkna om portfölj»."
             }
             tone="text-slate-800"
             badge={{

@@ -81,6 +81,8 @@ async function loadWeights(
 export async function listPortfolioActions(opts?: {
   status?: string | null;
   year?: number | null;
+  propertyId?: string | null;
+  buildingIds?: string[] | null;
 }): Promise<ActionResult<{ rows: PortfolioActionRow[]; weights: PriorityWeights }>> {
   try {
     const supabase = await createClient();
@@ -88,6 +90,21 @@ export async function listPortfolioActions(opts?: {
 
     const weights = await loadWeights(supabase);
     const year = opts?.year ?? new Date().getFullYear() - 1;
+
+    // Resolve building scope early (property or explicit ids)
+    let scopeBuildingIds: string[] | null = opts?.buildingIds?.length
+      ? opts.buildingIds
+      : null;
+    if (opts?.propertyId && !scopeBuildingIds) {
+      const { data: bs } = await supabase
+        .from("buildings")
+        .select("id")
+        .eq("property_id", opts.propertyId);
+      scopeBuildingIds = (bs ?? []).map((b) => b.id as string);
+      if (scopeBuildingIds.length === 0) {
+        return { success: true, data: { rows: [], weights } };
+      }
+    }
 
     let q = supabase
       .from("actions")
@@ -104,7 +121,11 @@ export async function listPortfolioActions(opts?: {
       `
       )
       .order("priority_score", { ascending: false, nullsFirst: false })
-      .limit(500);
+      .limit(scopeBuildingIds ? 200 : 500);
+
+    if (scopeBuildingIds) {
+      q = q.in("building_id", scopeBuildingIds);
+    }
 
     if (opts?.status && opts.status !== "all") {
       q = q.eq(

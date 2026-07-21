@@ -97,11 +97,17 @@ export function ActionsView({
   const [msg, setMsg] = useState<string | null>(null);
 
   const { data, isLoading, error, isFetching } = useQuery({
-    queryKey: ["portfolio-actions", status, year],
+    queryKey: [
+      "portfolio-actions",
+      status,
+      year,
+      lockedPropertyId || propertyId || "all",
+    ],
     queryFn: async () => {
       const res = await listPortfolioActions({
         status: status === "all" ? null : status,
         year,
+        propertyId: lockedPropertyId || propertyId || undefined,
       });
       if (!res.success) throw new Error(res.error);
       return res.data;

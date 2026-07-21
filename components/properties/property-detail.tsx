@@ -163,32 +163,23 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
   const journeyQ = useQuery({
     queryKey: ["property-journey-meta", propertyId],
     queryFn: async () => {
-      const propRes = await getProperty(propertyId);
-      const buildingIds = new Set(
-        propRes.success
-          ? (propRes.data.buildings as Array<{ id: string }>).map((b) => b.id)
-          : []
-      );
+      // Scoped server filters – no full portfolio scan / N+1
       const [actionsRes, plansRes] = await Promise.all([
-        listPortfolioActions({ status: null }),
-        listRenovationPlans({}),
+        listPortfolioActions({
+          propertyId,
+          status: null,
+        }),
+        listRenovationPlans({ propertyId }),
       ]);
       const actions = actionsRes.success
         ? actionsRes.data.rows.filter(
             (a) =>
-              a.property_id === propertyId &&
-              (a.status === "proposed" ||
-                a.status === "approved" ||
-                a.status === "in_progress")
+              a.status === "proposed" ||
+              a.status === "approved" ||
+              a.status === "in_progress"
           )
         : [];
-      const plans = plansRes.success
-        ? plansRes.data.filter(
-            (p) =>
-              p.property_id === propertyId ||
-              (p.building_id != null && buildingIds.has(p.building_id))
-          )
-        : [];
+      const plans = plansRes.success ? plansRes.data : [];
       return {
         openActions: actions.length,
         planCount: plans.length,
@@ -196,7 +187,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
       };
     },
     enabled: tab === "overview",
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 
   const deactivate = useMutation({

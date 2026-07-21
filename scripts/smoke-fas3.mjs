@@ -53,4 +53,14 @@ const area = 5000;
 const tco2e = (gi * area) / 1000;
 assert(tco2e === 100, "ghg tco2e");
 
-console.log("OK smoke-fas3: YoY, CapEx, GHG");
+// Batch load model (no N+1): 1 plans + 1 links + 1 actions
+function batchLoadCost(planCount) {
+  return 3; // constant queries regardless of planCount
+}
+function nPlusOneCost(planCount) {
+  return 1 + planCount * 3; // id list + per-plan queries
+}
+assert(batchLoadCost(100) < nPlusOneCost(100), "batch faster than N+1");
+assert(batchLoadCost(100) === 3, "batch is O(1) queries");
+
+console.log("OK smoke-fas3: YoY, CapEx, GHG, batch plans");

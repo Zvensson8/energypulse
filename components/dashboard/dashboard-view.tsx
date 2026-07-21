@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import {
-  getDashboardKpis,
-  getRiskHeatmap,
-  getTopRiskLists,
-  getYearOverYear,
-  getDecisionBoard,
-} from "@/app/actions/dashboard";
-import { countOpenWorkflowAlerts } from "@/app/actions/risk-workflow";
-import { getPortfolioRiskSummary } from "@/app/actions/risk-scores";
+import { getDashboardBundle } from "@/app/actions/dashboard";
 import { getCsrdMetrics } from "@/app/actions/csrd-metrics";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { RiskHeatmap } from "@/components/dashboard/risk-heatmap";
@@ -39,6 +31,9 @@ import {
   ListTodo,
   Activity,
   FileText,
+  Loader2,
+  Scale,
+  RefreshCw,
 } from "lucide-react";
 
 const LS_YEAR = "ep.dashboard.year";
@@ -48,6 +43,7 @@ export function DashboardView() {
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [propertyId, setPropertyId] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [showCsrd, setShowCsrd] = useState(false);
 
   useEffect(() => {
     try {
@@ -72,52 +68,19 @@ export function DashboardView() {
     }
   }, [year, propertyId, hydrated]);
 
-  // Client-side filter for heatmap/top when property selected
-  // (KPIs remain portfolio unless we filter in UI lists)
-
-  const kpisQ = useQuery({
-    queryKey: ["dashboard-kpis", year],
+  /** One server round-trip for the whole board (CSRD loaded lazily). */
+  const bundleQ = useQuery({
+    queryKey: ["dashboard-bundle", year, propertyId || "all"],
     queryFn: async () => {
-      const res = await getDashboardKpis(year);
+      const res = await getDashboardBundle({
+        year,
+        propertyId: propertyId || undefined,
+        includeCsrd: false,
+      });
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-  });
-
-  const heatQ = useQuery({
-    queryKey: ["dashboard-heatmap", year],
-    queryFn: async () => {
-      const res = await getRiskHeatmap(year);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-  });
-
-  const topQ = useQuery({
-    queryKey: ["dashboard-top", year],
-    queryFn: async () => {
-      const res = await getTopRiskLists(year, 12);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-  });
-
-  const yoyQ = useQuery({
-    queryKey: ["dashboard-yoy", year, propertyId || "all"],
-    queryFn: async () => {
-      const res = await getYearOverYear(year, propertyId || undefined);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-  });
-
-  const boardQ = useQuery({
-    queryKey: ["dashboard-board", year, propertyId || "all"],
-    queryFn: async () => {
-      const res = await getDecisionBoard(year, propertyId || undefined, 10);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
+    staleTime: 120_000,
   });
 
   const csrdQ = useQuery({
@@ -130,29 +93,18 @@ export function DashboardView() {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
+    enabled: showCsrd,
+    staleTime: 120_000,
   });
 
-  const alertsQ = useQuery({
-    queryKey: ["workflow-alerts"],
-    queryFn: async () => {
-      const res = await countOpenWorkflowAlerts();
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-  });
-
-  const riskSumQ = useQuery({
-    queryKey: ["risk-summary", year],
-    queryFn: async () => {
-      const res = await getPortfolioRiskSummary(year);
-      if (!res.success) return null;
-      return res.data;
-    },
-  });
-
-  const heatCells = propertyId
-    ? (heatQ.data ?? []).filter((c) => c.property_id === propertyId)
-    : heatQ.data;
+  const d = bundleQ.data;
+  const kpis = d?.kpis;
+  const heatCells = d?.heatmap;
+  const top = d?.top;
+  const yoy = d?.yoy;
+  const board = d?.board;
+  const alerts = d?.alerts;
+  const riskSum = d?.riskSummary;
 
   return (
     <div className="page-shell">
@@ -161,7 +113,7 @@ export function DashboardView() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="page-title">Beslutstavla</h1>
-              <HelpTip text="Portföljöversikt med prioriteter, år-mot-år och CSRD-nyckeltal. Filtrera på fastighet för att zooma in." />
+              <HelpTip text="Portföljöversikt med prioriteter och år-mot-år. Data hämtas i ett anrop för snabbare laddning. CSRD laddas på begäran." />
             </div>
             <p className="page-subtitle">
               {TERMS.overview.help} Klicka dig vidare till risk, åtgärder eller
@@ -195,6 +147,17 @@ export function DashboardView() {
                 </SelectContent>
               </Select>
             </label>
+            <Button
+              variant="outline"
+              size="icon"
+              title="Uppdatera"
+              disabled={bundleQ.isFetching}
+              onClick={() => void bundleQ.refetch()}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${bundleQ.isFetching ? "animate-spin" : ""}`}
+              />
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/import">
                 <Upload className="h-4 w-4" />
@@ -222,106 +185,136 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Alerts */}
-        <div className="flex flex-wrap gap-2">
-          {riskSumQ.data && (
-            <Link
-              href="/risk-scores"
-              className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
-            >
-              <Activity className="h-3.5 w-3.5" />
-              Snitt risk {riskSumQ.data.avgCombined ?? "—"} ·{" "}
-              {riskSumQ.data.highRiskCount} hög
-            </Link>
-          )}
-          {riskSumQ.data && riskSumQ.data.financialRiskCount > 0 && (
-            <Link
-              href="/risk-scores"
-              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-100"
-            >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {riskSumQ.data.financialRiskCount} med misalignment före 2035
-            </Link>
-          )}
-          {alertsQ.data && alertsQ.data.openCompliance > 0 && (
-            <Link
-              href="/risks"
-              className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
-            >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {alertsQ.data.openCompliance} öppna MEPS/CRREM-risker
-            </Link>
-          )}
-          {alertsQ.data && alertsQ.data.declarationSuggestions > 0 && (
-            <Link
-              href="/actions"
-              className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {alertsQ.data.declarationSuggestions} deklarationsförslag
-            </Link>
-          )}
-        </div>
+        {bundleQ.isLoading && (
+          <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Laddar beslutstavla…
+          </div>
+        )}
 
-        {kpisQ.error && (
+        {bundleQ.error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {toUserError(kpisQ.error)}
+            {toUserError(bundleQ.error)}
           </div>
         )}
 
-        {kpisQ.data && <KpiCards kpis={kpisQ.data} />}
-
-        {yoyQ.data && <YoyStrip data={yoyQ.data} />}
-
-        {boardQ.data && <DecisionBoard items={boardQ.data} year={year} />}
-
-        {csrdQ.data && (
-          <CsrdMetricsPanel
-            data={csrdQ.data}
-            propertyId={propertyId || undefined}
-          />
-        )}
-
-        {(kpisQ.isFetching ||
-          heatQ.isFetching ||
-          topQ.isFetching ||
-          boardQ.isFetching) && (
-          <p className="text-xs text-muted-foreground">Uppdaterar…</p>
-        )}
-
-        <div className="grid gap-4 lg:grid-cols-5">
-          <div className="min-h-[280px] lg:col-span-3">
-            {heatCells ? (
-              <RiskHeatmap cells={heatCells} />
-            ) : (
-              <div className="panel flex h-full min-h-[280px] items-center justify-center text-sm text-muted-foreground">
-                {heatQ.isLoading
-                  ? "Laddar risköversikt…"
-                  : "Ingen data – importera energivärden först"}
-              </div>
-            )}
-          </div>
-          <div className="min-h-[280px] lg:col-span-2">
-            {kpisQ.data ? (
-              <DataGapChart kpis={kpisQ.data} />
-            ) : (
-              <div className="panel h-full min-h-[280px]" />
-            )}
-          </div>
-        </div>
-
-        <div className="min-h-[320px]">
-          {topQ.data ? (
-            <TopRiskLists
-              stranded={topQ.data.stranded}
-              mepsGap={topQ.data.mepsGap}
-            />
-          ) : (
-            <div className="panel flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
-              {topQ.isLoading ? "Laddar prioriteringslistor…" : "Ingen data"}
+        {d && (
+          <>
+            <div className="flex flex-wrap gap-2">
+              {riskSum && (
+                <Link
+                  href="/risk-scores"
+                  className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
+                >
+                  <Activity className="h-3.5 w-3.5" />
+                  Snitt risk {riskSum.avgCombined ?? "—"} ·{" "}
+                  {riskSum.highRiskCount} hög
+                </Link>
+              )}
+              {riskSum && riskSum.financialRiskCount > 0 && (
+                <Link
+                  href="/risk-scores"
+                  className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-100"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {riskSum.financialRiskCount} med misalignment före 2035
+                </Link>
+              )}
+              {alerts && alerts.openCompliance > 0 && (
+                <Link
+                  href="/risks"
+                  className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {alerts.openCompliance} öppna MEPS/CRREM-risker
+                </Link>
+              )}
+              {alerts && alerts.declarationSuggestions > 0 && (
+                <Link
+                  href="/actions"
+                  className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {alerts.declarationSuggestions} deklarationsförslag
+                </Link>
+              )}
             </div>
-          )}
-        </div>
+
+            {kpis && <KpiCards kpis={kpis} />}
+            {yoy && <YoyStrip data={yoy} />}
+            {board && <DecisionBoard items={board} year={year} />}
+
+            {/* CSRD lazy */}
+            {!showCsrd ? (
+              <button
+                type="button"
+                onClick={() => setShowCsrd(true)}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-card px-4 py-4 text-left shadow-sm transition hover:border-primary/30 hover:shadow-md"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Scale className="h-5 w-5" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold">
+                      CSRD / ESRS E1 – nyckeltal
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      Ladda på begäran (sparar tid vid första sidladdning)
+                    </span>
+                  </span>
+                </span>
+                <span className="text-sm font-medium text-primary">Visa →</span>
+              </button>
+            ) : csrdQ.isLoading ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Laddar CSRD-metriker…
+              </div>
+            ) : csrdQ.data ? (
+              <CsrdMetricsPanel
+                data={csrdQ.data}
+                propertyId={propertyId || undefined}
+              />
+            ) : csrdQ.error ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {toUserError(csrdQ.error)}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 lg:grid-cols-5">
+              <div className="min-h-[280px] lg:col-span-3">
+                {heatCells ? (
+                  <RiskHeatmap cells={heatCells} />
+                ) : (
+                  <div className="panel flex h-full min-h-[280px] items-center justify-center text-sm text-muted-foreground">
+                    Ingen data – importera energivärden först
+                  </div>
+                )}
+              </div>
+              <div className="min-h-[280px] lg:col-span-2">
+                {kpis ? (
+                  <DataGapChart kpis={kpis} />
+                ) : (
+                  <div className="panel h-full min-h-[280px]" />
+                )}
+              </div>
+            </div>
+
+            <div className="min-h-[320px]">
+              {top ? (
+                <TopRiskLists
+                  stranded={top.stranded}
+                  mepsGap={top.mepsGap}
+                />
+              ) : (
+                <div className="panel flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
+                  Ingen data
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

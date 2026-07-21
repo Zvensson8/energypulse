@@ -172,6 +172,7 @@ export async function generateRenovationPlan(raw: {
 
 export async function listRenovationPlans(opts?: {
   buildingId?: string;
+  propertyId?: string;
   status?: string;
 }): Promise<ActionResult<RenovationPlan[]>> {
   try {
@@ -180,21 +181,141 @@ export async function listRenovationPlans(opts?: {
 
     let q = supabase
       .from("renovation_plans")
-      .select("id")
+      .select(
+        "id, building_id, property_id, title, status, target_misalignment_year, target_meps_status, total_estimated_cost, currency, baseline_combined_score, projected_combined_score, notes, updated_at"
+      )
       .order("updated_at", { ascending: false })
       .limit(100);
 
     if (opts?.buildingId) q = q.eq("building_id", opts.buildingId);
     if (opts?.status && opts.status !== "all") q = q.eq("status", opts.status);
 
-    const { data, error } = await q;
-    if (error) return { success: false, error: error.message };
-
-    const plans: RenovationPlan[] = [];
-    for (const row of data ?? []) {
-      const p = await loadPlan(supabase, row.id as string);
-      if (p) plans.push(p);
+    // Property scope: property_id match OR building under property
+    let propertyBuildingIds: string[] | null = null;
+    if (opts?.propertyId && !opts?.buildingId) {
+      const { data: bs } = await supabase
+        .from("buildings")
+        .select("id")
+        .eq("property_id", opts.propertyId);
+      propertyBuildingIds = (bs ?? []).map((b) => b.id as string);
+      if (propertyBuildingIds.length === 0) {
+        q = q.eq("property_id", opts.propertyId);
+      } else {
+        // PostgREST: or(property_id.eq.X,building_id.in.(...))
+        q = q.or(
+          `property_id.eq.${opts.propertyId},building_id.in.(${propertyBuildingIds.join(",")})`
+        );
+      }
     }
+
+    const { data: planRows, error } = await q;
+    if (error) return { success: false, error: error.message };
+    if (!planRows?.length) return { success: true, data: [] };
+
+    const planIds = planRows.map((p) => p.id as string);
+    const buildingIds = [
+      ...new Set(
+        planRows
+          .map((p) => p.building_id as string | null)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+
+    // Batch: links + buildings in parallel (no N+1)
+    const [linksRes, buildingsRes] = await Promise.all([
+      supabase
+        .from("renovation_plan_actions")
+        .select("id, plan_id, action_id, sort_order, expected_impact")
+        .in("plan_id", planIds)
+        .order("sort_order"),
+      buildingIds.length
+        ? supabase.from("buildings").select("id, name").in("id", buildingIds)
+        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    ]);
+
+    const links = linksRes.data ?? [];
+    const actionIds = [
+      ...new Set(links.map((l) => l.action_id as string)),
+    ];
+    const { data: acts } =
+      actionIds.length > 0
+        ? await supabase
+            .from("actions")
+            .select("id, title, investment_cost, status")
+            .in("id", actionIds)
+        : { data: [] as Array<{
+            id: string;
+            title: string;
+            investment_cost: number | null;
+            status: string;
+          }> };
+
+    const actionMap = new Map(
+      (acts ?? []).map((a) => [
+        a.id as string,
+        {
+          title: a.title as string,
+          investment_cost: a.investment_cost as number | null,
+          status: a.status as string,
+        },
+      ])
+    );
+    const bName = new Map(
+      (buildingsRes.data ?? []).map((b) => [b.id as string, b.name as string])
+    );
+
+    const linksByPlan = new Map<string, typeof links>();
+    for (const l of links) {
+      const pid = l.plan_id as string;
+      const arr = linksByPlan.get(pid) ?? [];
+      arr.push(l);
+      linksByPlan.set(pid, arr);
+    }
+
+    const plans: RenovationPlan[] = planRows.map((plan) => {
+      const planLinks = linksByPlan.get(plan.id as string) ?? [];
+      const bid = plan.building_id as string | null;
+      return {
+        id: plan.id as string,
+        building_id: bid,
+        property_id: (plan.property_id as string | null) ?? null,
+        building_name: bid ? bName.get(bid) ?? null : null,
+        title: plan.title as string,
+        status: plan.status as string,
+        target_misalignment_year:
+          plan.target_misalignment_year as number | null,
+        target_meps_status: plan.target_meps_status as string | null,
+        total_estimated_cost:
+          plan.total_estimated_cost != null
+            ? Number(plan.total_estimated_cost)
+            : null,
+        currency: (plan.currency as string) ?? "SEK",
+        baseline_combined_score:
+          plan.baseline_combined_score != null
+            ? Number(plan.baseline_combined_score)
+            : null,
+        projected_combined_score:
+          plan.projected_combined_score != null
+            ? Number(plan.projected_combined_score)
+            : null,
+        notes: (plan.notes as string | null) ?? null,
+        actions: planLinks.map((l) => {
+          const a = actionMap.get(l.action_id as string);
+          const impact = (l.expected_impact ??
+            {}) as RenovationPlanAction["expected_impact"];
+          return {
+            id: l.id as string,
+            action_id: l.action_id as string,
+            sort_order: l.sort_order as number,
+            expected_impact: impact,
+            action_title: a?.title ?? null,
+            investment_cost: a?.investment_cost ?? null,
+            status: a?.status ?? null,
+          };
+        }),
+      };
+    });
+
     return { success: true, data: plans };
   } catch (e) {
     return toError(e);

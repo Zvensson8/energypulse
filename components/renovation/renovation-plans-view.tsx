@@ -78,21 +78,23 @@ export function RenovationPlansView({
   const effectivePropertyId = lockedPropertyId ?? propertyId;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["renovation-plans", status],
+    queryKey: [
+      "renovation-plans",
+      status,
+      lockedPropertyId || propertyId || "all",
+    ],
     queryFn: async () => {
       const res = await listRenovationPlans({
         status: status === "all" ? undefined : status,
+        propertyId: lockedPropertyId || propertyId || undefined,
       });
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
   });
 
-  const filteredPlans = useMemo(() => {
-    const list = data ?? [];
-    if (!effectivePropertyId) return list;
-    return list.filter((p) => p.property_id === effectivePropertyId);
-  }, [data, effectivePropertyId]);
+  // Server scopes by property when set
+  const filteredPlans = data ?? [];
 
   const stats = useMemo(() => {
     const list = filteredPlans;

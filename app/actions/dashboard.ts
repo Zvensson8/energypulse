@@ -684,3 +684,111 @@ export async function getDecisionBoard(
     };
   }
 }
+
+/**
+ * One Server Action for the whole dashboard page (one browser round-trip).
+ * CSRD is optional/lazy via includeCsrd.
+ */
+export type DashboardBundle = {
+  year: number;
+  propertyId: string | null;
+  kpis: DashboardKpis;
+  heatmap: HeatmapCell[];
+  top: { stranded: TopRiskRow[]; mepsGap: TopRiskRow[] };
+  yoy: YoYDelta;
+  board: DecisionItem[];
+  alerts: {
+    openCompliance: number;
+    openPhysical: number;
+    declarationSuggestions: number;
+  } | null;
+  riskSummary: {
+    year: number;
+    avgCombined: number | null;
+    financialRiskCount: number;
+    nonCompliantCount: number;
+    highRiskCount: number;
+    buildingCount: number;
+  } | null;
+  csrd: import("@/app/actions/csrd-metrics").CsrdMetrics | null;
+};
+
+export async function getDashboardBundle(opts?: {
+  year?: number;
+  propertyId?: string;
+  includeCsrd?: boolean;
+}): Promise<ActionResult<DashboardBundle>> {
+  try {
+    const year = opts?.year ?? new Date().getFullYear() - 1;
+    const propertyId = opts?.propertyId || undefined;
+    const includeCsrd = opts?.includeCsrd === true;
+
+    const { countOpenWorkflowAlerts } = await import(
+      "@/app/actions/risk-workflow"
+    );
+    const { getPortfolioRiskSummary } = await import(
+      "@/app/actions/risk-scores"
+    );
+    const { getCsrdMetrics } = await import("@/app/actions/csrd-metrics");
+
+    const [
+      kpisRes,
+      heatRes,
+      topRes,
+      yoyRes,
+      boardRes,
+      alertsRes,
+      riskSumRes,
+      csrdRes,
+    ] = await Promise.all([
+      getDashboardKpis(year),
+      getRiskHeatmap(year),
+      getTopRiskLists(year, 12),
+      getYearOverYear(year, propertyId),
+      getDecisionBoard(year, propertyId, 10),
+      countOpenWorkflowAlerts(),
+      getPortfolioRiskSummary(year),
+      includeCsrd
+        ? getCsrdMetrics({ year, propertyId })
+        : Promise.resolve({ success: true as const, data: null }),
+    ]);
+
+    if (!kpisRes.success) return { success: false, error: kpisRes.error };
+    if (!heatRes.success) return { success: false, error: heatRes.error };
+    if (!topRes.success) return { success: false, error: topRes.error };
+    if (!yoyRes.success) return { success: false, error: yoyRes.error };
+    if (!boardRes.success) return { success: false, error: boardRes.error };
+
+    let heatmap = heatRes.data;
+    if (propertyId) {
+      heatmap = heatmap.filter((c) => c.property_id === propertyId);
+    }
+
+    return {
+      success: true,
+      data: {
+        year,
+        propertyId: propertyId ?? null,
+        kpis: kpisRes.data,
+        heatmap,
+        top: topRes.data,
+        yoy: yoyRes.data,
+        board: boardRes.data,
+        alerts: alertsRes.success ? alertsRes.data : null,
+        riskSummary: riskSumRes.success ? riskSumRes.data : null,
+        csrd:
+          includeCsrd && csrdRes.success && csrdRes.data
+            ? (csrdRes.data as import("@/app/actions/csrd-metrics").CsrdMetrics)
+            : null,
+      },
+    };
+  } catch (e) {
+    logger.error("dashboard.bundle.failed", {
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "UNKNOWN",
+    };
+  }
+}

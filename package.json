@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:smoke": "node scripts/smoke-fas1.mjs && node scripts/smoke-fas2.mjs",
     "gen:types": "npx supabase gen types typescript --project-id jbnttxywunvvvivdfzeh > lib/supabase/database.types.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
+import { toUserError } from "@/lib/errors";
 
 const STEPS = [
   {
@@ -188,10 +189,10 @@ export function HomeHub() {
             <EmptyState
               icon={AlertTriangle}
               title="Kunde inte hämta prioriteter"
-              body={
-                (error as Error).message ||
+              body={toUserError(
+                error,
                 "Kontrollera inloggning och försök igen."
-              }
+              )}
               why="Utan live-data visar vi bara genvägar."
               ctaLabel="Till översikt"
               ctaHref="/dashboard"

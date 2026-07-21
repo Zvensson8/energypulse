@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   exportLeadershipClimateReport,
   exportCsrdReport,
@@ -10,7 +10,10 @@ import {
   exportRenovationPlansReport,
   type ReportKind,
 } from "@/app/actions/export-reports";
+import { getDataQualitySummary } from "@/app/actions/data-quality-summary";
 import { Button } from "@/components/ui/button";
+import { DataQualityBanner } from "@/components/ui/data-quality-banner";
+import { toUserError } from "@/lib/errors";
 import {
   Select,
   SelectContent,
@@ -157,10 +160,28 @@ export function ReportsView() {
 
   const current = REPORTS.find((r) => r.id === selected)!;
 
+  const dqQ = useQuery({
+    queryKey: ["report-data-quality", year, propertyId || "all"],
+    queryFn: async () => {
+      const res = await getDataQualitySummary({
+        year,
+        propertyId: propertyId || undefined,
+      });
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+  });
+
   const generate = useMutation({
     mutationFn: async () => {
       if (current.requiresProperty && !propertyId) {
         throw new Error("Välj en fastighet för den här rapporten.");
+      }
+      if (dqQ.data?.level === "blocked") {
+        const ok = window.confirm(
+          "Datakvalitet: ofullständig data finns i urvalet. PDF:en kan bli missvisande för ledningen. Ladda ner ändå?"
+        );
+        if (!ok) throw new Error("Export avbruten – komplettera data först.");
       }
       const opts = {
         propertyId: propertyId || undefined,
@@ -182,16 +203,22 @@ export function ReportsView() {
     },
     onSuccess: (res) => {
       if (!res.success) {
-        setErr(res.error);
+        setErr(toUserError(res.error));
         setMsg(null);
         return;
       }
       downloadBase64Pdf(res.data.fileBase64, res.data.fileName);
-      setMsg(`Nedladdad: ${res.data.fileName}`);
+      const warn =
+        dqQ.data?.level === "blocked"
+          ? " (obs: ofullständig data i underlaget)"
+          : dqQ.data?.level === "warning"
+            ? " (obs: delvis uppskattad data)"
+            : "";
+      setMsg(`Nedladdad: ${res.data.fileName}${warn}`);
       setErr(null);
     },
     onError: (e: Error) => {
-      setErr(e.message);
+      setErr(toUserError(e));
       setMsg(null);
     },
   });
@@ -225,6 +252,15 @@ export function ReportsView() {
               Visa hela portföljen
             </button>
           </div>
+        )}
+
+        {dqQ.data && (
+          <DataQualityBanner
+            level={dqQ.data.level}
+            incompleteCount={dqQ.data.incomplete}
+            extrapolatedCount={dqQ.data.extrapolated}
+            context="rapport till ledning"
+          />
         )}
 
         {msg && (

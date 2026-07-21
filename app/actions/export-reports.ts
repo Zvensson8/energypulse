@@ -108,19 +108,48 @@ function header(
   ];
 }
 
-function footer(): PdfLine[] {
-  return [
+function footer(opts?: { dataQualityNote?: string }): PdfLine[] {
+  const lines: PdfLine[] = [
     { type: "space", h: 12 },
     { type: "hrule" },
-    {
-      type: "text",
-      text: "Källor: EnergyPulse (prestanda, riskscore, riskregister, åtgärder, renovationsplaner).",
-    },
-    {
-      type: "text",
-      text: "Obs: Modeled spar ändrar inte råvärden. Belopp är uppskattningar för beslutsstöd.",
-    },
   ];
+  if (opts?.dataQualityNote) {
+    lines.push({ type: "subtitle", text: "Datakvalitet" });
+    lines.push({ type: "text", text: opts.dataQualityNote });
+    lines.push({ type: "space", h: 6 });
+  }
+  lines.push({
+    type: "text",
+    text: "Källor: EnergyPulse (prestanda, riskscore, riskregister, åtgärder, renovationsplaner).",
+  });
+  lines.push({
+    type: "text",
+    text: "Obs: Modeled spar ändrar inte råvärden. Belopp är uppskattningar för beslutsstöd.",
+  });
+  return lines;
+}
+
+async function dataQualityNoteForScope(opts: {
+  year: number;
+  propertyId?: string;
+}): Promise<string | undefined> {
+  try {
+    const { getDataQualitySummary } = await import(
+      "@/app/actions/data-quality-summary"
+    );
+    const res = await getDataQualitySummary(opts);
+    if (!res.success) return undefined;
+    const d = res.data;
+    if (d.level === "blocked") {
+      return `VARNING: ${d.incomplete} av ${d.total} beräknade byggnadsår har ofullständig data. Använd inte som enda underlag till formella beslut utan komplettering.`;
+    }
+    if (d.level === "warning") {
+      return `Observera: ${d.extrapolated > 0 ? `${d.extrapolated} år med uppskattade månader. ` : ""}${d.total === 0 ? "Ingen prestanda i urvalet. " : ""}Siffror kan vara indikation snarare än exakt underlag.`;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /* ─── 1. Ledningsförslag klimatrisk ───────────────────────── */
@@ -137,6 +166,10 @@ export async function exportLeadershipClimateReport(raw?: {
       })
       .parse(raw ?? {});
     const year = input.year ?? new Date().getFullYear() - 1;
+    const dqNote = await dataQualityNoteForScope({
+      year,
+      propertyId: input.propertyId,
+    });
     const supabase = await createClient();
     await requireUser(supabase);
 
@@ -340,7 +373,7 @@ export async function exportLeadershipClimateReport(raw?: {
       { type: "space", h: 8 },
       { type: "subtitle", text: "6. Beslut / signatur" },
       { type: "signature" },
-      ...footer()
+      ...footer({ dataQualityNote: dqNote })
     );
 
     const pdf = buildSimplePdf(lines);
@@ -387,6 +420,10 @@ export async function exportCsrdReport(raw?: {
       })
       .parse(raw ?? {});
     const year = input.year ?? new Date().getFullYear() - 1;
+    const dqNote = await dataQualityNoteForScope({
+      year,
+      propertyId: input.propertyId,
+    });
     await requireUser(await createClient());
 
     const [scoresRes, risksRes, plansRes, actionsRes] = await Promise.all([
@@ -618,7 +655,7 @@ export async function exportCsrdReport(raw?: {
           actions.reduce((s, a) => s + (a.investment_cost ?? 0), 0) || null
         )}`,
       },
-      ...footer()
+      ...footer({ dataQualityNote: dqNote })
     );
 
     const pdf = buildSimplePdf(lines);
@@ -650,6 +687,10 @@ export async function exportPropertyFullReport(raw: {
       })
       .parse(raw);
     const year = input.year ?? new Date().getFullYear() - 1;
+    const dqNote = await dataQualityNoteForScope({
+      year,
+      propertyId: input.propertyId,
+    });
 
     const propRes = await getProperty(input.propertyId);
     if (!propRes.success) return { success: false, error: propRes.error };
@@ -938,7 +979,7 @@ export async function exportPropertyFullReport(raw: {
         type: "text",
         text: "Förvaltare: ________________________  Datum: __________",
       },
-      ...footer()
+      ...footer({ dataQualityNote: dqNote })
     );
 
     const pdf = buildSimplePdf(lines);
@@ -970,6 +1011,10 @@ export async function exportRenovationPlansReport(raw?: {
       })
       .parse(raw ?? {});
     const year = input.year ?? new Date().getFullYear() - 1;
+    const dqNote = await dataQualityNoteForScope({
+      year,
+      propertyId: input.propertyId,
+    });
     await requireUser(await createClient());
 
     const plansRes = await listRenovationPlans({});
@@ -1164,7 +1209,7 @@ export async function exportRenovationPlansReport(raw?: {
         type: "text",
         text: "Förvaltare: ________________________  Datum: __________",
       },
-      ...footer()
+      ...footer({ dataQualityNote: dqNote })
     );
 
     const pdf = buildSimplePdf(lines);

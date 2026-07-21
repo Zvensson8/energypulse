@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getBuildingScorecard } from "@/app/actions/building-scorecard";
 import { exportBuildingDecisionPdf } from "@/app/actions/export-decision-pdf";
+import { DataQualityBanner } from "@/components/ui/data-quality-banner";
+import { toUserError } from "@/lib/errors";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   simulateAction,
   type SimulationResult,
@@ -171,15 +174,18 @@ export function BuildingScorecardView({
   if (error || !data) {
     return (
       <div className="page-shell">
-        <div className="page-inner">
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {(error as Error)?.message ?? "Kunde inte ladda scorecard."}
-          </div>
-          <Button variant="outline" className="mt-4" asChild>
-            <Link href="/risk-scores">
-              <ArrowLeft className="h-4 w-4" /> Tillbaka
-            </Link>
-          </Button>
+        <div className="page-inner max-w-5xl">
+          <EmptyState
+            icon={ShieldAlert}
+            title="Kunde inte ladda betyg"
+            body={toUserError(
+              error,
+              "Kontrollera att du är inloggad och att byggnaden finns."
+            )}
+            why="Utan prestanda och riskdata kan vi inte visa beslutsunderlag."
+            ctaLabel="Tillbaka till riskscore"
+            ctaHref="/risk-scores"
+          />
         </div>
       </div>
     );
@@ -188,11 +194,20 @@ export function BuildingScorecardView({
   const g = data.grades;
   const actionTitle =
     data.top_actions.find((a) => a.id === simActionId)?.title ?? "Åtgärd";
+  const gap = g.data_gap_status;
+  const dqLevel =
+    gap === "INCOMPLETE_DATA"
+      ? ("blocked" as const)
+      : gap === "EXTRAPOLATED_WARNING"
+        ? ("warning" as const)
+        : gap == null
+          ? ("warning" as const)
+          : ("ok" as const);
 
   return (
     <div className="page-shell">
-      <div className="page-inner max-w-5xl">
-        <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+      <div className="page-inner max-w-5xl space-y-4">
+        <div className="mb-0 flex flex-wrap items-center gap-3 text-sm">
           {data.property.id ? (
             <Link
               href={`/properties/${data.property.id}`}
@@ -209,6 +224,13 @@ export function BuildingScorecardView({
             Risköversikt
           </Link>
         </div>
+
+        <DataQualityBanner
+          level={dqLevel}
+          incompleteCount={gap === "INCOMPLETE_DATA" ? 1 : 0}
+          extrapolatedCount={gap === "EXTRAPOLATED_WARNING" ? 1 : 0}
+          context="beslutsunderlag och PDF"
+        />
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -280,7 +302,7 @@ export function BuildingScorecardView({
         )}
         {(exportPdf.isError || refreshRisk.isError) && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {((exportPdf.error || refreshRisk.error) as Error)?.message}
+            {toUserError(exportPdf.error || refreshRisk.error)}
           </div>
         )}
 

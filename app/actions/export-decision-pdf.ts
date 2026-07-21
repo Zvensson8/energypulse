@@ -223,7 +223,22 @@ export async function exportBuildingDecisionPdf(raw: {
       {
         type: "text",
         text: "Obs: Modeled spar ändrar inte råvärden. Källa: EnergyPulse prestanda + riskmotor.",
-      }
+      },
+      ...(g.data_gap_status === "INCOMPLETE_DATA"
+        ? [
+            {
+              type: "text" as const,
+              text: "VARNING: Ofullständig energidata för detta år – använd inte som enda beslutsunderlag utan komplettering.",
+            },
+          ]
+        : g.data_gap_status === "EXTRAPOLATED_WARNING"
+          ? [
+              {
+                type: "text" as const,
+                text: "Observera: Vissa månader är uppskattade – kontrollera underlaget.",
+              },
+            ]
+          : [])
     );
 
     const pdf = buildSimplePdf(lines);

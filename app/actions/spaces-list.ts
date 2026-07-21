@@ -40,6 +40,7 @@ function toError(e: unknown): ActionResult<never> {
 export async function listPortfolioSpaces(opts?: {
   search?: string;
   buildingId?: string;
+  propertyId?: string;
 }): Promise<ActionResult<PortfolioSpaceRow[]>> {
   try {
     const supabase = await createClient();
@@ -64,9 +65,19 @@ export async function listPortfolioSpaces(opts?: {
     const { data: spaces, error } = await q;
     if (error) return { success: false, error: error.message };
 
-    const buildingIds = [
+    let buildingIds = [
       ...new Set((spaces ?? []).map((s) => s.building_id as string)),
     ];
+
+    // Optionally restrict to buildings under one property first
+    if (opts?.propertyId) {
+      const { data: propBuildings } = await supabase
+        .from("buildings")
+        .select("id")
+        .eq("property_id", opts.propertyId);
+      const allowed = new Set((propBuildings ?? []).map((b) => b.id as string));
+      buildingIds = buildingIds.filter((id) => allowed.has(id));
+    }
 
     const bMap = new Map<
       string,
@@ -74,10 +85,14 @@ export async function listPortfolioSpaces(opts?: {
     >();
 
     if (buildingIds.length > 0) {
-      const { data: buildings } = await supabase
+      let bq = supabase
         .from("buildings")
         .select("id, name, property_id, properties(name)")
         .in("id", buildingIds);
+      if (opts?.propertyId) {
+        bq = bq.eq("property_id", opts.propertyId);
+      }
+      const { data: buildings } = await bq;
 
       for (const b of buildings ?? []) {
         const prop = b.properties as unknown as
@@ -93,7 +108,9 @@ export async function listPortfolioSpaces(opts?: {
       }
     }
 
-    let rows: PortfolioSpaceRow[] = (spaces ?? []).map((s) => {
+    let rows: PortfolioSpaceRow[] = (spaces ?? [])
+      .filter((s) => bMap.has(s.building_id as string) || !opts?.propertyId)
+      .map((s) => {
       const b = bMap.get(s.building_id as string);
       return {
         id: s.id as string,
@@ -112,6 +129,10 @@ export async function listPortfolioSpaces(opts?: {
         is_heated: Boolean(s.is_heated),
       };
     });
+
+    if (opts?.propertyId) {
+      rows = rows.filter((r) => r.property_id === opts.propertyId);
+    }
 
     if (opts?.search?.trim()) {
       const q = opts.search.trim().toLowerCase();

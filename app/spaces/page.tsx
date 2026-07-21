@@ -1,10 +1,11 @@
-import { SpacesView } from "@/components/spaces/spaces-view";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Lokaler · EnergyPulse",
-  description: "Lokaler och hyresgäster (GDPR-maskerade)",
+  description: "Lokaler finns under respektive fastighet",
 };
 
+/** Lokaler nås via Fastigheter → [fastighet] → fliken Lokaler */
 export default function SpacesPage() {
-  return <SpacesView />;
+  redirect("/properties");
 }

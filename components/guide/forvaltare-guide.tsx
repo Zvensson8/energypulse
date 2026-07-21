@@ -234,9 +234,15 @@ export function ForvaltareGuide() {
             </Link>
           </Button>
           <Button asChild variant="outline" className="gap-1.5">
-            <Link href="/buildings?gap=INCOMPLETE_DATA">
+            <Link href="/risk-scores">
               <AlertTriangle className="h-3.5 w-3.5" />
-              Byggnader med saknad data
+              Byggnader med hög risk
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-1.5">
+            <Link href="/properties">
+              <MapPinned className="h-3.5 w-3.5" />
+              Fastigheter (byggnader & lokaler)
             </Link>
           </Button>
           <Button asChild variant="outline" className="gap-1.5">

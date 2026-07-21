@@ -124,22 +124,16 @@ export function CommandPalette({
                   Ny fastighet
                 </Command.Item>
                 <Command.Item
-                  onSelect={() => go("/buildings")}
+                  onSelect={() => go("/properties")}
                   className={itemClass}
                 >
-                  Byggnader – prestanda & krav
+                  Hitta byggnader & lokaler via fastighet
                 </Command.Item>
                 <Command.Item
-                  onSelect={() => go("/buildings?gap=INCOMPLETE_DATA")}
+                  onSelect={() => go("/risk-scores")}
                   className={itemClass}
                 >
-                  Byggnader med saknad data
-                </Command.Item>
-                <Command.Item
-                  onSelect={() => go("/spaces")}
-                  className={itemClass}
-                >
-                  Lokaler (GDPR-maskerade)
+                  Byggnader med hög risk (riskscore)
                 </Command.Item>
                 <Command.Item
                   onSelect={() => go("/import")}

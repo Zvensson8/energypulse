@@ -606,7 +606,7 @@ export function ImportView() {
                 <Link href="/dashboard">Till översikt</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/buildings">Byggnader</Link>
+                <Link href="/properties">Fastigheter</Link>
               </Button>
               <Button variant="outline" onClick={reset}>
                 Importera mer

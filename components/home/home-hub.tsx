@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import {
-  Upload,
   LayoutDashboard,
   ListTodo,
-  Building2,
   Activity,
   ArrowRight,
   FileSpreadsheet,
@@ -58,15 +56,9 @@ const STEPS = [
 const SHORTCUTS = [
   {
     title: "Fastigheter",
-    desc: "Lista, sök, lägg till",
+    desc: "Byggnader & lokaler per fastighet",
     href: "/properties",
     icon: MapPinned,
-  },
-  {
-    title: "Byggnader",
-    desc: "Prestanda, filter, export",
-    href: "/buildings",
-    icon: Building2,
   },
   {
     title: "Riskscore",
@@ -79,6 +71,12 @@ const SHORTCUTS = [
     desc: "Paketera åtgärder",
     href: "/renovation",
     icon: Hammer,
+  },
+  {
+    title: "Åtgärder",
+    desc: "Simulera och slutför",
+    href: "/actions",
+    icon: ListTodo,
   },
   {
     title: "Exempel-CSV",

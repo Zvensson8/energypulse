@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  Building2,
   Search,
   LogOut,
   LogIn,
@@ -15,7 +14,6 @@ import {
   Upload,
   ListTodo,
   Settings2,
-  DoorOpen,
   AlertTriangle,
   Pencil,
   Activity,
@@ -54,9 +52,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: "Hitta data",
     items: [
-      { href: "/properties", label: "Fastigheter", icon: MapPinned },
-      { href: "/buildings", label: "Byggnader", icon: Building2 },
-      { href: "/spaces", label: "Lokaler", icon: DoorOpen },
+      {
+        href: "/properties",
+        label: "Fastigheter",
+        icon: MapPinned,
+        hint: "Byggnader & lokaler under varje fastighet",
+      },
       { href: "/risk-scores", label: "Riskscore", icon: Activity },
       { href: "/crrem", label: "Klimatrisk (CRREM)", icon: LineChart },
     ],
@@ -101,11 +102,11 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   },
   "/properties": {
     title: "Fastigheter",
-    subtitle: "Hitta och hantera fastigheter",
+    subtitle: "Byggnader och lokaler under varje fastighet",
   },
   "/buildings": {
-    title: "Byggnader",
-    subtitle: "Lista – klicka ett hus för betyg och plan",
+    title: "Byggnad",
+    subtitle: "Betyg, plan och beslutsunderlag",
   },
   "/import": {
     title: "Importera energidata",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import {
   exportLeadershipClimateReport,
@@ -102,6 +103,8 @@ const REPORTS: {
   },
 ];
 
+const VALID_TYPES = new Set<ReportKind>(REPORTS.map((r) => r.id));
+
 function downloadBase64Pdf(fileBase64: string, fileName: string) {
   const bin = atob(fileBase64);
   const bytes = new Uint8Array(bin.length);
@@ -116,11 +119,41 @@ function downloadBase64Pdf(fileBase64: string, fileName: string) {
 }
 
 export function ReportsView() {
-  const [selected, setSelected] = useState<ReportKind>("leadership_climate");
-  const [propertyId, setPropertyId] = useState("");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const typeParam = searchParams.get("type");
+  const propertyParam = searchParams.get("property") ?? "";
+
+  const [selected, setSelected] = useState<ReportKind>(
+    typeParam && VALID_TYPES.has(typeParam as ReportKind)
+      ? (typeParam as ReportKind)
+      : "leadership_climate"
+  );
+  const [propertyId, setPropertyId] = useState(propertyParam);
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Sync from URL (e.g. deep-link from property page)
+  useEffect(() => {
+    if (typeParam && VALID_TYPES.has(typeParam as ReportKind)) {
+      setSelected(typeParam as ReportKind);
+    }
+    if (propertyParam) setPropertyId(propertyParam);
+  }, [typeParam, propertyParam]);
+
+  function updateUrl(next: { type?: ReportKind; property?: string }) {
+    const params = new URLSearchParams(searchParams.toString());
+    const t = next.type ?? selected;
+    const prop =
+      next.property !== undefined ? next.property : propertyId;
+    if (t) params.set("type", t);
+    if (prop) params.set("property", prop);
+    else params.delete("property");
+    const qs = params.toString();
+    router.replace(qs ? `/reports?${qs}` : "/reports", { scroll: false });
+  }
 
   const current = REPORTS.find((r) => r.id === selected)!;
 
@@ -172,10 +205,27 @@ export function ReportsView() {
             <h1 className="page-title">Rapporter</h1>
           </div>
           <p className="page-subtitle">
-            Ta ut PDF till ledning, CSRD, fastighet eller renovering – med risk,
-            förklaringar, kostnader och före/efter.
+            PDF till ledning, CSRD, fastighet eller renovering – med risk,
+            förklaringar, kostnader och före/efter. Förbättrad layout med
+            svenska tecken och tabeller.
           </p>
         </div>
+
+        {propertyId && (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+            Filtrerat på vald fastighet.{" "}
+            <button
+              type="button"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+              onClick={() => {
+                setPropertyId("");
+                updateUrl({ property: "" });
+              }}
+            >
+              Visa hela portföljen
+            </button>
+          </div>
+        )}
 
         {msg && (
           <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -189,7 +239,6 @@ export function ReportsView() {
           </div>
         )}
 
-        {/* Report cards */}
         <div className="grid gap-3 sm:grid-cols-2">
           {REPORTS.map((r) => {
             const Icon = r.icon;
@@ -198,7 +247,10 @@ export function ReportsView() {
               <button
                 key={r.id}
                 type="button"
-                onClick={() => setSelected(r.id)}
+                onClick={() => {
+                  setSelected(r.id);
+                  updateUrl({ type: r.id });
+                }}
                 className={cn(
                   "rounded-2xl border p-4 text-left shadow-sm transition",
                   active
@@ -229,7 +281,6 @@ export function ReportsView() {
           })}
         </div>
 
-        {/* Selected detail + generate */}
         <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div>
             <h2 className="text-base font-semibold">{current.title}</h2>
@@ -262,7 +313,10 @@ export function ReportsView() {
               </label>
               <PropertyFilter
                 value={propertyId}
-                onChange={setPropertyId}
+                onChange={(id) => {
+                  setPropertyId(id);
+                  updateUrl({ property: id });
+                }}
                 includeAllLabel={
                   current.requiresProperty
                     ? "Välj fastighet…"
@@ -321,13 +375,6 @@ export function ReportsView() {
               Välj en fastighet för att kunna skapa den samlade rapporten.
             </p>
           )}
-        </section>
-
-        <section className="rounded-2xl border border-dashed border-border bg-secondary/20 px-4 py-4 text-sm text-muted-foreground">
-          <strong className="text-foreground">Tips:</strong> Samma underlag
-          finns delvis på husets betygssida (besluts-PDF). Här tar du ut{" "}
-          <em>portfölj- eller fastighetsnivå</em> till ledning och CSRD. PDF:en
-          använder enkel textlayout (inga bilder) för snabb export.
         </section>
       </div>
     </div>

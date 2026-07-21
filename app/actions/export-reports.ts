@@ -27,30 +27,30 @@ export type ReportKind =
   | "renovation";
 
 const RISK_SV: Record<string, string> = {
-  flood: "Oversvamning",
-  heat: "Varme",
+  flood: "Översvämning",
+  heat: "Värme",
   storm: "Storm",
-  subsidence: "Sattning",
+  subsidence: "Sättning",
   wildfire: "Skogsbrand",
-  other: "Ovrigt",
+  other: "Övrigt",
 };
 
 const LEVEL_SV: Record<string, string> = {
-  low: "Lag",
+  low: "Låg",
   medium: "Medel",
-  high: "Hog",
-  very_high: "Mycket hog",
+  high: "Hög",
+  very_high: "Mycket hög",
 };
 
 const STATUS_SV: Record<string, string> = {
   draft: "Utkast",
-  approved: "Godkand",
-  in_progress: "Pagår",
+  approved: "Godkänd",
+  in_progress: "Pågår",
   completed: "Klar",
-  proposed: "Foreslagen",
-  open: "Oppna",
+  proposed: "Föreslagen",
+  open: "Öppen",
   monitoring: "Bevakning",
-  resolved: "Atgardad",
+  resolved: "Åtgärdad",
   dismissed: "Avskriven",
 };
 
@@ -99,24 +99,26 @@ function header(
   meta: string
 ): PdfLine[] {
   return [
-    { type: "title", text: title },
-    { type: "text", text: subtitle },
-    { type: "space", h: 4 },
-    { type: "text", text: meta },
-    { type: "space", h: 10 },
+    {
+      type: "brand_header",
+      title,
+      subtitle,
+      meta,
+    },
   ];
 }
 
 function footer(): PdfLine[] {
   return [
-    { type: "space", h: 14 },
+    { type: "space", h: 12 },
+    { type: "hrule" },
     {
       type: "text",
-      text: "Kallor: EnergyPulse (prestanda, riskscore, riskregister, atgarder, renovationsplaner).",
+      text: "Källor: EnergyPulse (prestanda, riskscore, riskregister, åtgärder, renovationsplaner).",
     },
     {
       type: "text",
-      text: "Obs: Modeled spar andrar inte ravarden. Belopp ar uppskattningar for beslutsstod.",
+      text: "Obs: Modeled spar ändrar inte råvärden. Belopp är uppskattningar för beslutsstöd.",
     },
   ];
 }
@@ -177,185 +179,167 @@ export async function exportLeadershipClimateReport(raw?: {
 
     const scope = input.propertyId
       ? risks[0]?.property_name ?? "Vald fastighet"
-      : "Hela portfoljen";
+      : "Hela portföljen";
 
     const lines: PdfLine[] = [
       ...header(
-        "EnergyPulse – Forslag till ledningen",
-        "Klimatrisker, foreslagna atgarder, forklaringar och uppskattad kostnad",
-        `Omfattning: ${scope}  |  Ar: ${year}  |  Genererad: ${today()}`
+        "Förslag till ledningen – klimatrisk",
+        "Identifierade risker, föreslagna åtgärder, förklaringar och uppskattad kostnad",
+        `Omfattning: ${scope}  ·  År: ${year}  ·  Genererad: ${today()}`
       ),
-      { type: "subtitle", text: "1. Sammanfattning for beslut" },
+      { type: "subtitle", text: "1. Sammanfattning för beslut" },
       {
-        type: "text",
-        text: `Aktiva fysiska klimatrisker: ${risks.length}  |  Byggnader med hog riskscore (>=60): ${highRisk.length}  |  Finansiell risk <2035: ${financial.length}`,
+        type: "kpi_row",
+        items: [
+          { label: "Fysiska risker", value: String(risks.length) },
+          { label: "Hög riskscore", value: String(highRisk.length) },
+          { label: "Fin. risk <2035", value: String(financial.length) },
+          {
+            label: "Åtgärdskostnad",
+            value: tkr(totalActionCost || null),
+          },
+        ],
       },
       {
         type: "text",
-        text: `Uppskattad kostnad foreslagna/godkanda atgarder: ${tkr(totalActionCost || null)}`,
+        text: `Öppna renovationsplaner: uppskattad kostnad ${tkr(totalPlanCost || null)}.`,
       },
-      {
-        type: "text",
-        text: `Uppskattad kostnad oppna renovationsplaner: ${tkr(totalPlanCost || null)}`,
-      },
-      { type: "space", h: 8 },
+      { type: "space", h: 6 },
       { type: "subtitle", text: "2. Identifierade klimatrisker" },
     ];
 
     if (risks.length === 0) {
       lines.push({
         type: "text",
-        text: "Inga oppna fysiska klimatrisker i registret. Komplettera under Risker vid behov.",
+        text: "Inga öppna fysiska klimatrisker i registret. Komplettera under Risker vid behov.",
       });
     } else {
       lines.push({
-        type: "row",
-        cells: ["Fastighet", "Risk", "Sannolikhet", "Konsekvens", "Poang"],
-        widths: [140, 100, 80, 80, 50],
+        type: "table",
+        headers: ["Fastighet", "Risk", "Sannolikhet", "Konsekvens", "Poäng"],
+        widths: [140, 100, 80, 80, 55],
+        rows: risks.slice(0, 40).map((r) => [
+          (r.property_name ?? "—").slice(0, 28),
+          (RISK_SV[r.risk_type] ?? r.risk_type).slice(0, 20),
+          LEVEL_SV[r.probability] ?? r.probability,
+          LEVEL_SV[r.consequence] ?? r.consequence,
+          r.risk_score != null ? fmt(r.risk_score, 0) : "—",
+        ]),
       });
-      for (const r of risks.slice(0, 40)) {
-        lines.push({
-          type: "row",
-          cells: [
-            (r.property_name ?? "—").slice(0, 28),
-            (RISK_SV[r.risk_type] ?? r.risk_type).slice(0, 20),
-            LEVEL_SV[r.probability] ?? r.probability,
-            LEVEL_SV[r.consequence] ?? r.consequence,
-            r.risk_score != null ? fmt(r.risk_score, 0) : "—",
-          ],
-          widths: [140, 100, 80, 80, 50],
-        });
+      for (const r of risks.slice(0, 15)) {
         if (r.notes) {
           lines.push({
             type: "text",
-            text: `  Forklaring: ${r.notes.slice(0, 120)}`,
+            text: `Förklaring (${RISK_SV[r.risk_type] ?? r.risk_type}): ${r.notes.slice(0, 140)}`,
           });
         }
       }
     }
 
     lines.push(
-      { type: "space", h: 8 },
-      { type: "subtitle", text: "3. Byggnader med hog klimatrisk / lagkravsrisk" }
+      { type: "space", h: 6 },
+      { type: "subtitle", text: "3. Byggnader med hög klimatrisk / lagkravsrisk" }
     );
 
     if (highRisk.length === 0 && financial.length === 0) {
       lines.push({
         type: "text",
-        text: "Inga byggnader med hog riskscore eller finansiell riskflagga i urvalet.",
+        text: "Inga byggnader med hög riskscore eller finansiell riskflagga i urvalet.",
       });
     } else {
-      lines.push({
-        type: "row",
-        cells: ["Byggnad", "Fastighet", "Score", "Klimatar", "MEPS", "Fin.risk"],
-        widths: [120, 110, 45, 55, 70, 50],
-      });
       const top = [...highRisk, ...financial]
         .filter(
           (s, i, arr) =>
             arr.findIndex((x) => x.building_id === s.building_id) === i
         )
         .slice(0, 35);
-      for (const s of top) {
-        lines.push({
-          type: "row",
-          cells: [
-            s.building_name.slice(0, 24),
-            (s.property_name ?? "—").slice(0, 22),
-            fmt(s.combined_score, 0),
-            s.crrem_misalignment_year != null
-              ? String(s.crrem_misalignment_year)
-              : "—",
-            s.meps_status ? MEPS_SV[s.meps_status] ?? s.meps_status : "—",
-            s.financial_risk_flag ? "JA" : "Nej",
-          ],
-          widths: [120, 110, 45, 55, 70, 50],
-        });
-      }
+      lines.push({
+        type: "table",
+        headers: ["Byggnad", "Fastighet", "Score", "Klimatriskår", "MEPS", "Fin.risk"],
+        widths: [120, 110, 45, 60, 70, 50],
+        rows: top.map((s) => [
+          s.building_name.slice(0, 24),
+          (s.property_name ?? "—").slice(0, 22),
+          fmt(s.combined_score, 0),
+          s.crrem_misalignment_year != null
+            ? String(s.crrem_misalignment_year)
+            : "—",
+          s.meps_status ? MEPS_SV[s.meps_status] ?? s.meps_status : "—",
+          s.financial_risk_flag ? "JA" : "Nej",
+        ]),
+      });
     }
 
     lines.push(
-      { type: "space", h: 8 },
+      { type: "space", h: 6 },
       {
         type: "subtitle",
-        text: "4. Foreslagna atgarder (kostnad, payback, koppling till risk)",
+        text: "4. Föreslagna åtgärder (kostnad, payback, koppling till risk)",
       }
     );
 
     if (actions.length === 0) {
       lines.push({
         type: "text",
-        text: "Inga foreslagna/godkanda atgarder. Skapa atgarder under Atgarder eller generera planer under Renovering.",
+        text: "Inga föreslagna/godkända åtgärder. Skapa åtgärder under Åtgärder eller generera planer under Renovering.",
       });
     } else {
       lines.push({
-        type: "row",
-        cells: ["Atgard", "Byggnad", "Kostnad", "Spar kWh", "Payback", "Varfor"],
-        widths: [130, 90, 55, 60, 50, 80],
-      });
-      for (const a of actions.slice(0, 45)) {
-        const pb =
-          a.payback_years ??
-          paybackYears(a.investment_cost, a.estimated_saving_kwh);
-        const why = explainAction(a);
-        lines.push({
-          type: "row",
-          cells: [
+        type: "table",
+        headers: ["Åtgärd", "Byggnad", "Kostnad", "Spar kWh", "Payback", "Varför"],
+        widths: [130, 90, 55, 60, 55, 75],
+        rows: actions.slice(0, 45).map((a) => {
+          const pb =
+            a.payback_years ??
+            paybackYears(a.investment_cost, a.estimated_saving_kwh);
+          return [
             a.title.slice(0, 26),
             (a.building_name ?? "—").slice(0, 18),
             tkr(a.investment_cost),
             a.estimated_saving_kwh != null
               ? fmt(a.estimated_saving_kwh, 0)
               : "—",
-            pb != null ? `${fmt(pb, 1)} ar` : "—",
-            why.slice(0, 16),
-          ],
-          widths: [130, 90, 55, 60, 50, 80],
-        });
-      }
+            pb != null ? `${fmt(pb, 1)} år` : "—",
+            explainAction(a).slice(0, 16),
+          ];
+        }),
+      });
     }
 
     lines.push(
-      { type: "space", h: 8 },
+      { type: "space", h: 6 },
       { type: "subtitle", text: "5. Rekommendation till ledningen" }
     );
 
     const recs: string[] = [];
     if (financial.length > 0) {
       recs.push(
-        `Prioritera ${financial.length} byggnad(er) med klimatrisikar fore 2035 (CSRD/finansiell risk).`
+        `Prioritera ${financial.length} byggnad(er) med klimatriskår före 2035 (CSRD/finansiell risk).`
       );
     }
     if (risks.some((r) => (r.risk_score ?? 0) >= 9)) {
       recs.push(
-        "Hanterar hogpoangade fysiska risker (oversvamning/varme m.m.) med bevakning eller atgard."
+        "Hantera högpoängade fysiska risker (översvämning/värme m.m.) med bevakning eller åtgärd."
       );
     }
     if (totalPlanCost > 0) {
       recs.push(
-        `Godkann renovationsplaner i etapper – total uppskattad kostnad ${tkr(totalPlanCost)}.`
+        `Godkänn renovationsplaner i etapper – total uppskattad kostnad ${tkr(totalPlanCost)}.`
       );
     }
     if (recs.length === 0) {
       recs.push(
-        "Fortsatt bevakning. Komplettera data och rakna om riskscore vid behov."
+        "Fortsatt bevakning. Komplettera data och räkna om riskscore vid behov."
       );
     }
     for (const r of recs) {
-      lines.push({ type: "text", text: `• ${r}` });
+      lines.push({ type: "bullet", text: r });
     }
 
     lines.push(
-      { type: "space", h: 10 },
+      { type: "space", h: 8 },
       { type: "subtitle", text: "6. Beslut / signatur" },
-      {
-        type: "text",
-        text: "Forvaltare: ________________________  Datum: __________",
-      },
-      {
-        type: "text",
-        text: "Beslut (godkann / skjut upp / avslå): ________________",
-      },
+      { type: "signature" },
       ...footer()
     );
 
@@ -385,7 +369,7 @@ function explainAction(a: {
     return "Tidig klimatrisk";
   if (a.category === "envelope") return "Klimatskal";
   if (a.category === "hvac") return "VS/HVAC";
-  if (a.category === "renewable") return "Fornybart";
+  if (a.category === "renewable") return "Förnybart";
   return "Energieff.";
 }
 
@@ -446,44 +430,44 @@ export async function exportCsrdReport(raw?: {
       ? scores[0]?.property_name ??
         risks[0]?.property_name ??
         "Vald fastighet"
-      : "Hela portfoljen";
+      : "Hela portföljen";
 
     const lines: PdfLine[] = [
       ...header(
         "EnergyPulse – CSRD / ESRS E1 underlag",
-        "Klimatrelaterad information for hallbarhetsrapportering (utkast baserat pa systemdata)",
-        `Omfattning: ${scope}  |  Rapporteringsar: ${year}  |  Genererad: ${today()}`
+        "Klimatrelaterad information för hållbarhetsrapportering (utkast baserat på systemdata)",
+        `Omfattning: ${scope}  |  Rapporteringsår: ${year}  |  Genererad: ${today()}`
       ),
       {
         type: "text",
-        text: "Denna rapport ar ett dataunderlag – inte en fullstandig CSRD-deklaration. Anvand sektionerna nedan som checklista for vad som bor inga i ESRS E1.",
+        text: "Denna rapport är ett dataunderlag – inte en fullständig CSRD-deklaration. Använd sektionerna nedan som checklista för vad som bör ingå i ESRS E1.",
       },
       { type: "space", h: 8 },
 
-      { type: "subtitle", text: "A. Vad som bor inga i en CSRD-klimatrapport (ESRS E1)" },
+      { type: "subtitle", text: "A. Vad som bör ingå i en CSRD-klimatrapport (ESRS E1)" },
       {
         type: "text",
-        text: "1) Styrning – roller for klimat- och energiforvaltning, beslutsprocess for renovering.",
+        text: "1) Styrning – roller för klimat- och energiförvaltning, beslutsprocess för renovering.",
       },
       {
         type: "text",
-        text: "2) Strategi – hur klimatkrav (MEPS/EPBD) och CRREM-banor paverkar bestandet och affarsmodellen.",
+        text: "2) Strategi – hur klimatkrav (MEPS/EPBD) och CRREM-banor påverkar beståndet och affärsmodellen.",
       },
       {
         type: "text",
-        text: "3) Klimatrisker – fysiska risker (oversvamning, varme m.m.) och overgangsrisker (lagkrav, stranding).",
+        text: "3) Klimatrisker – fysiska risker (översvämning, värme m.m.) och övergångsrisker (lagkrav, stranding).",
       },
       {
         type: "text",
-        text: "4) Metriker – energianvandning, intensitet (kWh/m2), GHG om tillganglig, energiklass, datakvalitet.",
+        text: "4) Metriker – energianvändning, intensitet (kWh/m²), GHG om tillgänglig, energiklass, datakvalitet.",
       },
       {
         type: "text",
-        text: "5) Mal och omstallningsplan – renovationsplaner, tidsplan, investeringsbehov, forvantad effekt.",
+        text: "5) Mål och omställningsplan – renovationsplaner, tidsplan, investeringsbehov, förväntad effekt.",
       },
       {
         type: "text",
-        text: "6) Policyer & atgarder – godkanda atgarder, status, ansvar, uppfoljning.",
+        text: "6) Policyer & åtgärder – godkända åtgärder, status, ansvar, uppföljning.",
       },
       {
         type: "text",
@@ -491,7 +475,7 @@ export async function exportCsrdReport(raw?: {
       },
       { type: "space", h: 8 },
 
-      { type: "subtitle", text: "B. Nulage i EnergyPulse (metriker)" },
+      { type: "subtitle", text: "B. Nuläge i EnergyPulse (metriker)" },
       {
         type: "text",
         text: `Byggnader med riskscore: ${scores.length}  |  Snitt riskscore: ${fmt(avgScore, 1)} / 100`,
@@ -502,11 +486,11 @@ export async function exportCsrdReport(raw?: {
       },
       {
         type: "text",
-        text: `Aktiva fysiska risker (oppen/bevakning): ${openRisks}  |  Renovationsplaner: ${plans.length}`,
+        text: `Aktiva fysiska risker (öppen/bevakning): ${openRisks}  |  Renovationsplaner: ${plans.length}`,
       },
       {
         type: "text",
-        text: `Uppskattad investering i omstallningsplaner: ${tkr(transitionCost || null)}`,
+        text: `Uppskattad investering i omställningsplaner: ${tkr(transitionCost || null)}`,
       },
       { type: "space", h: 6 },
     ];
@@ -514,7 +498,7 @@ export async function exportCsrdReport(raw?: {
     if (scores.length > 0) {
       lines.push({
         type: "row",
-        cells: ["Byggnad", "Klass", "Score", "MEPS", "Klimatar", "Fin.risk"],
+        cells: ["Byggnad", "Klass", "Score", "MEPS", "Klimatriskår", "Fin.risk"],
         widths: [130, 45, 45, 70, 55, 55],
       });
       for (const s of scores.slice(0, 40)) {
@@ -542,12 +526,12 @@ export async function exportCsrdReport(raw?: {
     if (risks.length === 0) {
       lines.push({
         type: "text",
-        text: "Inga registrerade fysiska risker. Bor kompletteras for fullstandig CSRD-bild.",
+        text: "Inga registrerade fysiska risker. Bör kompletteras för fullständig CSRD-bild.",
       });
     } else {
       lines.push({
         type: "row",
-        cells: ["Fastighet", "Risktyp", "Status", "Poang", "Notering"],
+        cells: ["Fastighet", "Risktyp", "Status", "Poäng", "Notering"],
         widths: [120, 90, 70, 45, 140],
       });
       for (const r of risks.slice(0, 30)) {
@@ -569,18 +553,18 @@ export async function exportCsrdReport(raw?: {
       { type: "space", h: 8 },
       {
         type: "subtitle",
-        text: "D. Omstallningsplan (transition plan) – renovationsplaner",
+        text: "D. Omställningsplan (transition plan) – renovationsplaner",
       }
     );
     if (plans.length === 0) {
       lines.push({
         type: "text",
-        text: "Inga renovationsplaner. CSRD forvantar beskrivning av atgarder mot mal (EPBD/MEPS/CRREM).",
+        text: "Inga renovationsplaner. CSRD förväntar beskrivning av åtgärder mot mål (EPBD/MEPS/CRREM).",
       });
     } else {
       lines.push({
         type: "row",
-        cells: ["Plan", "Byggnad", "Status", "Kostnad", "Score fore", "Score efter"],
+        cells: ["Plan", "Byggnad", "Status", "Kostnad", "Score före", "Score efter"],
         widths: [120, 100, 60, 55, 55, 55],
       });
       for (const p of plans.slice(0, 25)) {
@@ -601,36 +585,36 @@ export async function exportCsrdReport(raw?: {
 
     lines.push(
       { type: "space", h: 8 },
-      { type: "subtitle", text: "E. Checklist – saknas ofta i underlaget" },
+      { type: "subtitle", text: "E. Checklista – saknas ofta i underlaget" },
       {
         type: "text",
-        text: "[ ] Scope 1/2/3 GHG (tCO2e) per ar – koppla energimix/emissionsfaktorer",
+        text: "[ ] Scope 1/2/3 GHG (tCO2e) per år – koppla energimix/emissionsfaktorer",
       },
       {
         type: "text",
-        text: "[ ] Klimatmal (vetenskapligt baserade) och basar",
+        text: "[ ] Klimatmål (vetenskapligt baserade) och basår",
       },
       {
         type: "text",
-        text: "[ ] CapEx/OpEx for omstallning uppdelat per ar",
+        text: "[ ] CapEx/OpEx för omställning uppdelat per år",
       },
       {
         type: "text",
-        text: "[ ] Governance: styrelsens tillsyn av klimatfraga",
+        text: "[ ] Governance: styrelsens tillsyn av klimatfrågan",
       },
       {
         type: "text",
-        text: "[ ] Dubbel vasentlighetsanalys (impact + financial materiality)",
+        text: "[ ] Dubbel väsentlighetsanalys (impact + financial materiality)",
       },
       {
         type: "text",
-        text: "[ ] Scenarier (1,5C / 2C) – CRREM-version i Admin",
+        text: "[ ] Scenarier (1,5 °C / 2 °C) – CRREM-version i Admin",
       },
       { type: "space", h: 8 },
-      { type: "subtitle", text: "F. Atgarder i system (utdrag)" },
+      { type: "subtitle", text: "F. Åtgärder i system (utdrag)" },
       {
         type: "text",
-        text: `Antal atgarder i urval: ${actions.length}  |  Summa investering: ${tkr(
+        text: `Antal åtgärder i urval: ${actions.length}  |  Summa investering: ${tkr(
           actions.reduce((s, a) => s + (a.investment_cost ?? 0), 0) || null
         )}`,
       },
@@ -726,17 +710,17 @@ export async function exportPropertyFullReport(raw: {
     const lines: PdfLine[] = [
       ...header(
         "EnergyPulse – Fastighetsrapport",
-        "Klimatrisker, energi, renovationsplaner – fore/efter, kostnader, payback och betyg",
-        `${propName}  |  ${address}  |  ${municipality}  |  Ar: ${year}  |  ${today()}`
+        "Klimatrisker, energi, renovationsplaner – före/efter, kostnader, payback och betyg",
+        `${propName}  ·  ${address}  ·  ${municipality}  ·  År: ${year}  ·  ${today()}`
       ),
-      { type: "subtitle", text: "1. Oversikt / betyg" },
+      { type: "subtitle", text: "1. Översikt / betyg" },
       {
         type: "text",
         text: `Byggnader: ${buildings.length}  |  Snitt riskscore: ${fmt(avgScore, 1)} / 100  |  Fysiska risker: ${physical_risks.length}`,
       },
       {
         type: "text",
-        text: `Renovationsplaner: ${plans.length}  |  Uppskattad plankostnad: ${tkr(planCost || null)}  |  Atgarder: ${actions.length}`,
+        text: `Renovationsplaner: ${plans.length}  |  Uppskattad plankostnad: ${tkr(planCost || null)}  |  Åtgärder: ${actions.length}`,
       },
       { type: "space", h: 8 },
       { type: "subtitle", text: "2. Energi och prestanda per byggnad" },
@@ -747,7 +731,7 @@ export async function exportPropertyFullReport(raw: {
           "Klass",
           "kWh/m2",
           "Gap 2030",
-          "Klimatar",
+          "Klimatriskår",
           "Score",
           "Data %",
         ],
@@ -790,7 +774,7 @@ export async function exportPropertyFullReport(raw: {
 
     lines.push(
       { type: "space", h: 8 },
-      { type: "subtitle", text: "3. Klimatrisker pa fastigheten" }
+      { type: "subtitle", text: "3. Klimatrisker på fastigheten" }
     );
 
     const risks = physical_risks as Array<{
@@ -810,7 +794,7 @@ export async function exportPropertyFullReport(raw: {
     } else {
       lines.push({
         type: "row",
-        cells: ["Risk", "Sannolikhet", "Konsekvens", "Poang", "Notering"],
+        cells: ["Risk", "Sannolikhet", "Konsekvens", "Poäng", "Notering"],
         widths: [100, 80, 80, 50, 160],
       });
       for (const r of risks) {
@@ -832,14 +816,14 @@ export async function exportPropertyFullReport(raw: {
       { type: "space", h: 8 },
       {
         type: "subtitle",
-        text: "4. Renovationsplaner – fore/efter, kostnad, payback",
+        text: "4. Renovationsplaner – före/efter, kostnad, payback",
       }
     );
 
     if (plans.length === 0) {
       lines.push({
         type: "text",
-        text: "Inga renovationsplaner. Skapa under fliken Renovering pa fastigheten.",
+        text: "Inga renovationsplaner. Skapa under fliken Renovering på fastigheten.",
       });
     } else {
       for (const p of plans) {
@@ -863,19 +847,19 @@ export async function exportPropertyFullReport(raw: {
         lines.push({
           type: "text",
           text: `Kostnad: ${tkr(cost)}  |  Riskscore: ${fmt(p.baseline_combined_score, 0)} -> ${fmt(p.projected_combined_score, 0)}${
-            scoreDelta != null ? ` (forbattring ${fmt(scoreDelta, 0)})` : ""
+            scoreDelta != null ? ` (förbättring ${fmt(scoreDelta, 0)})` : ""
           }`,
         });
         if (p.target_misalignment_year != null) {
           lines.push({
             type: "text",
-            text: `Mal klimatar: ${p.target_misalignment_year}  |  Mal MEPS: ${p.target_meps_status ?? "—"}`,
+            text: `Mål klimatriskår: ${p.target_misalignment_year}  |  Mål MEPS: ${p.target_meps_status ?? "—"}`,
           });
         }
         if (p.actions.length > 0) {
           lines.push({
             type: "row",
-            cells: ["Atgard i plan", "Kostnad", "MEPS-effekt", "Klimat-shift"],
+            cells: ["Åtgärd i plan", "Kostnad", "MEPS-effekt", "Klimat-shift"],
             widths: [220, 70, 80, 80],
           });
           for (const a of p.actions) {
@@ -900,7 +884,7 @@ export async function exportPropertyFullReport(raw: {
 
     lines.push(
       { type: "space", h: 8 },
-      { type: "subtitle", text: "5. Oppna atgarder (ej nodvandigt i plan)" }
+      { type: "subtitle", text: "5. Öppna åtgärder (ej nödvändigt i plan)" }
     );
 
     const openActions = actions.filter(
@@ -911,11 +895,11 @@ export async function exportPropertyFullReport(raw: {
     );
 
     if (openActions.length === 0) {
-      lines.push({ type: "text", text: "Inga oppna atgarder." });
+      lines.push({ type: "text", text: "Inga öppna åtgärder." });
     } else {
       lines.push({
         type: "row",
-        cells: ["Atgard", "Byggnad", "Kostnad", "Spar kWh", "Payback ar"],
+        cells: ["Åtgärd", "Byggnad", "Kostnad", "Spar kWh", "Payback ar"],
         widths: [160, 110, 70, 70, 60],
       });
       for (const a of openActions.slice(0, 30)) {
@@ -940,19 +924,19 @@ export async function exportPropertyFullReport(raw: {
 
     lines.push(
       { type: "space", h: 10 },
-      { type: "subtitle", text: "6. Samlad bedomning" },
+      { type: "subtitle", text: "6. Samlad bedömning" },
       {
         type: "text",
         text:
           avgScore != null && avgScore >= 60
-            ? "Hog samlad risk – rekommenderar att ledningen tar stallning till renovationsplaner och budget."
+            ? "Hög samlad risk – rekommenderar att ledningen tar ställning till renovationsplaner och budget."
             : avgScore != null && avgScore >= 40
-              ? "Medelrisk – folj upp data och prioritera atgarder med bast payback."
-              : "Lag till medel risk – fortsatt bevakning och datakvalitet.",
+              ? "Medelrisk – följ upp data och prioritera åtgärder med bäst payback."
+              : "Låg till medel risk – fortsatt bevakning och datakvalitet.",
       },
       {
         type: "text",
-        text: "Forvaltare: ________________________  Datum: __________",
+        text: "Förvaltare: ________________________  Datum: __________",
       },
       ...footer()
     );
@@ -1029,7 +1013,7 @@ export async function exportRenovationPlansReport(raw?: {
       ? plans[0]?.building_name
         ? `Fastighet (via planer)`
         : "Vald fastighet"
-      : "Hela portfoljen";
+      : "Hela portföljen";
 
     // better scope name
     let scopeName = scope;
@@ -1043,8 +1027,8 @@ export async function exportRenovationPlansReport(raw?: {
     const lines: PdfLine[] = [
       ...header(
         "EnergyPulse – Renovationsplaner",
-        "Planer med fore/efter riskscore, kostnader, atgarder och uppskattad payback",
-        `Omfattning: ${scopeName}  |  Referensar: ${year}  |  Genererad: ${today()}`
+        "Planer med före/efter riskscore, kostnader, åtgärder och uppskattad payback",
+        `Omfattning: ${scopeName}  |  Referensår: ${year}  |  Genererad: ${today()}`
       ),
       { type: "subtitle", text: "1. Sammanfattning" },
       {
@@ -1060,7 +1044,7 @@ export async function exportRenovationPlansReport(raw?: {
         }  |  Klara: ${plans.filter((p) => p.status === "completed").length}`,
       },
       { type: "space", h: 8 },
-      { type: "subtitle", text: "2. Planer i oversikt" },
+      { type: "subtitle", text: "2. Planer i översikt" },
       {
         type: "row",
         cells: [
@@ -1068,7 +1052,7 @@ export async function exportRenovationPlansReport(raw?: {
           "Byggnad",
           "Status",
           "Kostnad",
-          "Score fore",
+          "Score före",
           "Score efter",
           "Delta",
         ],
@@ -1100,7 +1084,7 @@ export async function exportRenovationPlansReport(raw?: {
     if (plans.length === 0) {
       lines.push({
         type: "text",
-        text: "Inga renovationsplaner att visa. Skapa under Renovering (jamfor scenarier A/B/C).",
+        text: "Inga renovationsplaner att visa. Skapa under Renovering (jämför scenarier A/B/C).",
       });
     }
 
@@ -1126,21 +1110,21 @@ export async function exportRenovationPlansReport(raw?: {
       });
       lines.push({
         type: "text",
-        text: `Byggnad: ${p.building_name ?? "—"}  |  Kostnad: ${tkr(cost || null)}  |  Payback (ca): ${pb != null ? `${fmt(pb, 1)} ar` : "—"}`,
+        text: `Byggnad: ${p.building_name ?? "—"}  ·  Kostnad: ${tkr(cost || null)}  ·  Payback (ca): ${pb != null ? `${fmt(pb, 1)} år` : "—"}`,
       });
       lines.push({
         type: "text",
-        text: `Riskscore: ${fmt(p.baseline_combined_score, 0)} -> ${fmt(p.projected_combined_score, 0)}  |  Mal klimatar: ${p.target_misalignment_year ?? "—"}  |  Mal MEPS: ${p.target_meps_status ?? "—"}`,
+        text: `Riskscore: ${fmt(p.baseline_combined_score, 0)} -> ${fmt(p.projected_combined_score, 0)}  |  Mål klimatriskår: ${p.target_misalignment_year ?? "—"}  |  Mål MEPS: ${p.target_meps_status ?? "—"}`,
       });
       if (p.notes) {
         lines.push({ type: "text", text: `Notering: ${p.notes.slice(0, 140)}` });
       }
       if (p.actions.length === 0) {
-        lines.push({ type: "text", text: "Inga atgarder i planen." });
+        lines.push({ type: "text", text: "Inga åtgärder i planen." });
       } else {
         lines.push({
           type: "row",
-          cells: ["Atgard", "Kostnad", "Spar kWh", "Payback", "MEPS d", "Klimat"],
+          cells: ["Åtgärd", "Kostnad", "Spar kWh", "Payback", "MEPS d", "Klimat"],
           widths: [160, 60, 60, 55, 55, 50],
         });
         for (const a of p.actions) {
@@ -1173,12 +1157,12 @@ export async function exportRenovationPlansReport(raw?: {
         type: "text",
         text:
           plans.some((p) => p.status === "draft")
-            ? "Godkann utkast efter granskning av kostnad och forvantad riskminskning. Prioritera planer med hogst score-delta per krona."
-            : "Folj upp godkannade planer till klar status sa att modeled spar tillampas.",
+            ? "Godkänn utkast efter granskning av kostnad och förväntad riskminskning. Prioritera planer med högst score-delta per krona."
+            : "Följ upp godkända planer till klar status så att modeled spar tillämpas.",
       },
       {
         type: "text",
-        text: "Forvaltare: ________________________  Datum: __________",
+        text: "Förvaltare: ________________________  Datum: __________",
       },
       ...footer()
     );

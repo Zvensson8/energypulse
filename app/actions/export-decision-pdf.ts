@@ -115,7 +115,7 @@ export async function exportBuildingDecisionPdf(raw: {
         saving: a.estimated_saving_kwh,
       }));
       planCost = planActions.reduce((s, a) => s + (a.cost ?? 0), 0) || null;
-      planTitle = "Foreslagna atgarder (ej sparad plan)";
+      planTitle = "Föreslagna åtgärder (ej sparad plan)";
     }
 
     const mepsLabel = g.meps_status
@@ -126,55 +126,56 @@ export async function exportBuildingDecisionPdf(raw: {
       "Fortsatt bevakning – ingen akut prioritering identifierad.";
     if (g.financial_risk_flag) {
       recommendation =
-        "Prioritera – klimatrisikar fore 2035 (finansiell risk / CSRD-relevant).";
+        "Prioritera – klimatriskår före 2035 (finansiell risk / CSRD-relevant).";
     } else if (g.meps_status === "non_compliant" || (g.meps_2030_gap ?? 0) > 0) {
       recommendation =
-        "Prioritera atgarder som sanker energianvandning mot 2030-kravet.";
+        "Prioritera åtgärder som sänker energianvändning mot 2030-kravet.";
     } else if ((g.combined_score ?? 0) >= 60) {
       recommendation =
-        "Hog samlad risk – jamfor renovationsscenarier och valj en plan.";
+        "Hög samlad risk – jämför renovationsscenarier och välj en plan.";
     }
 
+
     const lines: PdfLine[] = [
-      { type: "title", text: "EnergyPulse – Beslutsunderlag" },
+      {
+        type: "brand_header",
+        title: "Beslutsunderlag – byggnad",
+        subtitle: "Energi, lagkrav 2030 och klimatrisk – underlag för ledning",
+        meta: `${d.building.name}  ·  ${d.property.name}  ·  ${d.property.municipality ?? "—"}  ·  År ${d.year}  ·  ${today}`,
+      },
+      {
+        type: "kpi_row",
+        items: [
+          { label: "Energiklass", value: g.energy_class ?? "—" },
+          {
+            label: "kWh/m²",
+            value: fmt(g.energy_intensity, 1),
+          },
+          {
+            label: "Samlad risk",
+            value: `${fmt(g.combined_score, 0)}/100`,
+          },
+          {
+            label: "Klimatriskår",
+            value:
+              g.crrem_stranding_year != null
+                ? String(g.crrem_stranding_year)
+                : "—",
+          },
+        ],
+      },
+      { type: "subtitle", text: "1. Nuläge (betyg)" },
       {
         type: "text",
-        text: `Energi, lagkrav 2030 och klimatrisk – underlag for ledning`,
+        text: `Krav 2030: ${mepsLabel}    Gap: ${fmt(g.meps_2030_gap, 1)} kWh/m²    Finansiell risk <2035: ${g.financial_risk_flag ? "JA" : "Nej"}    Datakvalitet: ${fmt(g.data_completeness_percent, 0)} %`,
       },
       { type: "space", h: 6 },
-      {
-        type: "text",
-        text: `Objekt: ${d.building.name}  |  Fastighet: ${d.property.name}`,
-      },
-      {
-        type: "text",
-        text: `Kommun: ${d.property.municipality ?? "—"}  |  Ar: ${d.year}  |  Genererad: ${today}`,
-      },
-      { type: "space", h: 10 },
-      { type: "subtitle", text: "1. Nulage (betyg)" },
-      {
-        type: "text",
-        text: `Energiklass: ${g.energy_class ?? "—"}    Intensitet: ${fmt(g.energy_intensity, 1)} kWh/m2`,
-      },
-      {
-        type: "text",
-        text: `Krav 2030: ${mepsLabel}    Gap: ${fmt(g.meps_2030_gap, 1)} kWh/m2`,
-      },
-      {
-        type: "text",
-        text: `Klimatrisikar: ${g.crrem_stranding_year ?? "—"}    Finansiell risk <2035: ${g.financial_risk_flag ? "JA" : "Nej"}`,
-      },
-      {
-        type: "text",
-        text: `Samlad risk: ${fmt(g.combined_score, 0)} / 100    Datakvalitet: ${fmt(g.data_completeness_percent, 0)} %`,
-      },
-      { type: "space", h: 10 },
-      { type: "subtitle", text: "2. Foreslagen plan / atgarder" },
+      { type: "subtitle", text: "2. Föreslagen plan / åtgärder" },
       {
         type: "text",
         text: planTitle
           ? `${planTitle}${scenario ? ` (${scenario})` : ""}`
-          : "Inga atgarder kopplade",
+          : "Inga åtgärder kopplade",
       },
       {
         type: "text",
@@ -185,50 +186,43 @@ export async function exportBuildingDecisionPdf(raw: {
 
     if (planActions.length) {
       lines.push({
-        type: "row",
-        cells: ["Atgard", "Kostnad tkr", "Spar kWh/ar"],
-        widths: [280, 90, 100],
+        type: "table",
+        headers: ["Åtgärd", "Kostnad tkr", "Spar kWh/år"],
+        widths: [300, 90, 100],
+        rows: planActions.map((a) => [
+          a.title.slice(0, 52),
+          a.cost != null ? fmt(a.cost / 1000, 0) : "—",
+          a.saving != null ? fmt(a.saving, 0) : "—",
+        ]),
       });
-      for (const a of planActions) {
-        lines.push({
-          type: "row",
-          cells: [
-            a.title.slice(0, 48),
-            a.cost != null ? fmt(a.cost / 1000, 0) : "—",
-            a.saving != null ? fmt(a.saving, 0) : "—",
-          ],
-          widths: [280, 90, 100],
-        });
-      }
     } else {
       lines.push({
         type: "text",
-        text: "Inga oppna atgarder – skapa atgarder eller generera plan i EnergyPulse.",
+        text: "Inga öppna åtgärder – skapa åtgärder eller generera plan i EnergyPulse.",
       });
     }
 
     lines.push(
-      { type: "space", h: 10 },
-      { type: "subtitle", text: "3. Forvantat efter plan" },
+      { type: "space", h: 6 },
+      { type: "subtitle", text: "3. Förväntat efter plan" },
       {
         type: "text",
         text:
           projectedScore != null
-            ? `Samlad risk: ${fmt(g.combined_score, 0)} -> ${fmt(projectedScore, 0)}`
-            : "Projicera via Jämfor planer i EnergyPulse for exakt fore/efter.",
+            ? `Samlad risk: ${fmt(g.combined_score, 0)} → ${fmt(projectedScore, 0)}`
+            : "Projicera via Jämför planer i EnergyPulse för exakt före/efter.",
       },
-      { type: "space", h: 10 },
+      { type: "space", h: 6 },
       { type: "subtitle", text: "4. Rekommendation" },
-      { type: "text", text: recommendation },
-      { type: "space", h: 14 },
+      { type: "bullet", text: recommendation },
+      { type: "space", h: 8 },
       { type: "subtitle", text: "5. Beslut / signatur" },
-      { type: "text", text: "Forvaltare: ________________________  Datum: __________" },
-      { type: "space", h: 4 },
-      { type: "text", text: "Beslut (godkann / skjut upp / avslå): ________________" },
-      { type: "space", h: 10 },
+      { type: "signature" },
+      { type: "space", h: 8 },
+      { type: "hrule" },
       {
         type: "text",
-        text: "Obs: Modeled spar andrar inte ravarden. Kalla: EnergyPulse prestanda + riskmotor.",
+        text: "Obs: Modeled spar ändrar inte råvärden. Källa: EnergyPulse prestanda + riskmotor.",
       }
     );
 

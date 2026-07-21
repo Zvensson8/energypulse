@@ -62,6 +62,7 @@ import {
   Activity,
   ListTodo,
   Hammer,
+  FileText,
 } from "lucide-react";
 import type { DataGapStatus, EnergyClass } from "@/lib/supabase/database.types";
 import { OWNERSHIP_SV, STATUS_SV } from "@/lib/labels";
@@ -292,6 +293,14 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                   Importera energi
                 </Link>
               </Button>
+              <Button variant="outline" asChild>
+                <Link
+                  href={`/reports?property=${propertyId}&type=property_full`}
+                >
+                  <FileText className="h-4 w-4" />
+                  Rapporter
+                </Link>
+              </Button>
               {tab === "spaces" ? (
                 <Button
                   onClick={() => setAddSpaceOpen(true)}
@@ -515,6 +524,70 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                 );
               })}
             </div>
+
+            {/* Rapporter – förifyllda med denna fastighet */}
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold">Rapporter</h2>
+                  <p className="text-sm text-muted-foreground">
+                    PDF med denna fastighet förvald – ledning, CSRD,
+                    helhetsrapport eller renovering.
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/reports?property=${propertyId}`}>
+                    Alla rapporter
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    {
+                      type: "property_full",
+                      title: "Samlad fastighetsrapport",
+                      desc: "Energi, risk, planer, före/efter",
+                    },
+                    {
+                      type: "leadership_climate",
+                      title: "Förslag till ledningen",
+                      desc: "Klimatrisker & åtgärdskostnad",
+                    },
+                    {
+                      type: "csrd",
+                      title: "CSRD / ESRS E1",
+                      desc: "Hållbarhetsunderlag för denna fastighet",
+                    },
+                    {
+                      type: "renovation",
+                      title: "Renovationsplaner",
+                      desc: "Planer med kostnad & payback",
+                    },
+                  ] as const
+                ).map((r) => (
+                  <Link
+                    key={r.type}
+                    href={`/reports?property=${propertyId}&type=${r.type}`}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm transition hover:border-primary/25 hover:shadow-md"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <FileText className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold">
+                        {r.title}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {r.desc}
+                      </span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
+            </section>
 
             {/* Preview buildings */}
             {buildings.length > 0 && (

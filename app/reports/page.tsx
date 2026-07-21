@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ReportsView } from "@/components/reports/reports-view";
 
 export const metadata = {
@@ -7,5 +8,19 @@ export const metadata = {
 };
 
 export default function ReportsPage() {
-  return <ReportsView />;
+  return (
+    <Suspense
+      fallback={
+        <div className="page-shell">
+          <div className="page-inner">
+            <div className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
+              Laddar rapporter…
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <ReportsView />
+    </Suspense>
+  );
 }

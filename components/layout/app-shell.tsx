@@ -123,6 +123,10 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "Paketera åtgärder mot MEPS och klimatriskår",
   },
   "/guide": { title: "Guide", subtitle: "Kom igång på några minuter" },
+  "/admin": {
+    title: "Admin",
+    subtitle: "Riskvikter, datakvalitet och behörigheter",
+  },
   "/login": { title: "Logga in" },
 };
 

@@ -184,7 +184,10 @@ export async function listRiskScores(opts?: {
   }
 }
 
-export async function getPortfolioRiskSummary(year?: number): Promise<
+export async function getPortfolioRiskSummary(
+  year?: number,
+  propertyId?: string
+): Promise<
   ActionResult<{
     year: number;
     avgCombined: number | null;
@@ -199,12 +202,37 @@ export async function getPortfolioRiskSummary(year?: number): Promise<
     const supabase = await createClient();
     await requireUser(supabase);
 
-    const { data: pis } = await supabase
+    let buildingIds: string[] | null = null;
+    if (propertyId) {
+      const { data: bs } = await supabase
+        .from("buildings")
+        .select("id")
+        .eq("property_id", propertyId);
+      buildingIds = (bs ?? []).map((b) => b.id as string);
+      if (buildingIds.length === 0) {
+        return {
+          success: true,
+          data: {
+            year: y,
+            avgCombined: null,
+            financialRiskCount: 0,
+            nonCompliantCount: 0,
+            highRiskCount: 0,
+            buildingCount: 0,
+          },
+        };
+      }
+    }
+
+    let q = supabase
       .from("performance_indicators")
       .select(
         "combined_risk_score, financial_risk_flag, meps_status, building_id"
       )
       .eq("year", y);
+    if (buildingIds) q = q.in("building_id", buildingIds);
+
+    const { data: pis } = await q;
 
     const rows = pis ?? [];
     const scores = rows

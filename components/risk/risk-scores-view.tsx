@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listRiskScores,
   refreshPortfolioRiskScores,
-  getPortfolioRiskSummary,
   type RiskScoreRow,
 } from "@/app/actions/risk-scores";
 // Plan generation moved to /renovation scenario compare
@@ -78,15 +77,6 @@ export function RiskScoresView({
   const [msg, setMsg] = useState<string | null>(null);
   const effectivePropertyId = lockedPropertyId ?? propertyId;
 
-  const summaryQ = useQuery({
-    queryKey: ["risk-summary", year],
-    queryFn: async () => {
-      const res = await getPortfolioRiskSummary(year);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-  });
-
   const listQ = useQuery({
     queryKey: ["risk-scores", year],
     queryFn: async () => {
@@ -107,19 +97,45 @@ export function RiskScoresView({
       void qc.invalidateQueries({ queryKey: ["risk-scores"] });
       void qc.invalidateQueries({ queryKey: ["risk-summary"] });
       void qc.invalidateQueries({ queryKey: ["dashboard-kpis"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard-bundle"] });
     },
   });
 
-  const s = summaryQ.data;
-  const rows = useMemo(() => {
+  /** Scope = portfölj eller vald fastighet (KPI ska spegla detta, inte high/financial-filter). */
+  const scopeRows = useMemo(() => {
     let list = listQ.data ?? [];
-    if (effectivePropertyId)
+    if (effectivePropertyId) {
       list = list.filter((r) => r.property_id === effectivePropertyId);
+    }
+    return list;
+  }, [listQ.data, effectivePropertyId]);
+
+  const s = useMemo(() => {
+    const scores = scopeRows.map((r) => r.combined_score);
+    const avg =
+      scores.length > 0
+        ? scores.reduce((a, b) => a + b, 0) / scores.length
+        : null;
+    return {
+      year,
+      avgCombined: avg != null ? Math.round(avg * 10) / 10 : null,
+      highRiskCount: scopeRows.filter((r) => r.combined_score >= 60).length,
+      nonCompliantCount: scopeRows.filter(
+        (r) => r.meps_status === "non_compliant"
+      ).length,
+      financialRiskCount: scopeRows.filter((r) => r.financial_risk_flag)
+        .length,
+      buildingCount: scopeRows.length,
+    };
+  }, [scopeRows, year]);
+
+  const rows = useMemo(() => {
+    let list = scopeRows;
     if (filter === "high") list = list.filter((r) => r.combined_score >= 60);
     if (filter === "financial")
       list = list.filter((r) => r.financial_risk_flag);
     return list;
-  }, [listQ.data, filter, effectivePropertyId]);
+  }, [scopeRows, filter]);
 
   return (
     <div className={embedded ? "space-y-4" : "page-shell"}>
@@ -212,8 +228,12 @@ export function RiskScoresView({
             value={
               s?.avgCombined != null ? formatNumber(s.avgCombined, 1) : "—"
             }
-            sub="0–100 · portfölj"
-            help="Genomsnittlig samlad risk (0–100) för alla byggnader med score det valda året. Högre = mer brådska. Grönt under 40, gult 40–60, rött från 60. Klicka för att visa alla hus."
+            sub={
+              effectivePropertyId
+                ? "0–100 · vald fastighet"
+                : "0–100 · hela portföljen"
+            }
+            help="Genomsnittlig samlad risk (0–100) för byggnader i urvalet (portfölj eller vald fastighet). Högre = mer brådska. Grönt under 40, gult 40–60, rött från 60. Klicka för att nollställa listfilter."
             tone={avgRiskTone(s?.avgCombined ?? null)}
             badge={avgRiskBadge(s?.avgCombined ?? null)}
             active={filter === "all"}
@@ -251,14 +271,27 @@ export function RiskScoresView({
             label="Byggnader i listan"
             value={String(s?.buildingCount ?? "—")}
             sub={`år ${s?.year ?? "—"}`}
-            help="Antal byggnader som har risk-/prestandadata för det valda året. Om talet är 0: importera energi och klicka «Räkna om portfölj»."
+            help={
+              effectivePropertyId
+                ? "Antal byggnader under den valda fastigheten som har riskscore för året. Om 0: importera energi och räkna om."
+                : "Antal byggnader i portföljen med riskscore för det valda året. Om 0: importera energi och klicka «Räkna om portfölj»."
+            }
             tone="text-slate-800"
             badge={{
-              label: "Underlag",
-              className: "bg-slate-100 text-slate-600",
+              label: effectivePropertyId ? "Fastighet" : "Portfölj",
+              className: effectivePropertyId
+                ? "bg-primary/10 text-primary"
+                : "bg-slate-100 text-slate-600",
             }}
           />
         </div>
+
+        {effectivePropertyId && (
+          <p className="text-xs text-muted-foreground">
+            KPI och lista är filtrerade på vald fastighet
+            {filter !== "all" ? ` · extra listfilter: ${filter === "high" ? "hög risk" : "finansiell risk"}` : ""}.
+          </p>
+        )}
 
         {msg && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">

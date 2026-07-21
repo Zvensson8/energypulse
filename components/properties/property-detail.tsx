@@ -78,6 +78,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { listPortfolioActions } from "@/app/actions/actions-priority";
 import { listRenovationPlans } from "@/app/actions/renovation-plans";
+import { ExternalDataPanel } from "@/components/properties/external-data-panel";
 
 type TabId =
   | "overview"
@@ -686,6 +687,8 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                 </div>
               </section>
             )}
+
+            <ExternalDataPanel propertyId={propertyId} />
 
             {/* Physical risks */}
             <RisksSection risks={risks} />

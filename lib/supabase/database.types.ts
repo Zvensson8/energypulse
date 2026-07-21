@@ -858,6 +858,40 @@ export interface Database {
         Update: { [key: string]: unknown };
         Relationships: [];
       };
+      external_data_snapshots: {
+        Row: {
+          id: string;
+          property_id: string;
+          source: "smhi" | "boverket" | "gsi";
+          status:
+            | "disabled"
+            | "stub"
+            | "ok"
+            | "error"
+            | "missing_coords";
+          payload: Json;
+          message: string | null;
+          fetched_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          source: "smhi" | "boverket" | "gsi";
+          status:
+            | "disabled"
+            | "stub"
+            | "ok"
+            | "error"
+            | "missing_coords";
+          payload?: Json;
+          message?: string | null;
+          fetched_at?: string;
+          created_at?: string;
+        };
+        Update: { [key: string]: unknown };
+        Relationships: [];
+      };
     };
     Views: {
       spaces_safe: {

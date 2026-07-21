@@ -127,7 +127,7 @@ export function CommandPalette({
                   onSelect={() => go("/properties")}
                   className={itemClass}
                 >
-                  Hitta byggnader & lokaler via fastighet
+                  Fastigheter – risk, åtgärder, planer per hus
                 </Command.Item>
                 <Command.Item
                   onSelect={() => go("/risk-scores")}

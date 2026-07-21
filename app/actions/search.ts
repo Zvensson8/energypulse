@@ -69,7 +69,7 @@ export async function globalSearch(
         subtitle: [p.municipality, p.external_id, p.address]
           .filter(Boolean)
           .join(" · "),
-        href: `/buildings?search=${encodeURIComponent(p.name)}`,
+        href: `/properties/${p.id}`,
         meta: "Fastighet",
       });
     }
@@ -89,18 +89,35 @@ export async function globalSearch(
         id: b.id,
         title: b.name,
         subtitle: pMap.get(b.property_id) ?? b.property_id.slice(0, 8),
-        href: `/buildings?building=${b.id}`,
+        href: `/buildings/${b.id}`,
         meta: b.primary_use ?? "Byggnad",
       });
     }
 
+    // Resolve building → property for actions
+    const actionBuildingIds = [
+      ...new Set((actions ?? []).map((a) => a.building_id as string)),
+    ];
+    const { data: actionBuildings } = actionBuildingIds.length
+      ? await supabase
+          .from("buildings")
+          .select("id, property_id")
+          .in("id", actionBuildingIds)
+      : { data: [] as { id: string; property_id: string }[] };
+    const buildingToProperty = new Map(
+      (actionBuildings ?? []).map((b) => [b.id as string, b.property_id as string])
+    );
+
     for (const a of actions ?? []) {
+      const propId = buildingToProperty.get(a.building_id as string);
       hits.push({
         type: "action",
         id: a.id,
         title: a.title,
         subtitle: `${a.category} · ${a.status}`,
-        href: `/buildings?building=${a.building_id}`,
+        href: propId
+          ? `/properties/${propId}?tab=actions`
+          : `/buildings/${a.building_id}`,
         meta: "Åtgärd",
       });
     }

@@ -236,7 +236,7 @@ export function SpacesView() {
               </h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 <Link
-                  href={`/buildings?building=${s.building_id}`}
+                  href={`/buildings/${s.building_id}`}
                   className="inline-flex items-center gap-1 hover:text-primary"
                 >
                   <Building2 className="h-3.5 w-3.5" />

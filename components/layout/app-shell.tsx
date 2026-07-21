@@ -56,7 +56,6 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         href: "/properties",
         label: "Fastigheter",
         icon: MapPinned,
-        hint: "Byggnader & lokaler under varje fastighet",
       },
       { href: "/risk-scores", label: "Riskscore", icon: Activity },
       { href: "/crrem", label: "Klimatrisk (CRREM)", icon: LineChart },
@@ -102,7 +101,6 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   },
   "/properties": {
     title: "Fastigheter",
-    subtitle: "Byggnader och lokaler under varje fastighet",
   },
   "/buildings": {
     title: "Byggnad",

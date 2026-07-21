@@ -59,18 +59,43 @@ import {
   Thermometer,
   Shield,
   LayoutDashboard,
+  Activity,
+  ListTodo,
+  Hammer,
 } from "lucide-react";
 import type { DataGapStatus, EnergyClass } from "@/lib/supabase/database.types";
 import { OWNERSHIP_SV, STATUS_SV } from "@/lib/labels";
 import { formatNumber, cn } from "@/lib/utils";
+import { RiskScoresView } from "@/components/risk/risk-scores-view";
+import { PhysicalRisksView } from "@/components/risks/physical-risks-view";
+import { ActionsView } from "@/components/actions/actions-view";
+import { RenovationPlansView } from "@/components/renovation/renovation-plans-view";
 
-type TabId = "overview" | "buildings" | "spaces";
+type TabId =
+  | "overview"
+  | "buildings"
+  | "spaces"
+  | "risk-scores"
+  | "risks"
+  | "actions"
+  | "renovation";
 
-const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const TABS: {
+  id: TabId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  group?: "structure" | "work";
+}[] = [
   { id: "overview", label: "Översikt", icon: LayoutDashboard },
-  { id: "buildings", label: "Byggnader", icon: Building2 },
-  { id: "spaces", label: "Lokaler", icon: DoorOpen },
+  { id: "buildings", label: "Byggnader", icon: Building2, group: "structure" },
+  { id: "spaces", label: "Lokaler", icon: DoorOpen, group: "structure" },
+  { id: "risk-scores", label: "Riskscore", icon: Activity, group: "work" },
+  { id: "risks", label: "Risker", icon: AlertTriangle, group: "work" },
+  { id: "actions", label: "Åtgärder", icon: ListTodo, group: "work" },
+  { id: "renovation", label: "Renovering", icon: Hammer, group: "work" },
 ];
+
+const VALID_TABS = new Set<TabId>(TABS.map((t) => t.id));
 
 const SPACE_TYPE_SV: Record<string, string> = {
   office: "Kontor",
@@ -93,8 +118,8 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
 
   const tabParam = searchParams.get("tab");
   const tab: TabId =
-    tabParam === "buildings" || tabParam === "spaces" || tabParam === "overview"
-      ? tabParam
+    tabParam && VALID_TABS.has(tabParam as TabId)
+      ? (tabParam as TabId)
       : "overview";
 
   function setTab(next: TabId) {
@@ -285,67 +310,70 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-sm">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            const count =
-              t.id === "buildings"
-                ? buildings.length
-                : t.id === "spaces"
-                  ? spaceCount
-                  : null;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition sm:flex-none sm:px-4",
-                  active
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {t.label}
-                {count != null && (
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[11px] tabular",
-                      active
-                        ? "bg-primary-foreground/20"
-                        : "bg-secondary text-muted-foreground"
-                    )}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        {/* Tabs – scrollable on small screens */}
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card p-1.5 shadow-sm">
+          <div className="flex min-w-max gap-1">
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.id;
+              const count =
+                t.id === "buildings"
+                  ? buildings.length
+                  : t.id === "spaces"
+                    ? spaceCount
+                    : null;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition",
+                    active
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="whitespace-nowrap">{t.label}</span>
+                  {count != null && (
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[11px] tabular",
+                        active
+                          ? "bg-primary-foreground/20"
+                          : "bg-secondary text-muted-foreground"
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {tab === "overview" && (
           <>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Step
                 n="1"
-                title="Byggnader"
-                body="Registrera varje hus under fastigheten med Atemp."
+                title="Byggnader & lokaler"
+                body="Struktur under fastigheten – hus, Atemp och hyresgäster."
                 onClick={() => setTab("buildings")}
               />
               <Step
                 n="2"
-                title="Lokaler"
-                body="Lägg till lokaler per byggnad. Hyresgästnamn maskeras."
-                onClick={() => setTab("spaces")}
+                title="Riskscore & risker"
+                body="Se score och registrera fysiska risker här – eller i menyn."
+                onClick={() => setTab("risk-scores")}
               />
               <Step
                 n="3"
-                title="Energi & risk"
-                body="Importera förbrukning och följ upp gap 2030 och CRREM."
+                title="Åtgärder & planer"
+                body="Skapa åtgärder och renovationsplaner kopplade till husen."
+                onClick={() => setTab("actions")}
               />
             </div>
 
@@ -411,6 +439,20 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                   >
                     <Plus className="h-4 w-4" /> Lokal
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setTab("risks")}
+                  >
+                    <AlertTriangle className="h-4 w-4" /> Risk
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setTab("actions")}
+                  >
+                    <ListTodo className="h-4 w-4" /> Åtgärd
+                  </Button>
                   <Button size="sm" variant="outline" asChild>
                     <Link href="/import">
                       <Upload className="h-4 w-4" /> Importera
@@ -418,6 +460,60 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                   </Button>
                 </div>
               </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {(
+                [
+                  {
+                    id: "risk-scores" as const,
+                    label: "Riskscore",
+                    desc: "MEPS + CRREM + data",
+                    icon: Activity,
+                  },
+                  {
+                    id: "risks" as const,
+                    label: "Risker",
+                    desc: "Registrera & stäng",
+                    icon: AlertTriangle,
+                  },
+                  {
+                    id: "actions" as const,
+                    label: "Åtgärder",
+                    desc: "Simulera & slutför",
+                    icon: ListTodo,
+                  },
+                  {
+                    id: "renovation" as const,
+                    label: "Renovering",
+                    desc: "A/B/C-planer",
+                    icon: Hammer,
+                  },
+                ] as const
+              ).map((card) => {
+                const Icon = card.icon;
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => setTab(card.id)}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left shadow-sm transition hover:border-primary/25 hover:shadow-md"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold">
+                        {card.label}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {card.desc}
+                      </span>
+                    </span>
+                    <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                );
+              })}
             </div>
 
             {/* Preview buildings */}
@@ -500,6 +596,31 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
             error={spacesQ.error as Error | null}
             onAdd={() => setAddSpaceOpen(true)}
             onOpenBuildings={() => setTab("buildings")}
+          />
+        )}
+
+        {tab === "risk-scores" && (
+          <RiskScoresView
+            lockedPropertyId={propertyId}
+            embedded
+          />
+        )}
+
+        {tab === "risks" && (
+          <PhysicalRisksView
+            lockedPropertyId={propertyId}
+            embedded
+          />
+        )}
+
+        {tab === "actions" && (
+          <ActionsView lockedPropertyId={propertyId} embedded />
+        )}
+
+        {tab === "renovation" && (
+          <RenovationPlansView
+            lockedPropertyId={propertyId}
+            embedded
           />
         )}
 

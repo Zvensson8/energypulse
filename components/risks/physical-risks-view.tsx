@@ -97,12 +97,19 @@ function statusVariant(
   return "outline";
 }
 
-export function PhysicalRisksView() {
+export function PhysicalRisksView({
+  lockedPropertyId,
+  embedded = false,
+}: {
+  lockedPropertyId?: string;
+  embedded?: boolean;
+} = {}) {
   const qc = useQueryClient();
   const [tab, setTab] = useState<"physical" | "compliance">("physical");
   const [hideClosed, setHideClosed] = useState(true);
-  const [propertyId, setPropertyId] = useState("");
+  const [propertyId, setPropertyId] = useState(lockedPropertyId ?? "");
   const [createOpen, setCreateOpen] = useState(false);
+  const effectivePropertyId = lockedPropertyId ?? propertyId;
   const [detail, setDetail] = useState<{
     kind: "physical" | "compliance";
     id: string;
@@ -114,11 +121,11 @@ export function PhysicalRisksView() {
   } | null>(null);
 
   const physQ = useQuery({
-    queryKey: ["physical-risks", hideClosed, propertyId],
+    queryKey: ["physical-risks", hideClosed, effectivePropertyId],
     queryFn: async () => {
       const res = await listPhysicalRisks({
         hideClosed,
-        propertyId: propertyId || undefined,
+        propertyId: effectivePropertyId || undefined,
       });
       if (!res.success) throw new Error(res.error);
       return res.data;
@@ -126,13 +133,13 @@ export function PhysicalRisksView() {
   });
 
   const compQ = useQuery({
-    queryKey: ["compliance-risks", hideClosed, propertyId],
+    queryKey: ["compliance-risks", hideClosed, effectivePropertyId],
     queryFn: async () => {
       const res = await listComplianceRisks({ hideClosed });
       if (!res.success) throw new Error(res.error);
       let list = res.data;
-      if (propertyId)
-        list = list.filter((r) => r.property_id === propertyId);
+      if (effectivePropertyId)
+        list = list.filter((r) => r.property_id === effectivePropertyId);
       return list;
     },
   });
@@ -183,22 +190,26 @@ export function PhysicalRisksView() {
   const activeStats = tab === "physical" ? physStats : compStats;
 
   return (
-    <div className="page-shell">
-      <div className="page-inner">
+    <div className={embedded ? "space-y-4" : "page-shell"}>
+      <div className={embedded ? "space-y-4" : "page-inner"}>
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-6 w-6 text-primary" />
-              <h1 className="page-title">Risker & avskrivning</h1>
-              <HelpTip text="Markera risker som bevakning, åtgärdad eller avskriven. Avskrivning/åtgärd kräver motivering och loggas. Stängda risker påverkar inte alerts." />
+          {!embedded && (
+            <div>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-6 w-6 text-primary" />
+                <h1 className="page-title">Risker & avskrivning</h1>
+                <HelpTip text="Markera risker som bevakning, åtgärdad eller avskriven. Avskrivning/åtgärd kräver motivering och loggas. Stängda risker påverkar inte alerts." />
+              </div>
+              <p className="page-subtitle">
+                Hantera fysiska klimatrisker och MEPS/CRREM-gap. Stäng med
+                motivering så att alerts speglar aktiva risker.
+              </p>
             </div>
-            <p className="page-subtitle">
-              Hantera fysiska klimatrisker och MEPS/CRREM-gap. Stäng med
-              motivering så att alerts speglar aktiva risker.
-            </p>
-          </div>
+          )}
           <div className="flex flex-wrap gap-2">
-            <PropertyFilter value={propertyId} onChange={setPropertyId} />
+            {!lockedPropertyId && (
+              <PropertyFilter value={propertyId} onChange={setPropertyId} />
+            )}
             {tab === "compliance" && (
               <Button
                 variant="outline"
@@ -222,23 +233,25 @@ export function PhysicalRisksView() {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Step
-            n="1"
-            title="Identifiera"
-            body="Registrera fysiska risker eller synka MEPS/CRREM från prestanda."
-          />
-          <Step
-            n="2"
-            title="Bevaka"
-            body="Sätt status Bevakning för risker under uppföljning."
-          />
-          <Step
-            n="3"
-            title="Stäng"
-            body="Åtgärdad eller avskriven kräver motivering och loggas."
-          />
-        </div>
+        {!embedded && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Step
+              n="1"
+              title="Identifiera"
+              body="Registrera fysiska risker eller synka MEPS/CRREM från prestanda."
+            />
+            <Step
+              n="2"
+              title="Bevaka"
+              body="Sätt status Bevakning för risker under uppföljning."
+            />
+            <Step
+              n="3"
+              title="Stäng"
+              body="Åtgärdad eller avskriven kräver motivering och loggas."
+            />
+          </div>
+        )}
 
         {/* Tabs + filter bar */}
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
@@ -568,6 +581,7 @@ export function PhysicalRisksView() {
       <CreateRiskDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
+        lockedPropertyId={lockedPropertyId}
         onCreated={() => {
           void qc.invalidateQueries({ queryKey: ["physical-risks"] });
           setCreateOpen(false);
@@ -772,12 +786,14 @@ function CreateRiskDialog({
   open,
   onOpenChange,
   onCreated,
+  lockedPropertyId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onCreated: () => void;
+  lockedPropertyId?: string;
 }) {
-  const [propertyId, setPropertyId] = useState("");
+  const [propertyId, setPropertyId] = useState(lockedPropertyId ?? "");
   const [riskType, setRiskType] = useState("flood");
   const [probability, setProbability] = useState("medium");
   const [consequence, setConsequence] = useState("medium");
@@ -786,9 +802,11 @@ function CreateRiskDialog({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const effectivePropertyId = lockedPropertyId ?? propertyId;
+
   const propsQ = useQuery({
     queryKey: ["properties-for-risks"],
-    enabled: open,
+    enabled: open && !lockedPropertyId,
     queryFn: async () => {
       const { getBrowserClient } = await import("@/lib/supabase/client");
       const sb = getBrowserClient();
@@ -808,7 +826,7 @@ function CreateRiskDialog({
     setError(null);
     try {
       const res = await createPhysicalRisk({
-        property_id: propertyId,
+        property_id: effectivePropertyId,
         risk_type: riskType,
         probability,
         consequence,
@@ -836,22 +854,30 @@ function CreateRiskDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
-          <div className="space-y-1.5">
-            <label className="text-sm text-muted-foreground">Fastighet *</label>
-            <Select value={propertyId} onValueChange={setPropertyId}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Välj fastighet" />
-              </SelectTrigger>
-              <SelectContent>
-                {(propsQ.data ?? []).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                    {p.municipality ? ` · ${p.municipality}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!lockedPropertyId ? (
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">
+                Fastighet *
+              </label>
+              <Select value={propertyId} onValueChange={setPropertyId}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Välj fastighet" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(propsQ.data ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                      {p.municipality ? ` · ${p.municipality}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Risken sparas på den här fastigheten.
+            </p>
+          )}
           <div className="space-y-1.5">
             <label className="text-sm text-muted-foreground">Risktyp</label>
             <Select value={riskType} onValueChange={setRiskType}>
@@ -932,7 +958,7 @@ function CreateRiskDialog({
             >
               Avbryt
             </Button>
-            <Button type="submit" disabled={pending || !propertyId}>
+            <Button type="submit" disabled={pending || !effectivePropertyId}>
               {pending ? "Sparar…" : "Spara"}
             </Button>
           </div>

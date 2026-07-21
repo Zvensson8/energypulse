@@ -31,7 +31,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
       sub: `År ${kpis.year} · ${kpis.buildingCount} byggnader`,
       icon: Flame,
       tone: "text-indigo-600 bg-indigo-50",
-      href: "/buildings",
+      href: "/properties",
     },
     {
       key: "intensity",
@@ -41,7 +41,7 @@ export function KpiCards({ kpis }: { kpis: DashboardKpis }) {
       sub: "Snitt för portföljen",
       icon: Gauge,
       tone: "text-slate-700 bg-slate-100",
-      href: "/buildings",
+      href: "/risk-scores",
     },
     {
       key: "meps",

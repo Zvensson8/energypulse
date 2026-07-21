@@ -242,7 +242,7 @@ export function ForvaltareGuide() {
           <Button asChild variant="outline" className="gap-1.5">
             <Link href="/properties">
               <MapPinned className="h-3.5 w-3.5" />
-              Fastigheter (byggnader & lokaler)
+              Fastigheter
             </Link>
           </Button>
           <Button asChild variant="outline" className="gap-1.5">

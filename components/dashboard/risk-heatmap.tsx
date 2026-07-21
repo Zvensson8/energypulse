@@ -44,7 +44,7 @@ export function RiskHeatmap({ cells }: { cells: HeatmapCell[] }) {
           <Tooltip key={cell.building_id}>
             <TooltipTrigger asChild>
               <Link
-                href={`/buildings?building=${cell.building_id}`}
+                href={`/buildings/${cell.building_id}`}
                 className={cn(
                   "relative flex aspect-square min-h-[2.25rem] flex-col items-center justify-center rounded-xl border border-black/10 p-0.5 text-center shadow-sm transition hover:ring-2 hover:ring-primary/40",
                   riskHeatColor(cell.risk_score),

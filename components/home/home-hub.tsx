@@ -56,7 +56,7 @@ const STEPS = [
 const SHORTCUTS = [
   {
     title: "Fastigheter",
-    desc: "Byggnader & lokaler per fastighet",
+    desc: "Lista, sök, lägg till",
     href: "/properties",
     icon: MapPinned,
   },

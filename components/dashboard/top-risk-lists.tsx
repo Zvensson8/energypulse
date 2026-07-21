@@ -68,7 +68,7 @@ export function TopRiskLists({
                 >
                   <td className="max-w-[9rem] truncate px-3 py-2">
                     <Link
-                      href={`/buildings?building=${r.building_id}`}
+                      href={`/buildings/${r.building_id}`}
                       className="font-medium text-foreground hover:text-primary"
                     >
                       {r.building_name}
@@ -200,7 +200,7 @@ export function TopRiskLists({
                 >
                   <td className="max-w-[9rem] truncate px-3 py-2">
                     <Link
-                      href={`/buildings?building=${r.building_id}`}
+                      href={`/buildings/${r.building_id}`}
                       className="font-medium text-foreground hover:text-primary"
                     >
                       {r.building_name}

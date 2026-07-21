@@ -62,15 +62,20 @@ function statusBadge(
 
 export function RenovationPlansView({
   initialBuildingId,
+  lockedPropertyId,
+  embedded = false,
 }: {
   initialBuildingId?: string;
+  lockedPropertyId?: string;
+  embedded?: boolean;
 } = {}) {
   const qc = useQueryClient();
   const [status, setStatus] = useState("all");
-  const [propertyId, setPropertyId] = useState("");
+  const [propertyId, setPropertyId] = useState(lockedPropertyId ?? "");
   const [detail, setDetail] = useState<RenovationPlan | null>(null);
   const [createOpen, setCreateOpen] = useState(Boolean(initialBuildingId));
   const [msg, setMsg] = useState<string | null>(null);
+  const effectivePropertyId = lockedPropertyId ?? propertyId;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["renovation-plans", status],
@@ -85,9 +90,9 @@ export function RenovationPlansView({
 
   const filteredPlans = useMemo(() => {
     const list = data ?? [];
-    if (!propertyId) return list;
-    return list.filter((p) => p.property_id === propertyId);
-  }, [data, propertyId]);
+    if (!effectivePropertyId) return list;
+    return list.filter((p) => p.property_id === effectivePropertyId);
+  }, [data, effectivePropertyId]);
 
   const stats = useMemo(() => {
     const list = filteredPlans;
@@ -120,33 +125,41 @@ export function RenovationPlansView({
   });
 
   return (
-    <div className="page-shell">
-      <div className="page-inner">
+    <div className={embedded ? "space-y-4" : "page-shell"}>
+      <div className={embedded ? "space-y-4" : "page-inner"}>
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Hammer className="h-6 w-6 text-primary" />
-              <h1 className="page-title">Renovationsplaner</h1>
-              <HelpTip text="Jämför tre scenarier (billig / balanserad / aggressiv) med samma beräkningsmotor som vid simulering. Välj ett utkast, godkänn och markera klar för att tillämpa." />
+          {!embedded && (
+            <div>
+              <div className="flex items-center gap-2">
+                <Hammer className="h-6 w-6 text-primary" />
+                <h1 className="page-title">Renovationsplaner</h1>
+                <HelpTip text="Jämför tre scenarier (billig / balanserad / aggressiv) med samma beräkningsmotor som vid simulering. Välj ett utkast, godkänn och markera klar för att tillämpa." />
+              </div>
+              <p className="page-subtitle">
+                Jämför A/B/C-scenarier, välj plan och följ till klar.
+              </p>
             </div>
-            <p className="page-subtitle">
-              Jämför A/B/C-scenarier, välj plan och följ till klar.
-            </p>
-          </div>
+          )}
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/risk-scores">
-                <Activity className="h-4 w-4" />
-                Kombinerad risk
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/actions">
-                <ListTodo className="h-4 w-4" />
-                Åtgärder
-              </Link>
-            </Button>
-            <PropertyFilter value={propertyId} onChange={setPropertyId} />
+            {!embedded && (
+              <>
+                <Button variant="outline" asChild>
+                  <Link href="/risk-scores">
+                    <Activity className="h-4 w-4" />
+                    Kombinerad risk
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/actions">
+                    <ListTodo className="h-4 w-4" />
+                    Åtgärder
+                  </Link>
+                </Button>
+              </>
+            )}
+            {!lockedPropertyId && (
+              <PropertyFilter value={propertyId} onChange={setPropertyId} />
+            )}
             <Button onClick={() => setCreateOpen(true)}>
               <GitCompare className="h-4 w-4" />
               Jämför scenarier
@@ -154,24 +167,25 @@ export function RenovationPlansView({
           </div>
         </div>
 
-        {/* Steps */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Step
-            n="1"
-            title="Jämför scenarier"
-            body="Billig, balanserad och aggressiv – engine-baserad före/efter."
-          />
-          <Step
-            n="2"
-            title="Välj plan"
-            body="Spara utkast med valda åtgärder och projicerad risk."
-          />
-          <Step
-            n="3"
-            title="Godkänn → Klar"
-            body="Vid Klar slutförs länkade åtgärder och modeled spar tillämpas."
-          />
-        </div>
+        {!embedded && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Step
+              n="1"
+              title="Jämför scenarier"
+              body="Billig, balanserad och aggressiv – engine-baserad före/efter."
+            />
+            <Step
+              n="2"
+              title="Välj plan"
+              body="Spara utkast med valda åtgärder och projicerad risk."
+            />
+            <Step
+              n="3"
+              title="Godkänn → Klar"
+              body="Vid Klar slutförs länkade åtgärder och modeled spar tillämpas."
+            />
+          </div>
+        )}
 
         {/* Filter KPIs */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -304,7 +318,7 @@ export function RenovationPlansView({
                     <p className="mt-0.5 text-sm text-muted-foreground">
                       {p.building_id ? (
                         <Link
-                          href={`/buildings?building=${p.building_id}`}
+                          href={`/buildings/${p.building_id}`}
                           className="inline-flex items-center gap-1 hover:text-primary"
                         >
                           <Building2 className="h-3.5 w-3.5" />
@@ -367,7 +381,7 @@ export function RenovationPlansView({
                     </Button>
                     {p.building_id && (
                       <Button variant="outline" asChild>
-                        <Link href={`/buildings?building=${p.building_id}`}>
+                        <Link href={`/buildings/${p.building_id}`}>
                           <Building2 className="h-4 w-4" />
                           Byggnad
                         </Link>
@@ -478,6 +492,7 @@ export function RenovationPlansView({
         open={createOpen}
         onOpenChange={setCreateOpen}
         initialBuildingId={initialBuildingId}
+        lockedPropertyId={lockedPropertyId}
         onCreated={() => {
           void qc.invalidateQueries({ queryKey: ["renovation-plans"] });
           setCreateOpen(false);
@@ -576,11 +591,13 @@ function CreatePlanDialog({
   onOpenChange,
   onCreated,
   initialBuildingId,
+  lockedPropertyId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onCreated: () => void;
   initialBuildingId?: string;
+  lockedPropertyId?: string;
 }) {
   const [buildingId, setBuildingId] = useState(initialBuildingId ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -595,16 +612,18 @@ function CreatePlanDialog({
   }, [open, initialBuildingId]);
 
   const buildingsQ = useQuery({
-    queryKey: ["buildings-for-renovation"],
+    queryKey: ["buildings-for-renovation", lockedPropertyId ?? "all"],
     enabled: open,
     queryFn: async () => {
       const { getBrowserClient } = await import("@/lib/supabase/client");
       const sb = getBrowserClient();
-      const { data, error: err } = await sb
+      let q = sb
         .from("buildings")
-        .select("id, name, properties(name)")
+        .select("id, name, property_id, properties(name)")
         .order("name")
         .limit(200);
+      if (lockedPropertyId) q = q.eq("property_id", lockedPropertyId);
+      const { data, error: err } = await q;
       if (err) throw new Error(err.message);
       return data ?? [];
     },

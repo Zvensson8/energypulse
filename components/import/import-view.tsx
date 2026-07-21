@@ -564,7 +564,7 @@ export function ImportView() {
                         >
                           <td className="px-3 py-1.5">
                             <Link
-                              href={`/buildings?building=${p.building_id}`}
+                              href={`/buildings/${p.building_id}`}
                               className="text-primary hover:underline"
                             >
                               {p.building_id.slice(0, 8)}…

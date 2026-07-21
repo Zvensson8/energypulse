@@ -67,8 +67,8 @@ test.describe("Override-flöde + audit", () => {
     await calculatePerformance(sb, ids.buildingId, year, false, null);
 
     await loginAs(page, email, password);
-    await page.goto(`/buildings?building=${ids.buildingId}`);
-    await expect(page.getByText(/byggnad|performance|kWh/i).first()).toBeVisible({
+    await page.goto(`/buildings/${ids.buildingId}`);
+    await expect(page.getByText(/byggnad|performance|kWh|betyg|klass/i).first()).toBeVisible({
       timeout: 30_000,
     });
 

@@ -72,13 +72,12 @@ test.describe("Import → calculate → dashboard", () => {
     await expect(page.locator("text=/kWh|MWh|GWh|%/").first()).toBeVisible();
   });
 
-  test("buildings-tabell listar beräknad byggnad", async ({ page }) => {
+  test("fastigheter visar bestånd efter import", async ({ page }) => {
     const { email, password } = e2eAdminCreds();
     test.skip(!email || !password, "E2E_ADMIN_EMAIL/PASSWORD saknas");
 
     await loginAs(page, email, password);
-    await page.goto(`/buildings?search=${encodeURIComponent("import-dash")}`);
-    // Table toolbar / year selector
+    await page.goto("/properties");
     await expect(page.getByPlaceholder(/sök/i)).toBeVisible({ timeout: 30_000 });
   });
 });

@@ -75,12 +75,19 @@ const CATEGORY_SV: Record<string, string> = {
   other: "Övrigt",
 };
 
-export function ActionsView() {
+export function ActionsView({
+  lockedPropertyId,
+  embedded = false,
+}: {
+  lockedPropertyId?: string;
+  embedded?: boolean;
+} = {}) {
   const qc = useQueryClient();
   const [status, setStatus] = useState("all");
   const [year, setYear] = useState(new Date().getFullYear() - 1);
-  const [propertyId, setPropertyId] = useState("");
+  const [propertyId, setPropertyId] = useState(lockedPropertyId ?? "");
   const [createOpen, setCreateOpen] = useState(false);
+  const effectivePropertyId = lockedPropertyId ?? propertyId;
   const [simulateId, setSimulateId] = useState<string | null>(null);
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
   const [planBuilding, setPlanBuilding] = useState<{
@@ -184,9 +191,9 @@ export function ActionsView() {
 
   const rows = useMemo(() => {
     const list = data?.rows ?? [];
-    if (!propertyId) return list;
-    return list.filter((r) => r.property_id === propertyId);
-  }, [data?.rows, propertyId]);
+    if (!effectivePropertyId) return list;
+    return list.filter((r) => r.property_id === effectivePropertyId);
+  }, [data?.rows, effectivePropertyId]);
   const weights = data?.weights;
 
   const stats = useMemo(() => {
@@ -216,33 +223,39 @@ export function ActionsView() {
   }
 
   return (
-    <div className="page-shell">
-      <div className="page-inner">
+    <div className={embedded ? "space-y-4" : "page-shell"}>
+      <div className={embedded ? "space-y-4" : "page-inner"}>
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="page-title">Åtgärder</h1>
-              <HelpTip text="Simulera visar före/efter utan att ändra något. Markera klar tillämpar modeled spar och uppdaterar MEPS/CRREM." />
+          {!embedded && (
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="page-title">Åtgärder</h1>
+                <HelpTip text="Simulera visar före/efter utan att ändra något. Markera klar tillämpar modeled spar och uppdaterar MEPS/CRREM." />
+              </div>
+              <p className="page-subtitle">
+                Simulera först – se effekten – sedan markera klar.
+              </p>
             </div>
-            <p className="page-subtitle">
-              Simulera först – se effekten – sedan markera klar.
-            </p>
-          </div>
+          )}
           <div className="flex flex-wrap gap-2">
-            <PropertyFilter value={propertyId} onChange={setPropertyId} />
-            <Button
-              variant="outline"
-              disabled={detect.isPending}
-              onClick={() => void detect.mutateAsync()}
-            >
-              {detect.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Hitta deklarationsförslag
-            </Button>
+            {!lockedPropertyId && (
+              <PropertyFilter value={propertyId} onChange={setPropertyId} />
+            )}
+            {!embedded && (
+              <Button
+                variant="outline"
+                disabled={detect.isPending}
+                onClick={() => void detect.mutateAsync()}
+              >
+                {detect.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Hitta deklarationsförslag
+              </Button>
+            )}
             <Button
               variant="outline"
               disabled={recalc.isPending}
@@ -262,24 +275,25 @@ export function ActionsView() {
           </div>
         </div>
 
-        {/* How-to strip */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <HowCard
-            n="1"
-            title="Välj en åtgärd"
-            body="Sorterad efter prioritet (krav, klimatrisk, payback)."
-          />
-          <HowCard
-            n="2"
-            title="Simulera"
-            body="Se före/efter (MEPS, riskår, riskscore) utan att spara något."
-          />
-          <HowCard
-            n="3"
-            title="Markera klar / plan"
-            body="Tillämpa modeled spar, eller jämför A/B/C-scenarier under Renovering."
-          />
-        </div>
+        {!embedded && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <HowCard
+              n="1"
+              title="Välj en åtgärd"
+              body="Sorterad efter prioritet (krav, klimatrisk, payback)."
+            />
+            <HowCard
+              n="2"
+              title="Simulera"
+              body="Se före/efter (MEPS, riskår, riskscore) utan att spara något."
+            />
+            <HowCard
+              n="3"
+              title="Markera klar / plan"
+              body="Tillämpa modeled spar, eller jämför A/B/C-scenarier under Renovering."
+            />
+          </div>
+        )}
 
         {/* KPI summary */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -577,6 +591,7 @@ export function ActionsView() {
       <CreateActionDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
+        lockedPropertyId={lockedPropertyId}
         onCreated={() => {
           invalidate();
           setCreateOpen(false);
@@ -731,7 +746,7 @@ function ActionCard({
 
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <Link
-              href={`/buildings?building=${r.building_id}`}
+              href={`/buildings/${r.building_id}`}
               className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
             >
               <Building2 className="h-3.5 w-3.5" />
@@ -1014,10 +1029,12 @@ function CreateActionDialog({
   open,
   onOpenChange,
   onCreated,
+  lockedPropertyId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onCreated: () => void;
+  lockedPropertyId?: string;
 }) {
   const [buildingId, setBuildingId] = useState("");
   const [title, setTitle] = useState("");
@@ -1029,16 +1046,18 @@ function CreateActionDialog({
   const [pending, setPending] = useState(false);
 
   const buildingsQ = useQuery({
-    queryKey: ["buildings-for-actions"],
+    queryKey: ["buildings-for-actions", lockedPropertyId ?? "all"],
     enabled: open,
     queryFn: async () => {
       const { getBrowserClient } = await import("@/lib/supabase/client");
       const sb = getBrowserClient();
-      const { data, error: err } = await sb
+      let q = sb
         .from("buildings")
-        .select("id, name, properties(name)")
+        .select("id, name, property_id, properties(name)")
         .order("name")
         .limit(200);
+      if (lockedPropertyId) q = q.eq("property_id", lockedPropertyId);
+      const { data, error: err } = await q;
       if (err) throw new Error(err.message);
       return data ?? [];
     },

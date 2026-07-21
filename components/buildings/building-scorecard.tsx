@@ -192,13 +192,23 @@ export function BuildingScorecardView({
   return (
     <div className="page-shell">
       <div className="page-inner max-w-5xl">
-        <Link
-          href="/risk-scores"
-          className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Till risköversikt
-        </Link>
+        <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+          {data.property.id ? (
+            <Link
+              href={`/properties/${data.property.id}`}
+              className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {data.property.name}
+            </Link>
+          ) : null}
+          <Link
+            href="/risk-scores"
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
+          >
+            Risköversikt
+          </Link>
+        </div>
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

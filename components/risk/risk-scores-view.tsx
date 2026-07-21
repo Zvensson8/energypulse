@@ -64,12 +64,19 @@ function scoreTone(score: number): {
   };
 }
 
-export function RiskScoresView() {
+export function RiskScoresView({
+  lockedPropertyId,
+  embedded = false,
+}: {
+  lockedPropertyId?: string;
+  embedded?: boolean;
+} = {}) {
   const qc = useQueryClient();
   const [year, setYear] = useState(new Date().getFullYear() - 1);
   const [filter, setFilter] = useState<"all" | "high" | "financial">("all");
-  const [propertyId, setPropertyId] = useState("");
+  const [propertyId, setPropertyId] = useState(lockedPropertyId ?? "");
   const [msg, setMsg] = useState<string | null>(null);
+  const effectivePropertyId = lockedPropertyId ?? propertyId;
 
   const summaryQ = useQuery({
     queryKey: ["risk-summary", year],
@@ -106,30 +113,34 @@ export function RiskScoresView() {
   const s = summaryQ.data;
   const rows = useMemo(() => {
     let list = listQ.data ?? [];
-    if (propertyId)
-      list = list.filter((r) => r.property_id === propertyId);
+    if (effectivePropertyId)
+      list = list.filter((r) => r.property_id === effectivePropertyId);
     if (filter === "high") list = list.filter((r) => r.combined_score >= 60);
     if (filter === "financial")
       list = list.filter((r) => r.financial_risk_flag);
     return list;
-  }, [listQ.data, filter, propertyId]);
+  }, [listQ.data, filter, effectivePropertyId]);
 
   return (
-    <div className="page-shell">
-      <div className="page-inner">
+    <div className={embedded ? "space-y-4" : "page-shell"}>
+      <div className={embedded ? "space-y-4" : "page-inner"}>
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Activity className="h-6 w-6 text-primary" />
-              <h1 className="page-title">Kombinerad risk</h1>
-              <HelpTip text="EPBD/MEPS (40 %) + CRREM misalignment (35 %) + fysisk risk (15 %) + datakvalitet (10 %) = 0–100. Finansiell risk om misalignment < 2035 (CSRD/ESRS E1)." />
+          {!embedded && (
+            <div>
+              <div className="flex items-center gap-2">
+                <Activity className="h-6 w-6 text-primary" />
+                <h1 className="page-title">Kombinerad risk</h1>
+                <HelpTip text="EPBD/MEPS (40 %) + CRREM misalignment (35 %) + fysisk risk (15 %) + datakvalitet (10 %) = 0–100. Finansiell risk om misalignment < 2035 (CSRD/ESRS E1)." />
+              </div>
+              <p className="page-subtitle">
+                Börja med hög risk → skapa renovationsplan → slutför åtgärder.
+              </p>
             </div>
-            <p className="page-subtitle">
-              Börja med hög risk → skapa renovationsplan → slutför åtgärder.
-            </p>
-          </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
-            <PropertyFilter value={propertyId} onChange={setPropertyId} />
+            {!lockedPropertyId && (
+              <PropertyFilter value={propertyId} onChange={setPropertyId} />
+            )}
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               År
               <Select
@@ -161,35 +172,38 @@ export function RiskScoresView() {
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              Räkna om portfölj
+              {embedded ? "Räkna om" : "Räkna om portfölj"}
             </Button>
-            <Button asChild>
-              <Link href="/renovation">
-                <ClipboardList className="h-4 w-4" />
-                Renovationsplaner
-              </Link>
-            </Button>
+            {!embedded && (
+              <Button asChild>
+                <Link href="/renovation">
+                  <ClipboardList className="h-4 w-4" />
+                  Renovationsplaner
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Steps */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Step
-            n="1"
-            title="Räkna om risk"
-            body="Uppdaterar score från MEPS, CRREM, fysisk risk och datakvalitet."
-          />
-          <Step
-            n="2"
-            title="Filtrera högrisk"
-            body="Fokusera på score ≥ 60 eller finansiell risk före 2035."
-          />
-          <Step
-            n="3"
-            title="Jämför planer"
-            body="Öppna Renovering och jämför billig / balanserad / aggressiv."
-          />
-        </div>
+        {!embedded && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Step
+              n="1"
+              title="Räkna om risk"
+              body="Uppdaterar score från MEPS, CRREM, fysisk risk och datakvalitet."
+            />
+            <Step
+              n="2"
+              title="Filtrera högrisk"
+              body="Fokusera på score ≥ 60 eller finansiell risk före 2035."
+            />
+            <Step
+              n="3"
+              title="Jämför planer"
+              body="Öppna Renovering och jämför billig / balanserad / aggressiv."
+            />
+          </div>
+        )}
 
         {/* Summary KPIs */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -360,7 +374,7 @@ function RiskCard({ row: r }: { row: RiskScoreRow }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/buildings?building=${r.building_id}`}
+              href={`/buildings/${r.building_id}`}
               className="text-base font-semibold text-foreground hover:text-primary"
             >
               {r.building_name}

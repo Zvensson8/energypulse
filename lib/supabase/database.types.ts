@@ -862,7 +862,8 @@ export interface Database {
         Row: {
           id: string;
           property_id: string;
-          source: "smhi" | "boverket" | "gsi";
+          /** Legacy: smhi, gsi. Active: boverket, msb, sgi */
+          source: "smhi" | "boverket" | "gsi" | "msb" | "sgi";
           status:
             | "disabled"
             | "stub"
@@ -877,7 +878,7 @@ export interface Database {
         Insert: {
           id?: string;
           property_id: string;
-          source: "smhi" | "boverket" | "gsi";
+          source: "boverket" | "msb" | "sgi";
           status:
             | "disabled"
             | "stub"

@@ -1,6 +1,5 @@
 /**
- * Boverket – klimatzon / normkontext.
- * Stub: återanvänder lokal zon-heuristik när enabled, annars disabled.
+ * Boverket – öppna data: DVUT + klimatzon (ingen avtals-API).
  */
 
 import type {
@@ -9,7 +8,7 @@ import type {
   PropertyGeoContext,
 } from "./types";
 import { getExternalIntegrationConfig } from "./config";
-import { suggestClimateZone } from "@/lib/geo/climate-zones";
+import { analyzeBoverketContext } from "./boverket-client";
 
 function nowIso() {
   return new Date().toISOString();
@@ -30,28 +29,42 @@ export const boverketProvider: BuildingNormProvider = {
         suggestedClimateZone: null,
         notes: [],
         message:
-          "Boverket är avstängt (EXTERNAL_DATA_BOVERKET_ENABLED). Lokal zon-mappning används i formulär.",
+          "Boverket är avstängt (EXTERNAL_DATA_BOVERKET_ENABLED=false).",
       };
     }
 
-    // Stub: samma kommun→zon-heuristik som formuläret (inte live Boverket-API).
-    const { zone, source, label } = suggestClimateZone({
-      municipality: ctx.municipality,
-    });
+    try {
+      const analysis = await analyzeBoverketContext({
+        latitude: ctx.latitude,
+        longitude: ctx.longitude,
+        municipality: ctx.municipality,
+      });
 
-    return {
-      source: "boverket",
-      status: "stub",
-      fetchedAt,
-      suggestedClimateZone: zone,
-      notes: [
-        zone
-          ? `Stub föreslår klimatzon ${zone} (${source}: ${label}).`
-          : "Kunde inte härleda zon från kommun – sätt manuellt.",
-        "Framtida live-källa: Boverkets öppna data / officiell zontabell.",
-      ],
-      raw: { mode: "stub", municipality: ctx.municipality, zone, source },
-      message: "Boverket-stub: zonförslag via lokal heuristik.",
-    };
+      return {
+        source: "boverket",
+        status: "ok",
+        fetchedAt: analysis.fetchedAt,
+        suggestedClimateZone: analysis.climateZone,
+        notes: analysis.notes,
+        raw: {
+          zoneSource: analysis.zoneSource,
+          zoneLabel: analysis.zoneLabel,
+          nearestDvut: analysis.nearestDvut,
+        },
+        message: analysis.nearestDvut
+          ? `Boverket: zon ${analysis.climateZone ?? "—"}, DVUT via ${analysis.nearestDvut.name}.`
+          : `Boverket: klimatzon ${analysis.climateZone ?? "okänd"} (DVUT kräver koordinater).`,
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Okänt Boverket-fel";
+      return {
+        source: "boverket",
+        status: "error",
+        fetchedAt,
+        suggestedClimateZone: null,
+        notes: [],
+        message: `Boverket-anrop misslyckades: ${msg}`,
+      };
+    }
   },
 };

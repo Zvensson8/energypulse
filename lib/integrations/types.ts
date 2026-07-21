@@ -1,9 +1,14 @@
 /**
- * Externa datakällor – gemensamma kontrakt (SMHI, Boverket, GSI).
- * Live-API byts in bakom samma interface.
+ * Externa datakällor – öppna API:er utan avtalskrav:
+ * - Boverket: DVUT (öppen CSV) + klimatzon-heuristik
+ * - MSB: översvämningskartering (ArcGIS REST, öppet)
+ * - SGI: mark/skred via SGU öppna WMS (samordnat underlag SGI/SGU)
+ *
+ * Energideklarations-API (Boverket) kräver avtal och används inte här.
+ * SMHI metobs (kortsiktigt väder) används inte som klimatrisk.
  */
 
-export type ExternalSourceId = "smhi" | "boverket" | "gsi";
+export type ExternalSourceId = "boverket" | "msb" | "sgi";
 
 export type ProviderStatus =
   | "disabled"
@@ -28,7 +33,7 @@ export type HazardSuggestion = {
   probability: RiskLevel;
   consequence: RiskLevel;
   summary: string;
-  /** t.ex. smhi:grid:… */
+  /** t.ex. msb:river:100y, sgi:sgu:skred-aktsamhet */
   sourceRef: string;
   confidence: "low" | "medium" | "high";
 };
@@ -43,15 +48,6 @@ export type PropertyGeoContext = {
   address: string | null;
 };
 
-export type ClimateHazardResult = {
-  source: "smhi";
-  status: ProviderStatus;
-  fetchedAt: string;
-  suggestions: HazardSuggestion[];
-  raw?: unknown;
-  message?: string;
-};
-
 export type BuildingNormResult = {
   source: "boverket";
   status: ProviderStatus;
@@ -64,7 +60,7 @@ export type BuildingNormResult = {
 };
 
 export type GeoHazardResult = {
-  source: "gsi";
+  source: "msb" | "sgi";
   status: ProviderStatus;
   fetchedAt: string;
   suggestions: HazardSuggestion[];
@@ -72,26 +68,21 @@ export type GeoHazardResult = {
   message?: string;
 };
 
-export interface ClimateHazardProvider {
-  id: "smhi";
-  fetchHazards(ctx: PropertyGeoContext): Promise<ClimateHazardResult>;
-}
-
 export interface BuildingNormProvider {
   id: "boverket";
   fetchNorms(ctx: PropertyGeoContext): Promise<BuildingNormResult>;
 }
 
 export interface GeoHazardProvider {
-  id: "gsi";
+  id: "msb" | "sgi";
   fetchHazards(ctx: PropertyGeoContext): Promise<GeoHazardResult>;
 }
 
 export type ExternalRefreshReport = {
   propertyId: string;
-  smhi: ClimateHazardResult;
   boverket: BuildingNormResult;
-  gsi: GeoHazardResult;
+  msb: GeoHazardResult;
+  sgi: GeoHazardResult;
   appliedRiskIds: string[];
   snapshotIds: string[];
 };

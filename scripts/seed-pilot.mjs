@@ -330,7 +330,7 @@ async function seedViaClient() {
             month: mon,
             heating_degree_days: Math.round(base * season[mon - 1] * 100) / 100,
             cooling_degree_days: [6, 7, 8].includes(mon) ? 20 : 0,
-            source: "SMHI-referens pilot-seed",
+            source: "Pilot-referens (graddagar)",
           },
           { onConflict: "municipality,year,month", ignoreDuplicates: true }
         ).select();
@@ -464,7 +464,7 @@ async function seedViaClient() {
       probability: "medium",
       consequence: "medium",
       risk_score: 6,
-      source: "SMHI",
+      source: "Manuell bedömning (pilot)",
       assessed_at: "2025-06-01",
       notes: "Ökad kyllast i innerstad.",
     },
@@ -484,7 +484,7 @@ async function seedViaClient() {
       probability: "high",
       consequence: "medium",
       risk_score: 7.5,
-      source: "SMHI",
+      source: "Manuell bedömning (pilot)",
       assessed_at: "2025-04-20",
       notes: "Värmeböljor Malmö, hög glasad andel.",
     },

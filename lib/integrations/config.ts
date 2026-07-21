@@ -1,6 +1,6 @@
 /**
- * Feature flags for external integrations.
- * Defaults: all off (safe for production until configured).
+ * Feature flags for external integrations (open data, no contract keys).
+ * Default ON unless explicitly disabled – all sources below are free/open.
  */
 
 function flag(name: string, defaultValue = false): boolean {
@@ -9,12 +9,9 @@ function flag(name: string, defaultValue = false): boolean {
   return v === "1" || v.toLowerCase() === "true" || v === "yes";
 }
 
-/**
- * SMHI Open Data requires no key – default ON unless explicitly disabled.
- * Boverket/GSI default OFF until configured.
- */
-function smhiEnabled(): boolean {
-  const v = process.env.EXTERNAL_DATA_SMHI_ENABLED;
+/** Default true; set EXTERNAL_DATA_*_ENABLED=false to disable. */
+function openSourceEnabled(envName: string): boolean {
+  const v = process.env[envName];
   if (v == null || v === "") return true;
   return !(
     v === "0" ||
@@ -26,23 +23,22 @@ function smhiEnabled(): boolean {
 
 export function getExternalIntegrationConfig() {
   return {
-    smhi: {
-      enabled: smhiEnabled(),
-      apiKey: process.env.SMHI_API_KEY ?? null,
-    },
     boverket: {
-      enabled: flag("EXTERNAL_DATA_BOVERKET_ENABLED"),
-      apiKey: process.env.BOVERKET_API_KEY ?? null,
+      /** DVUT CSV + klimatzon – ingen API-nyckel */
+      enabled: openSourceEnabled("EXTERNAL_DATA_BOVERKET_ENABLED"),
     },
-    gsi: {
-      enabled: flag("EXTERNAL_DATA_GSI_ENABLED"),
-      apiUrl: process.env.GSI_API_URL ?? null,
-      apiKey: process.env.GSI_API_KEY ?? null,
+    msb: {
+      /** Översvämningskartering ArcGIS REST – ingen nyckel */
+      enabled: openSourceEnabled("EXTERNAL_DATA_MSB_ENABLED"),
+    },
+    sgi: {
+      /** Skred-aktsamhet via SGU WMS (SGI/SGU samordnat underlag) */
+      enabled: openSourceEnabled("EXTERNAL_DATA_SGI_ENABLED"),
     },
   };
 }
 
 export function isAnyExternalSourceEnabled(): boolean {
   const c = getExternalIntegrationConfig();
-  return c.smhi.enabled || c.boverket.enabled || c.gsi.enabled;
+  return c.boverket.enabled || c.msb.enabled || c.sgi.enabled;
 }

@@ -6,9 +6,9 @@ import type {
   ExternalRefreshReport,
   PropertyGeoContext,
 } from "./types";
-import { smhiProvider } from "./smhi";
 import { boverketProvider } from "./boverket";
-import { gsiProvider } from "./gsi";
+import { msbProvider } from "./msb";
+import { sgiProvider } from "./sgi";
 import { getExternalIntegrationConfig } from "./config";
 
 export {
@@ -22,17 +22,17 @@ export async function fetchAllExternalForProperty(
 ): Promise<
   Omit<ExternalRefreshReport, "appliedRiskIds" | "snapshotIds">
 > {
-  const [smhi, boverket, gsi] = await Promise.all([
-    smhiProvider.fetchHazards(ctx),
+  const [boverket, msb, sgi] = await Promise.all([
     boverketProvider.fetchNorms(ctx),
-    gsiProvider.fetchHazards(ctx),
+    msbProvider.fetchHazards(ctx),
+    sgiProvider.fetchHazards(ctx),
   ]);
 
   return {
     propertyId: ctx.propertyId,
-    smhi,
     boverket,
-    gsi,
+    msb,
+    sgi,
   };
 }
 
@@ -40,22 +40,22 @@ export function describeIntegrationStatus() {
   const c = getExternalIntegrationConfig();
   return [
     {
-      id: "smhi" as const,
-      label: "SMHI",
-      purpose: "Klimat/väder → värme, nederbörd, storm",
-      enabled: c.smhi.enabled,
-    },
-    {
       id: "boverket" as const,
       label: "Boverket",
-      purpose: "Klimatzon och energinorm-kontext",
+      purpose: "Klimatzon + DVUT (öppen data, utan avtal)",
       enabled: c.boverket.enabled,
     },
     {
-      id: "gsi" as const,
-      label: "GSI",
-      purpose: "Mark/skred/sättning (geodata)",
-      enabled: c.gsi.enabled,
+      id: "msb" as const,
+      label: "MSB",
+      purpose: "Översvämning vattendrag/kust (öppen kartering)",
+      enabled: c.msb.enabled,
+    },
+    {
+      id: "sgi" as const,
+      label: "SGI",
+      purpose: "Skred-aktsamhet via SGU WMS (samordnat underlag)",
+      enabled: c.sgi.enabled,
     },
   ];
 }

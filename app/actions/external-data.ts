@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Refresh / status for SMHI, Boverket, GSI integrations.
+ * Refresh / status for Boverket, MSB, SGI (open data, no contract).
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -55,6 +55,8 @@ export async function getExternalIntegrationFlags(): Promise<
   }
 }
 
+const ACTIVE_SOURCES = new Set(["boverket", "msb", "sgi"]);
+
 export async function getExternalDataStatus(
   propertyId: string
 ): Promise<
@@ -77,17 +79,15 @@ export async function getExternalDataStatus(
       .select("source, status, message, fetched_at")
       .eq("property_id", id)
       .order("fetched_at", { ascending: false })
-      .limit(30);
+      .limit(40);
 
     if (error) {
-      // Table may not be migrated yet
       if (error.message.includes("external_data_snapshots")) {
         return { success: true, data: [] };
       }
       return { success: false, error: error.message };
     }
 
-    // Latest per source
     const seen = new Set<string>();
     const latest: Array<{
       source: string;
@@ -97,6 +97,7 @@ export async function getExternalDataStatus(
     }> = [];
     for (const row of data ?? []) {
       const src = row.source as string;
+      if (!ACTIVE_SOURCES.has(src)) continue;
       if (seen.has(src)) continue;
       seen.add(src);
       latest.push({
@@ -114,85 +115,9 @@ export async function getExternalDataStatus(
 }
 
 /**
- * Kör alla adapters, sparar snapshots.
- * applySuggestions=true skapar physical_risks från förslag (inte i stub som default).
+ * Kör adapters, sparar snapshots.
+ * applySuggestions=true skapar physical_risks från MSB/SGI-förslag.
  */
-/** ~11 m – treat as same point */
-const COORD_EPS = 0.0001;
-
-function coordsChanged(
-  lat: number,
-  lon: number,
-  prevLat?: number | null,
-  prevLon?: number | null
-): boolean {
-  if (prevLat == null || prevLon == null) return true;
-  return (
-    Math.abs(prevLat - lat) >= COORD_EPS ||
-    Math.abs(prevLon - lon) >= COORD_EPS
-  );
-}
-
-/**
- * Fire-and-forget SMHI (m.fl.) when coordinates are set/changed on a property.
- * Never throws – property save must not fail if SMHI is down.
- */
-export async function autoRefreshSmhiForProperty(opts: {
-  propertyId: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  previousLatitude?: number | null;
-  previousLongitude?: number | null;
-  /** Default true – save heat/storm/flood suggestions as physical_risks */
-  applySuggestions?: boolean;
-}): Promise<{ triggered: boolean; reason?: string }> {
-  const lat = opts.latitude;
-  const lon = opts.longitude;
-  if (lat == null || lon == null || Number.isNaN(lat) || Number.isNaN(lon)) {
-    return { triggered: false, reason: "missing_coords" };
-  }
-  if (
-    !coordsChanged(
-      lat,
-      lon,
-      opts.previousLatitude,
-      opts.previousLongitude
-    )
-  ) {
-    return { triggered: false, reason: "coords_unchanged" };
-  }
-
-  try {
-    const res = await refreshPropertyExternalData({
-      propertyId: opts.propertyId,
-      applySuggestions: opts.applySuggestions ?? true,
-    });
-    if (!res.success) {
-      logger.warn("external_data.auto_smhi_failed", {
-        propertyId: opts.propertyId,
-        error: res.error,
-      });
-      return { triggered: false, reason: res.error };
-    }
-    logger.info("external_data.auto_smhi", {
-      propertyId: opts.propertyId,
-      suggestions: res.data.smhi.suggestions.length,
-      applied: res.data.appliedRiskIds.length,
-      status: res.data.smhi.status,
-    });
-    return { triggered: true };
-  } catch (e) {
-    logger.warn("external_data.auto_smhi_error", {
-      propertyId: opts.propertyId,
-      error: e instanceof Error ? e.message : String(e),
-    });
-    return {
-      triggered: false,
-      reason: e instanceof Error ? e.message : "error",
-    };
-  }
-}
-
 export async function refreshPropertyExternalData(raw: {
   propertyId: string;
   applySuggestions?: boolean;
@@ -242,22 +167,22 @@ export async function refreshPropertyExternalData(raw: {
 
     const sources = [
       {
-        source: "smhi" as const,
-        status: result.smhi.status,
-        message: result.smhi.message ?? null,
-        payload: result.smhi,
-      },
-      {
         source: "boverket" as const,
         status: result.boverket.status,
         message: result.boverket.message ?? null,
         payload: result.boverket,
       },
       {
-        source: "gsi" as const,
-        status: result.gsi.status,
-        message: result.gsi.message ?? null,
-        payload: result.gsi,
+        source: "msb" as const,
+        status: result.msb.status,
+        message: result.msb.message ?? null,
+        payload: result.msb,
+      },
+      {
+        source: "sgi" as const,
+        status: result.sgi.status,
+        message: result.sgi.message ?? null,
+        payload: result.sgi,
       },
     ];
 
@@ -269,22 +194,33 @@ export async function refreshPropertyExternalData(raw: {
           source: s.source,
           status: s.status,
           message: s.message,
-          payload: JSON.parse(JSON.stringify(s.payload)) as import("@/lib/supabase/database.types").Json,
+          payload: JSON.parse(
+            JSON.stringify(s.payload)
+          ) as import("@/lib/supabase/database.types").Json,
           fetched_at: new Date().toISOString(),
         })
         .select("id")
         .single();
 
       if (error) {
-        // Migration not applied yet – still return report without persisting
         if (
           error.message.includes("external_data_snapshots") ||
-          error.message.includes("schema cache")
+          error.message.includes("schema cache") ||
+          error.message.includes("check constraint") ||
+          error.message.includes("violates check")
         ) {
-          logger.warn("external_data.snapshot_table_missing", {
+          logger.warn("external_data.snapshot_insert_issue", {
+            source: s.source,
             error: error.message,
           });
-          break;
+          // Continue other sources / still return report
+          if (
+            error.message.includes("external_data_snapshots") ||
+            error.message.includes("schema cache")
+          ) {
+            break;
+          }
+          continue;
         }
         logger.error("external_data.snapshot_failed", {
           source: s.source,
@@ -295,14 +231,12 @@ export async function refreshPropertyExternalData(raw: {
       if (snap?.id) snapshotIds.push(snap.id as string);
     }
 
-    // Apply hazard suggestions only when explicitly requested
     if (input.applySuggestions) {
       const all = [
-        ...result.smhi.suggestions,
-        ...result.gsi.suggestions,
+        ...result.msb.suggestions,
+        ...result.sgi.suggestions,
       ];
 
-      // Avoid duplicates: same source ref already open/monitoring
       const { data: existing } = await supabase
         .from("physical_risks")
         .select("id, source, risk_type, workflow_status")
@@ -319,13 +253,15 @@ export async function refreshPropertyExternalData(raw: {
       for (const h of all) {
         const key = `${h.sourceRef}|${h.risk_type}`;
         if (existingKeys.has(key)) continue;
-        // also skip same risk_type from smhi: prefix
+
+        // Skip same source prefix + risk type already open
+        const prefix = h.sourceRef.split(":")[0] + ":";
         const sameType = (existing ?? []).some(
           (r) =>
             r.risk_type === h.risk_type &&
-            String(r.source ?? "").startsWith("smhi:")
+            String(r.source ?? "").startsWith(prefix)
         );
-        if (sameType && h.sourceRef.startsWith("smhi:")) continue;
+        if (sameType) continue;
 
         const scoreMap: Record<string, number> = {
           low: 1,

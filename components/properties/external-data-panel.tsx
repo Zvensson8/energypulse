@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HelpTip } from "@/components/ui/help-tip";
 import {
-  CloudSun,
   Landmark,
   Mountain,
+  Waves,
   RefreshCw,
   Loader2,
   CheckCircle2,
@@ -24,22 +24,22 @@ import type { ExternalRefreshReport } from "@/lib/integrations";
 
 const SOURCE_UI: Record<
   string,
-  { label: string; icon: typeof CloudSun; purpose: string }
+  { label: string; icon: typeof Landmark; purpose: string }
 > = {
-  smhi: {
-    label: "SMHI",
-    icon: CloudSun,
-    purpose: "Klimat & väder → värme, vind, nederbörd",
-  },
   boverket: {
     label: "Boverket",
     icon: Landmark,
-    purpose: "Klimatzon & energinorm-kontext",
+    purpose: "Klimatzon + DVUT (öppen data)",
   },
-  gsi: {
-    label: "GSI",
+  msb: {
+    label: "MSB",
+    icon: Waves,
+    purpose: "Översvämning vattendrag/kust",
+  },
+  sgi: {
+    label: "SGI",
     icon: Mountain,
-    purpose: "Mark / skred / sättning (geodata)",
+    purpose: "Skred-aktsamhet (SGU WMS)",
   },
 };
 
@@ -52,17 +52,17 @@ const STATUS_SV: Record<string, string> = {
 };
 
 const RISK_SV: Record<string, string> = {
-  flood: "Översvämning / nederbörd",
+  flood: "Översvämning",
   heat: "Värme",
   storm: "Storm / vind",
   subsidence: "Sättning",
   wildfire: "Skogsbrand",
-  other: "Övrigt",
+  other: "Skred / övrigt",
 };
 
 export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
   const qc = useQueryClient();
-  const [applySuggestions, setApplySuggestions] = useState(true);
+  const [applySuggestions, setApplySuggestions] = useState(false);
   const [lastReport, setLastReport] = useState<ExternalRefreshReport | null>(
     null
   );
@@ -107,25 +107,30 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
 
   const sources = flagsQ.data?.sources ?? [
     {
-      id: "smhi",
-      label: "SMHI",
-      purpose: SOURCE_UI.smhi.purpose,
-      enabled: true,
-    },
-    {
       id: "boverket",
       label: "Boverket",
       purpose: SOURCE_UI.boverket.purpose,
-      enabled: false,
+      enabled: true,
     },
-    { id: "gsi", label: "GSI", purpose: SOURCE_UI.gsi.purpose, enabled: false },
+    {
+      id: "msb",
+      label: "MSB",
+      purpose: SOURCE_UI.msb.purpose,
+      enabled: true,
+    },
+    { id: "sgi", label: "SGI", purpose: SOURCE_UI.sgi.purpose, enabled: true },
   ];
 
   const lastBySource = new Map(
     (statusQ.data ?? []).map((r) => [r.source, r])
   );
 
-  const smhiSuggestions = lastReport?.smhi.suggestions ?? [];
+  const hazardSuggestions = [
+    ...(lastReport?.msb.suggestions ?? []),
+    ...(lastReport?.sgi.suggestions ?? []),
+  ];
+  const anyEnabled = flagsQ.data?.anyEnabled ?? true;
+  const boverketNotes = lastReport?.boverket.notes ?? [];
 
   return (
     <section className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
@@ -133,11 +138,11 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold">Externa datakällor</h2>
-            <HelpTip text="SMHI hämtar observationer från närmaste mätstation (öppen data, ingen API-nyckel). Förslag om värme, vind och nederbörd kan sparas som fysiska risker. Boverket/GSI är förberedda men avstängda tills vidare." />
+            <HelpTip text="Öppna data utan avtal: Boverket (klimatzon + DVUT), MSB (översvämningskartering), SGI via SGU WMS (skred-aktsamhet). Inte kortsiktigt väder. Förslag till fysiska risker sparas bara om du bockar i rutan." />
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            SMHI körs automatiskt när koordinater sparas/ändras. Du kan också
-            hämta manuellt här (kräver geokodad adress).
+            Kräver geokodad adress (lat/lon). Resultat sparas som snapshots;
+            risker skapas endast om du väljer det.
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -146,19 +151,19 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
               checked={applySuggestions}
               onCheckedChange={(v) => setApplySuggestions(v === true)}
             />
-            Spara SMHI-förslag som risker
+            Spara MSB/SGI-förslag som risker
           </label>
           <Button
             size="sm"
-            disabled={refresh.isPending}
+            disabled={refresh.isPending || !anyEnabled}
             onClick={() => void refresh.mutateAsync()}
           >
             {refresh.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <CloudSun className="h-4 w-4" />
+              <RefreshCw className="h-4 w-4" />
             )}
-            Hämta från SMHI
+            Uppdatera externa källor
           </Button>
         </div>
       </div>
@@ -167,21 +172,29 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
         {sources.map((s) => {
           const ui = SOURCE_UI[s.id] ?? {
             label: s.label,
-            icon: CloudSun,
+            icon: Landmark,
             purpose: s.purpose,
           };
           const Icon = ui.icon;
           const last = lastBySource.get(s.id);
           const liveStatus =
-            lastReport && s.id === "smhi"
-              ? lastReport.smhi.status
-              : lastReport && s.id === "boverket"
-                ? lastReport.boverket.status
-                : lastReport && s.id === "gsi"
-                  ? lastReport.gsi.status
+            lastReport && s.id === "boverket"
+              ? lastReport.boverket.status
+              : lastReport && s.id === "msb"
+                ? lastReport.msb.status
+                : lastReport && s.id === "sgi"
+                  ? lastReport.sgi.status
                   : null;
           const status =
             liveStatus ?? last?.status ?? (s.enabled ? "ok" : "disabled");
+          const liveMessage =
+            lastReport && s.id === "boverket"
+              ? lastReport.boverket.message
+              : lastReport && s.id === "msb"
+                ? lastReport.msb.message
+                : lastReport && s.id === "sgi"
+                  ? lastReport.sgi.message
+                  : null;
           return (
             <div
               key={s.id}
@@ -207,13 +220,9 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{ui.purpose}</p>
-              {(lastReport?.smhi.message && s.id === "smhi"
-                ? lastReport.smhi.message
-                : last?.message) && (
+              {(liveMessage || last?.message) && (
                 <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
-                  {s.id === "smhi" && lastReport?.smhi.message
-                    ? lastReport.smhi.message
-                    : last?.message}
+                  {liveMessage ?? last?.message}
                 </p>
               )}
             </div>
@@ -221,13 +230,24 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
         })}
       </div>
 
-      {smhiSuggestions.length > 0 && (
+      {boverketNotes.length > 0 && (
+        <div className="rounded-xl border border-border bg-secondary/10 px-3 py-3">
+          <div className="text-sm font-medium">Boverket – underlag</div>
+          <ul className="mt-1 list-inside list-disc space-y-1 text-xs text-muted-foreground">
+            {boverketNotes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hazardSuggestions.length > 0 && (
         <div className="space-y-2 rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-3">
           <div className="text-sm font-medium text-sky-950">
-            SMHI-förslag ({smhiSuggestions.length})
+            Riskförslag ({hazardSuggestions.length})
           </div>
           <ul className="space-y-2">
-            {smhiSuggestions.map((h) => (
+            {hazardSuggestions.map((h) => (
               <li
                 key={h.sourceRef + h.risk_type}
                 className="rounded-lg border border-sky-100 bg-white px-3 py-2 text-xs text-foreground"
@@ -247,8 +267,8 @@ export function ExternalDataPanel({ propertyId }: { propertyId: string }) {
           </ul>
           {!applySuggestions && (
             <p className="text-[11px] text-sky-900">
-              Bocka i «Spara SMHI-förslag som risker» och kör igen för att lägga
-              in dem i riskregistret.
+              Bocka i «Spara MSB/SGI-förslag som risker» och kör igen för att
+              lägga in dem i riskregistret.
             </p>
           )}
         </div>

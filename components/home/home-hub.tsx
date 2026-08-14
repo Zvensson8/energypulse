@@ -57,10 +57,10 @@ export function HomeHub() {
     <div className="page-shell">
       <div className="page-inner max-w-3xl">
         <section>
-          <h1 className="page-title">Vad kräver beslut?</h1>
+          <h1 className="page-title">Beslut</h1>
           <p className="page-subtitle">
-            Ett hus i taget. Motorn räknar MEPS, CRREM och dataluckor –
-            du ser bara läget.
+            Kräver beslut = klarar inte 2030 eller klimatriskår före 2035.
+            Saknar data = ingen eller ofullständig beräkning.
           </p>
           {!isLoading && rows.length > 0 && (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -160,8 +160,7 @@ export function HomeHub() {
               Inget akut
             </div>
             <p className="mt-1 text-sm text-emerald-900/80">
-              Alla aktiva fastigheter ser ok ut. Öppna ett hus när du behöver
-              rapport eller mer detalj.
+              Inget krav- eller klimattröskelbrott i senaste beräkningen.
             </p>
             <Button className="mt-4" variant="outline" asChild>
               <Link href="/properties">Alla fastigheter</Link>
@@ -174,7 +173,7 @@ export function HomeHub() {
             <Link href="/properties" className="text-primary hover:underline">
               {okCount} hus är ok
             </Link>
-            {" — de ligger i listan men kräver inget just nu."}
+            {" — inget 2030-gap eller klimatriskår före 2035."}
           </p>
         )}
       </div>

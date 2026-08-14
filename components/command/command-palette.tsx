@@ -103,13 +103,13 @@ export function CommandPalette({
                   onSelect={() => go("/")}
                   className={itemClass}
                 >
-                  Hem – vad vill du göra?
+                  Hem – beslut
                 </Command.Item>
                 <Command.Item
                   onSelect={() => go("/dashboard")}
                   className={itemClass}
                 >
-                  Översikt – portföljens läge
+                  Portfölj
                 </Command.Item>
                 <Command.Item
                   onSelect={() => go("/properties")}
@@ -124,46 +124,34 @@ export function CommandPalette({
                   Ny fastighet
                 </Command.Item>
                 <Command.Item
-                  onSelect={() => go("/properties")}
-                  className={itemClass}
-                >
-                  Fastigheter – risk, åtgärder, planer per hus
-                </Command.Item>
-                <Command.Item
-                  onSelect={() => go("/risk-scores")}
-                  className={itemClass}
-                >
-                  Byggnader med hög risk (riskscore)
-                </Command.Item>
-                <Command.Item
                   onSelect={() => go("/import")}
                   className={itemClass}
                 >
-                  Importera energidata (CSV/Excel)
+                  Importera energi
                 </Command.Item>
                 <Command.Item
                   onSelect={() => go("/actions")}
                   className={itemClass}
                 >
-                  Åtgärder – prioritering
+                  Planerade åtgärder
                 </Command.Item>
                 <Command.Item
-                  onSelect={() => go("/risks")}
+                  onSelect={() => go("/actions?del=paket")}
                   className={itemClass}
                 >
-                  Fysiska klimatrisker
+                  Paket mot 2030
                 </Command.Item>
                 <Command.Item
                   onSelect={() => go("/risk-scores")}
                   className={itemClass}
                 >
-                  Kombinerad risk (EPBD/MEPS/CRREM)
+                  Risk – fastighet
                 </Command.Item>
                 <Command.Item
-                  onSelect={() => go("/renovation")}
+                  onSelect={() => go("/risk-scores?del=ytter")}
                   className={itemClass}
                 >
-                  Renovationsplaner
+                  Risk – yttre
                 </Command.Item>
                 <Command.Item
                   onSelect={() => go("/reports")}

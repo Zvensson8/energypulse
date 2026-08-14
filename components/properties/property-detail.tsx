@@ -61,16 +61,13 @@ import {
   LayoutDashboard,
   Activity,
   ListTodo,
-  Hammer,
   FileText,
 } from "lucide-react";
 import type { DataGapStatus, EnergyClass } from "@/lib/supabase/database.types";
 import { OWNERSHIP_SV, STATUS_SV } from "@/lib/labels";
 import { formatNumber, cn } from "@/lib/utils";
-import { RiskScoresView } from "@/components/risk/risk-scores-view";
-import { PhysicalRisksView } from "@/components/risks/physical-risks-view";
-import { ActionsView } from "@/components/actions/actions-view";
-import { RenovationPlansView } from "@/components/renovation/renovation-plans-view";
+import { RiskHubView } from "@/components/risk/risk-hub-view";
+import { PlannedActionsView } from "@/components/plan/planned-actions-view";
 import { PropertyDecisionHero } from "@/components/properties/property-decision-hero";
 import { summarizePropertyDecision } from "@/lib/property-decision";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -78,14 +75,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ExternalDataPanel } from "@/components/properties/external-data-panel";
 import { LiljebladsComponentsPanel } from "@/components/properties/liljeblads-components-panel";
 
-type TabId =
-  | "overview"
-  | "buildings"
-  | "spaces"
-  | "risk-scores"
-  | "risks"
-  | "actions"
-  | "renovation";
+type TabId = "overview" | "buildings" | "spaces" | "plan" | "risk";
 
 const TABS: {
   id: TabId;
@@ -96,11 +86,37 @@ const TABS: {
   { id: "overview", label: "Läge", icon: LayoutDashboard },
   { id: "buildings", label: "Hus", icon: Building2, group: "structure" },
   { id: "spaces", label: "Lokaler", icon: DoorOpen, group: "structure" },
-  { id: "actions", label: "Åtgärder", icon: ListTodo, group: "work" },
-  { id: "risk-scores", label: "Varför?", icon: Activity, group: "work" },
-  { id: "risks", label: "Risker", icon: AlertTriangle, group: "work" },
-  { id: "renovation", label: "Planer", icon: Hammer, group: "work" },
+  { id: "plan", label: "Plan", icon: ListTodo, group: "work" },
+  { id: "risk", label: "Risk", icon: Activity, group: "work" },
 ];
+
+function parseTab(
+  tabParam: string | null,
+  delParam: string | null,
+): {
+  tab: TabId;
+  planDel: "atgarder" | "paket";
+  riskDel: "fastighet" | "ytter";
+} {
+  const planDel = delParam === "paket" ? "paket" : "atgarder";
+  const riskDel = delParam === "ytter" ? "ytter" : "fastighet";
+  if (tabParam === "renovation") {
+    return { tab: "plan", planDel: "paket", riskDel };
+  }
+  if (tabParam === "actions" || tabParam === "plan") {
+    return { tab: "plan", planDel, riskDel };
+  }
+  if (tabParam === "risks") {
+    return { tab: "risk", planDel, riskDel: "ytter" };
+  }
+  if (tabParam === "risk-scores" || tabParam === "risk") {
+    return { tab: "risk", planDel, riskDel };
+  }
+  if (tabParam === "buildings" || tabParam === "spaces") {
+    return { tab: tabParam, planDel, riskDel };
+  }
+  return { tab: "overview", planDel, riskDel };
+}
 
 const VALID_TABS = new Set<TabId>(TABS.map((t) => t.id));
 
@@ -124,10 +140,10 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
   const [addSpaceOpen, setAddSpaceOpen] = useState(false);
 
   const tabParam = searchParams.get("tab");
-  const tab: TabId =
-    tabParam && VALID_TABS.has(tabParam as TabId)
-      ? (tabParam as TabId)
-      : "overview";
+  const parsed = parseTab(tabParam, searchParams.get("del"));
+  const tab = parsed.tab;
+  const planDel = parsed.planDel;
+  const riskDel = parsed.riskDel;
 
   function setTab(next: TabId) {
     const params = new URLSearchParams(searchParams.toString());
@@ -423,124 +439,52 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
               </button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <StatCard
-                label="Atemp totalt"
-                value={
-                  totalAtemp > 0 ? `${formatNumber(totalAtemp, 0)} m²` : "—"
-                }
-                sub={
-                  withPerf > 0
-                    ? `${withPerf} med beräknad prestanda`
-                    : "Ingen prestanda ännu"
-                }
-              />
-              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <div className="text-sm text-muted-foreground">
-                  Snabbåtgärder
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => setAddOpen(true)}>
-                    <Plus className="h-4 w-4" /> Byggnad
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setAddSpaceOpen(true)}
-                    disabled={buildings.length === 0}
-                  >
-                    <Plus className="h-4 w-4" /> Lokal
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setTab("risks")}
-                  >
-                    <AlertTriangle className="h-4 w-4" /> Risk
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setTab("actions")}
-                  >
-                    <ListTodo className="h-4 w-4" /> Åtgärd
-                  </Button>
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href="/import">
-                      <Upload className="h-4 w-4" /> Importera
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <StatCard
+              label="Atemp totalt"
+              value={
+                totalAtemp > 0 ? `${formatNumber(totalAtemp, 0)} m²` : "—"
+              }
+              sub={
+                withPerf > 0
+                  ? `${withPerf} av ${buildings.length} med beräknad kWh/m²`
+                  : "Ingen beräkning ännu"
+              }
+            />
 
             <LiljebladsComponentsPanel
               propertyId={propertyId}
               propertyNumber={p.external_id}
             />
 
-            {/* Rapporter – förifyllda med denna fastighet */}
-            <section className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-semibold">Rapporter</h2>
-                  <p className="text-sm text-muted-foreground">
-                    PDF med denna fastighet förvald – ledning, CSRD,
-                    helhetsrapport eller renovering.
-                  </p>
-                </div>
-                <Button size="sm" variant="outline" asChild>
-                  <Link href={`/reports?property=${propertyId}`}>
-                    Alla rapporter
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {(
-                  [
-                    {
-                      type: "property_full",
-                      title: "Samlad fastighetsrapport",
-                      desc: "Energi, risk, planer, före/efter",
-                    },
-                    {
-                      type: "leadership_climate",
-                      title: "Förslag till ledningen",
-                      desc: "Klimatrisker & åtgärdskostnad",
-                    },
-                    {
-                      type: "csrd",
-                      title: "CSRD / ESRS E1",
-                      desc: "Hållbarhetsunderlag för denna fastighet",
-                    },
-                    {
-                      type: "renovation",
-                      title: "Renovationsplaner",
-                      desc: "Planer med kostnad & payback",
-                    },
-                  ] as const
-                ).map((r) => (
-                  <Link
-                    key={r.type}
-                    href={`/reports?property=${propertyId}&type=${r.type}`}
-                    className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm transition hover:border-primary/25 hover:shadow-md"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <FileText className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold">
-                        {r.title}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {r.desc}
-                      </span>
-                    </span>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  </Link>
-                ))}
-              </div>
+            <section className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">PDF:</span>
+              <Link
+                href={`/reports?property=${propertyId}&type=property_full`}
+                className="font-medium text-primary hover:underline"
+              >
+                Fastighet
+              </Link>
+              <span className="text-muted-foreground">·</span>
+              <Link
+                href={`/reports?property=${propertyId}&type=leadership_climate`}
+                className="font-medium text-primary hover:underline"
+              >
+                Ledning
+              </Link>
+              <span className="text-muted-foreground">·</span>
+              <Link
+                href={`/reports?property=${propertyId}&type=csrd`}
+                className="font-medium text-primary hover:underline"
+              >
+                CSRD
+              </Link>
+              <span className="text-muted-foreground">·</span>
+              <Link
+                href={`/reports?property=${propertyId}&type=renovation`}
+                className="font-medium text-primary hover:underline"
+              >
+                Plan
+              </Link>
             </section>
 
             {/* Preview buildings */}
@@ -628,28 +572,19 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
           />
         )}
 
-        {tab === "risk-scores" && (
-          <RiskScoresView
+        {tab === "plan" && (
+          <PlannedActionsView
             lockedPropertyId={propertyId}
             embedded
+            initialDel={planDel}
           />
         )}
 
-        {tab === "risks" && (
-          <PhysicalRisksView
+        {tab === "risk" && (
+          <RiskHubView
             lockedPropertyId={propertyId}
             embedded
-          />
-        )}
-
-        {tab === "actions" && (
-          <ActionsView lockedPropertyId={propertyId} embedded />
-        )}
-
-        {tab === "renovation" && (
-          <RenovationPlansView
-            lockedPropertyId={propertyId}
-            embedded
+            initialDel={riskDel}
           />
         )}
 
@@ -1089,10 +1024,10 @@ function RisksSection({
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">Fysiska klimatrisker</h2>
+        <h2 className="text-lg font-semibold">Yttre risker</h2>
         <Button size="sm" variant="outline" asChild>
-          <Link href="/risks">
-            Hantera risker
+          <Link href="?tab=risk&del=ytter">
+            Risk
             <ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
@@ -1101,10 +1036,10 @@ function RisksSection({
         <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
           Inga risker registrerade.{" "}
           <Link
-            href="/risks"
+            href="?tab=risk&del=ytter"
             className="font-medium text-primary hover:underline"
           >
-            Lägg till på Risker
+            Lägg till under Risk
           </Link>
         </div>
       ) : (

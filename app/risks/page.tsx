@@ -1,10 +1,9 @@
-import { PhysicalRisksView } from "@/components/risks/physical-risks-view";
+import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Fysiska klimatrisker · EnergyPulse",
-  description: "Fysiska klimatrisker per fastighet",
+  title: "Risk · EnergyPulse",
 };
 
 export default function RisksPage() {
-  return <PhysicalRisksView />;
+  redirect("/risk-scores?del=ytter");
 }

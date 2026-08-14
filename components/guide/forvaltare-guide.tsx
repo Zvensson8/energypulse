@@ -3,53 +3,42 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Building2,
   CheckCircle2,
   ClipboardList,
   LineChart,
   MapPinned,
   Upload,
   AlertTriangle,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const STEPS = [
   {
     n: 1,
-    title: "Se betyg",
-    body: "Öppna riskscore, klicka ett hus och se energiklass, krav 2030, klimatriskår och samlad risk på en sida.",
-    href: "/risk-scores",
-    cta: "Byggnader med hög risk",
-    icon: ClipboardList,
+    title: "Importera energi",
+    body: "CSV eller Excel med månadsförbrukning. Utan det finns ingen kWh/m², inget 2030-gap och ingen risk.",
+    href: "/import",
+    cta: "Importera",
+    icon: Upload,
     color: "from-indigo-500 to-violet-500",
   },
   {
     n: 2,
-    title: "Simulera åtgärder",
-    body: "På betygssidan eller under Åtgärder: se före/efter på kravgap och klimatriskår – utan att spara.",
-    href: "/actions",
-    cta: "Åtgärder",
-    icon: LineChart,
+    title: "Läs talen",
+    body: "kWh/m², klarar 2030 (ja/nej), klimatriskår. Score 0–100. ≥60 = hög. Klimatriskår före 2035 = finansiell flagga.",
+    href: "/risk-scores",
+    cta: "Risk",
+    icon: ClipboardList,
     color: "from-emerald-500 to-teal-500",
   },
   {
     n: 3,
-    title: "Välj plan",
-    body: "Jämför billig, balanserad och aggressiv plan för huset. Spara utkast och godkänn när ledningen sagt ja.",
-    href: "/renovation",
-    cta: "Renovationsplaner",
-    icon: Building2,
+    title: "Planera åtgärd",
+    body: "En åtgärd = en post (kostnad, spar). Paket = flera jämförda mot 2030. Arbetsorder går till Liljeblads.",
+    href: "/actions",
+    cta: "Planerade åtgärder",
+    icon: LineChart,
     color: "from-sky-500 to-blue-500",
-  },
-  {
-    n: 4,
-    title: "Exportera beslutsunderlag",
-    body: "Från husets betygssida: ladda ner PDF till ledningen med nuläge, åtgärder och kostnad.",
-    href: "/risk-scores",
-    cta: "Börja här",
-    icon: Upload,
-    color: "from-amber-500 to-orange-500",
   },
 ];
 
@@ -81,21 +70,17 @@ export function ForvaltareGuide() {
           <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                Guide för teknisk förvaltare
-              </div>
               <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                Kom igång med EnergyPulse
+                Tre steg
               </h1>
               <p className="max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Se betyg, simulera åtgärder, välj plan och ta ut PDF till
-                ledningen – utan att vara dataanalytiker.
+                Importera förbrukning. Läs kWh/m², krav 2030 och klimatriskår.
+                Planera åtgärd eller paket. Arbetsorder skapas i Liljeblads.
               </p>
             </div>
             <Button asChild className="shrink-0 gap-1.5">
-              <Link href="/risk-scores">
-                Se högriskbyggnader
+              <Link href="/import">
+                Importera
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -106,10 +91,10 @@ export function ForvaltareGuide() {
         <section className="space-y-3">
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-foreground">
-              Fyra enkla steg
+              Flöde
             </h2>
             <p className="text-sm text-muted-foreground">
-              Samma flöde varje gång – från översikt till åtgärd.
+              Importera → se tal → planera.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

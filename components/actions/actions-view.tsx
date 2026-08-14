@@ -9,6 +9,7 @@ import {
   type PortfolioActionRow,
 } from "@/app/actions/actions-priority";
 import { createAction } from "@/app/actions/actions-crud";
+import { createWorkOrderFromAction } from "@/app/actions/liljeblads-bridge";
 import {
   completeAction,
   revertActionApplication,
@@ -54,6 +55,7 @@ import {
   ArrowRight,
   Building2,
   Play,
+  Wrench,
 } from "lucide-react";
 import { PropertyFilter } from "@/components/filters/property-filter";
 
@@ -174,6 +176,17 @@ export function ActionsView({
     },
   });
 
+  const woMut = useMutation({
+    mutationFn: async (actionId: string) => {
+      const res = await createWorkOrderFromAction({ actionId });
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (d) => {
+      setMsg(`Arbetsorder skapad i Liljeblads (${d.work_order_id.slice(0, 8)}…).`);
+    },
+  });
+
   const revertMut = useMutation({
     mutationFn: async (applicationId: string) => {
       const reason = window.prompt(
@@ -240,7 +253,8 @@ export function ActionsView({
                 <HelpTip text="Simulera visar före/efter utan att ändra något. Markera klar tillämpar modeled spar och uppdaterar MEPS/CRREM." />
               </div>
               <p className="page-subtitle">
-                Simulera först – se effekten – sedan markera klar.
+                Simulera visar före/efter. Klar tillämpar modeled spar.
+                Arbetsorder skapas i Liljeblads på kopplad fastighet.
               </p>
             </div>
           )}
@@ -280,26 +294,6 @@ export function ActionsView({
             </Button>
           </div>
         </div>
-
-        {!embedded && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <HowCard
-              n="1"
-              title="Välj en åtgärd"
-              body="Sorterad efter prioritet (krav, klimatrisk, payback)."
-            />
-            <HowCard
-              n="2"
-              title="Simulera"
-              body="Se före/efter (MEPS, riskår, riskscore) utan att spara något."
-            />
-            <HowCard
-              n="3"
-              title="Markera klar / plan"
-              body="Tillämpa modeled spar, eller jämför A/B/C-scenarier under Renovering."
-            />
-          </div>
-        )}
 
         {/* KPI summary */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -395,6 +389,7 @@ export function ActionsView({
           detect.isError ||
           completeMut.isError ||
           revertMut.isError ||
+          woMut.isError ||
           error) && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {(
@@ -402,6 +397,7 @@ export function ActionsView({
                 detect.error ||
                 completeMut.error ||
                 revertMut.error ||
+                woMut.error ||
                 error) as Error
             )?.message}
           </div>
@@ -417,17 +413,14 @@ export function ActionsView({
         {!isLoading && rows.length === 0 && (
           <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center">
             <ListTodo className="mx-auto h-10 w-10 text-muted-foreground/40" />
-            <h3 className="mt-3 text-lg font-semibold">Inga åtgärder ännu</h3>
+            <h3 className="mt-3 text-lg font-semibold">Inga åtgärder</h3>
             <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-              Skapa en åtgärd, kör förbättringsanalys, eller generera en plan
-              från riskscore.
+              Skapa en åtgärd eller byt till Paket för att jämföra flera mot
+              2030.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus className="h-4 w-4" /> Ny åtgärd
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/risk-scores">Till riskscore</Link>
               </Button>
             </div>
           </div>
@@ -447,6 +440,8 @@ export function ActionsView({
               onPlan={() =>
                 setPlanBuilding({ id: r.building_id, name: r.building_name })
               }
+              onWorkOrder={() => void woMut.mutateAsync(r.id)}
+              workOrderPending={woMut.isPending && woMut.variables === r.id}
               reverting={revertMut.isPending}
             />
           ))}
@@ -618,28 +613,6 @@ export function ActionsView({
   );
 }
 
-function HowCard({
-  n,
-  title,
-  body,
-}: {
-  n: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-        {n}
-      </div>
-      <div className="mt-2 text-sm font-semibold">{title}</div>
-      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-        {body}
-      </p>
-    </div>
-  );
-}
-
 function StatCard({
   label,
   value,
@@ -701,12 +674,16 @@ function ActionCard({
   onSimulate,
   onRevert,
   onPlan,
+  onWorkOrder,
+  workOrderPending,
   reverting,
 }: {
   row: PortfolioActionRow;
   onSimulate: () => void;
   onRevert?: () => void;
   onPlan: () => void;
+  onWorkOrder: () => void;
+  workOrderPending?: boolean;
   reverting?: boolean;
 }) {
   const canSimulate =
@@ -814,8 +791,23 @@ function ActionCard({
           )}
           <Button variant="outline" onClick={onPlan}>
             <ClipboardList className="h-4 w-4" />
-            Plan
+            Paket
           </Button>
+          {canSimulate && (
+            <Button
+              variant="outline"
+              disabled={workOrderPending}
+              onClick={onWorkOrder}
+              title="Skapar arbetsorder i Liljeblads på kopplad fastighet"
+            >
+              {workOrderPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Wrench className="h-4 w-4" />
+              )}
+              Arbetsorder
+            </Button>
+          )}
           {onRevert && (
             <Button
               variant="ghost"

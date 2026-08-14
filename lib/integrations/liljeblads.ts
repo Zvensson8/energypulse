@@ -22,6 +22,21 @@ export type LiljebladsComponent = {
   next_service_date: string | null;
   property_id: string | null;
   property_name: string | null;
+  risk_score: number | null;
+  risk_level: string | null;
+  remaining_b10_years: number | null;
+};
+
+export type LiljebladsComponentRisk = {
+  component_id: string;
+  risk_score: number | null;
+  risk_level: string | null;
+  remaining_b10_years: number | null;
+  recommendation: string | null;
+};
+
+export type LiljebladsWorkOrder = {
+  id: string;
 };
 
 type WebhookOk = {
@@ -113,5 +128,54 @@ export async function listLiljebladsComponents(
     next_service_date: (c.next_service_date as string | null) ?? null,
     property_id: (c.property_id as string | null) ?? null,
     property_name: (c.property_name as string | null) ?? null,
+    risk_score: null,
+    risk_level: null,
+    remaining_b10_years: null,
   }));
+}
+
+export async function listLiljebladsComponentRisks(
+  propertyId: string,
+): Promise<LiljebladsComponentRisk[]> {
+  const json = (await callWebhook({
+    type: "list_high_risk_components",
+    property_id: propertyId,
+    min_level: "low",
+    min_confidence: "low",
+    limit: 50,
+  })) as { results?: Array<Record<string, unknown>> };
+  return (json.results ?? []).map((r) => ({
+    component_id: String(r.component_id ?? ""),
+    risk_score:
+      typeof r.risk_score === "number" ? r.risk_score : null,
+    risk_level: (r.risk_level as string | null) ?? null,
+    remaining_b10_years:
+      typeof r.remaining_b10_years === "number"
+        ? r.remaining_b10_years
+        : null,
+    recommendation: (r.recommendation as string | null) ?? null,
+  }));
+}
+
+export async function createLiljebladsWorkOrder(input: {
+  propertyId: string;
+  actionText: string;
+  componentId?: string | null;
+  priority?: string;
+  priceEstimate?: string | null;
+  rawContext?: string;
+}): Promise<LiljebladsWorkOrder> {
+  const json = (await callWebhook({
+    type: "work_order",
+    property_id: input.propertyId,
+    action_text: input.actionText,
+    component_id: input.componentId ?? undefined,
+    priority: input.priority ?? "medium",
+    price_estimate: input.priceEstimate ?? undefined,
+    source: "energypulse",
+    raw_context: input.rawContext ?? undefined,
+  })) as { result?: { id?: string } };
+  const id = json.result?.id;
+  if (!id) throw new Error("Liljeblads svarade utan arbetsorder-id");
+  return { id: String(id) };
 }

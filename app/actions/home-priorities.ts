@@ -136,11 +136,11 @@ export async function getHomePriorities(
       priorities.push({
         id: "risk",
         severity: "high",
-        title: "Prioritera hus med hög risk",
-        body: `${highRiskCount} byggnader har hög samlad risk, lagkravsgap eller tidigt klimatriskår.`,
+        title: "Hög risk",
+        body: `${highRiskCount} byggnader med score ≥ 60, kravgap 2030 eller klimatriskår före 2035.`,
         count: highRiskCount,
         href: "/risk-scores",
-        cta: "Öppna riskscore",
+        cta: "Öppna risk",
       });
     }
 
@@ -148,11 +148,11 @@ export async function getHomePriorities(
       priorities.push({
         id: "plans",
         severity: "medium",
-        title: "Godkänn renovationsutkast",
-        body: `${drafts} plan(er) väntar på granskning. Jämför kostnad och riskminskning innan beslut.`,
+        title: "Paket att godkänna",
+        body: `${drafts} utkast. Jämför kostnad och gap 2030.`,
         count: drafts,
-        href: "/renovation",
-        cta: "Visa planer",
+        href: "/actions?del=paket",
+        cta: "Visa paket",
       });
     }
 
@@ -160,11 +160,11 @@ export async function getHomePriorities(
       priorities.push({
         id: "actions",
         severity: "medium",
-        title: "Simulera eller slutför åtgärder",
-        body: `${actions} öppna åtgärder – simulera före/efter och markera klar när ni är överens.`,
+        title: "Öppna åtgärder",
+        body: `${actions} poster som inte är klara.`,
         count: actions,
         href: "/actions",
-        cta: "Till åtgärder",
+        cta: "Planerade åtgärder",
       });
     }
 

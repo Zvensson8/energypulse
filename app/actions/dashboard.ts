@@ -607,7 +607,7 @@ export async function getDecisionBoard(
         severity: "medium",
         title: `Utkast plan: ${p.title}`,
         subtitle: b?.name ?? b?.property_name ?? "Renovationsplan",
-        href: `/renovation?building=${p.building_id ?? ""}`,
+        href: `/actions?del=paket&building=${p.building_id ?? ""}`,
         meta:
           p.total_estimated_cost != null
             ? `${Math.round(Number(p.total_estimated_cost) / 1000)} tkr`

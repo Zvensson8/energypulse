@@ -1,10 +1,20 @@
-import { ActionsView } from "@/components/actions/actions-view";
+import { PlannedActionsView } from "@/components/plan/planned-actions-view";
 
 export const metadata = {
-  title: "Åtgärder · EnergyPulse",
-  description: "Prioriterade energieffektiviseringsåtgärder",
+  title: "Planerade åtgärder · EnergyPulse",
+  description: "Åtgärder och paket mot 2030",
 };
 
-export default function ActionsPage() {
-  return <ActionsView />;
+export default async function ActionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ del?: string; building?: string }>;
+}) {
+  const sp = await searchParams;
+  return (
+    <PlannedActionsView
+      initialDel={sp.del === "paket" ? "paket" : "atgarder"}
+      initialBuildingId={sp.building}
+    />
+  );
 }

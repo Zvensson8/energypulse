@@ -1,10 +1,17 @@
-import { RiskScoresView } from "@/components/risk/risk-scores-view";
+import { RiskHubView } from "@/components/risk/risk-hub-view";
 
 export const metadata = {
-  title: "Kombinerad risk · EnergyPulse",
-  description: "EPBD/MEPS + CRREM + fysisk risk + datakvalitet (CSRD/ESRS E1)",
+  title: "Risk · EnergyPulse",
+  description: "Riskscore på fastighet och yttre risker",
 };
 
-export default function RiskScoresPage() {
-  return <RiskScoresView />;
+export default async function RiskScoresPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ del?: string }>;
+}) {
+  const sp = await searchParams;
+  return (
+    <RiskHubView initialDel={sp.del === "ytter" ? "ytter" : "fastighet"} />
+  );
 }

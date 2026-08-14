@@ -134,11 +134,11 @@ export function RenovationPlansView({
             <div>
               <div className="flex items-center gap-2">
                 <Hammer className="h-6 w-6 text-primary" />
-                <h1 className="page-title">Renovationsplaner</h1>
-                <HelpTip text="Jämför tre scenarier (billig / balanserad / aggressiv) med samma beräkningsmotor som vid simulering. Välj ett utkast, godkänn och markera klar för att tillämpa." />
+                <h1 className="page-title">Paket</h1>
+                <HelpTip text="Tre scenarier: billig, balanserad, aggressiv. Samma motor som vid simulering. Klar tillämpar modeled spar på länkade åtgärder." />
               </div>
               <p className="page-subtitle">
-                Jämför A/B/C-scenarier, välj plan och följ till klar.
+                Jämför kostnad och gap 2030. Godkänn ett utkast. Klar tillämpar spar.
               </p>
             </div>
           )}
@@ -148,7 +148,7 @@ export function RenovationPlansView({
                 <Button variant="outline" asChild>
                   <Link href="/risk-scores">
                     <Activity className="h-4 w-4" />
-                    Kombinerad risk
+                    Risk
                   </Link>
                 </Button>
                 <Button variant="outline" asChild>
@@ -168,26 +168,6 @@ export function RenovationPlansView({
             </Button>
           </div>
         </div>
-
-        {!embedded && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Step
-              n="1"
-              title="Jämför scenarier"
-              body="Billig, balanserad och aggressiv – engine-baserad före/efter."
-            />
-            <Step
-              n="2"
-              title="Välj plan"
-              body="Spara utkast med valda åtgärder och projicerad risk."
-            />
-            <Step
-              n="3"
-              title="Godkänn → Klar"
-              body="Vid Klar slutförs länkade åtgärder och modeled spar tillämpas."
-            />
-          </div>
-        )}
 
         {/* Filter KPIs */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

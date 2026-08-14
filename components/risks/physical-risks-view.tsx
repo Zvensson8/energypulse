@@ -197,12 +197,11 @@ export function PhysicalRisksView({
             <div>
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-6 w-6 text-primary" />
-                <h1 className="page-title">Risker & avskrivning</h1>
-                <HelpTip text="Markera risker som bevakning, åtgärdad eller avskriven. Avskrivning/åtgärd kräver motivering och loggas. Stängda risker påverkar inte alerts." />
+                <h1 className="page-title">Yttre risker</h1>
+                <HelpTip text="Översvämning, värme, sättning m.m. samt kravgap. Stängd risk kräver motivering och räknas inte i larm." />
               </div>
               <p className="page-subtitle">
-                Hantera fysiska klimatrisker och MEPS/CRREM-gap. Stäng med
-                motivering så att alerts speglar aktiva risker.
+                Öppen = aktiv. Bevakning = följs. Åtgärdad/avskriven kräver motivering.
               </p>
             </div>
           )}
@@ -232,26 +231,6 @@ export function PhysicalRisksView({
             )}
           </div>
         </div>
-
-        {!embedded && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Step
-              n="1"
-              title="Identifiera"
-              body="Registrera fysiska risker eller synka MEPS/CRREM från prestanda."
-            />
-            <Step
-              n="2"
-              title="Bevaka"
-              body="Sätt status Bevakning för risker under uppföljning."
-            />
-            <Step
-              n="3"
-              title="Stäng"
-              body="Åtgärdad eller avskriven kräver motivering och loggas."
-            />
-          </div>
-        )}
 
         {/* Tabs + filter bar */}
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">

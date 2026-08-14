@@ -55,7 +55,7 @@ export function PropertyDecisionHero({
               ? `${formatNumber(decision.energyIntensity, 0)} kWh/m²`
               : "—"
           }
-          hint="Specifik användning"
+          hint="kWh/m²,år"
         />
         <Metric
           label="Klarar 2030?"
@@ -66,7 +66,7 @@ export function PropertyDecisionHero({
                 ? "Ja"
                 : "Nej"
           }
-          hint="Mot energikravet"
+          hint="MEPS-gap ≤ 0"
           warn={decision.meets2030 === false}
         />
         <Metric
@@ -74,7 +74,7 @@ export function PropertyDecisionHero({
           value={
             decision.climateYear != null ? String(decision.climateYear) : "—"
           }
-          hint="När klimatbanan tar slut"
+          hint="CRREM, tidigaste hus"
           warn={
             decision.climateYear != null && decision.climateYear < 2035
           }

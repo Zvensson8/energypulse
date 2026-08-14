@@ -14,7 +14,7 @@ export type PropertyPerfRow = {
 export type PropertyNextAction = {
   label: string;
   href?: string;
-  tab?: "buildings" | "actions" | "risk-scores" | "renovation";
+  tab?: "buildings" | "plan" | "risk";
 };
 
 export type PropertyDecision = {
@@ -102,7 +102,7 @@ export function summarizePropertyDecision(
       status: "needs_decision",
       statusLabel: STATUS_LABEL.needs_decision,
       why: "Klarar inte energikravet 2030 med nuvarande prestanda.",
-      next: { label: "Se åtgärder", tab: "actions" },
+      next: { label: "Se plan", tab: "plan" },
       energyIntensity,
       meets2030,
       climateYear,
@@ -115,7 +115,7 @@ export function summarizePropertyDecision(
       status: "needs_decision",
       statusLabel: STATUS_LABEL.needs_decision,
       why: `Klimatbanan tar slut ${climateYear}.`,
-      next: { label: "Se klimatrisk", tab: "risk-scores" },
+      next: { label: "Se risk", tab: "risk" },
       energyIntensity,
       meets2030,
       climateYear,
@@ -126,7 +126,7 @@ export function summarizePropertyDecision(
   return {
     status: "ok",
     statusLabel: STATUS_LABEL.ok,
-    why: "Inget akut. Ta ut en rapport när du behöver underlag.",
+    why: "Inget krav- eller klimattröskelbrott i senaste beräkningen.",
     next: {
       label: "Ta ut rapport",
       href: `/reports?property=${propertyId}&type=property_full`,

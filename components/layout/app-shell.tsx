@@ -14,10 +14,8 @@ import {
   Upload,
   ListTodo,
   Settings2,
-  AlertTriangle,
   Pencil,
   Activity,
-  Hammer,
   Menu,
   X,
   Home,
@@ -43,6 +41,8 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/", label: "Hem", icon: Home },
       { href: "/properties", label: "Fastigheter", icon: MapPinned },
+      { href: "/actions", label: "Planerade åtgärder", icon: ListTodo },
+      { href: "/risk-scores", label: "Risk", icon: Activity },
       { href: "/import", label: "Importera", icon: Upload },
       { href: "/reports", label: "Rapporter", icon: FileText },
     ],
@@ -51,11 +51,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: "Fördjupa",
     items: [
       { href: "/dashboard", label: "Portfölj", icon: LayoutDashboard },
-      { href: "/risk-scores", label: "Riskscore", icon: Activity },
       { href: "/crrem", label: "CRREM", icon: LineChart },
-      { href: "/actions", label: "Åtgärder", icon: ListTodo },
-      { href: "/renovation", label: "Renovering", icon: Hammer },
-      { href: "/risks", label: "Riskregister", icon: AlertTriangle },
       { href: "/guide", label: "Guide", icon: BookOpen },
       { href: "/data-edit", label: "Korrigera data", icon: Pencil },
       { href: "/admin", label: "Admin", icon: Settings2 },
@@ -66,43 +62,47 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/": {
     title: "Hem",
-    subtitle: "Hus som kräver beslut",
+    subtitle: "Kräver beslut · saknar data · ok",
   },
   "/dashboard": {
-    title: "Beslutstavla",
-    subtitle: "Prioriteringar, år-mot-år och CSRD-nyckeltal",
+    title: "Portfölj",
+    subtitle: "kWh/m², krav 2030, klimatriskår, kostnad",
   },
   "/properties": {
     title: "Fastigheter",
   },
   "/buildings": {
     title: "Byggnad",
-    subtitle: "Betyg, plan och beslutsunderlag",
+    subtitle: "kWh/m², krav 2030, klimatriskår",
   },
   "/import": {
-    title: "Importera energidata",
-    subtitle: "Ladda upp CSV eller Excel – vi validerar och räknar om",
+    title: "Importera",
+    subtitle: "CSV eller Excel med månadsförbrukning",
   },
   "/actions": {
-    title: "Åtgärder",
-    subtitle: "Prioritera, simulera effekt och markera som klar",
+    title: "Planerade åtgärder",
+    subtitle: "Åtgärd = en post. Paket = flera jämförda mot 2030.",
   },
   "/risk-scores": {
-    title: "Kombinerad risk",
-    subtitle: "MEPS + CRREM + fysisk risk + datakvalitet",
+    title: "Risk",
+    subtitle: "Fastighet 0–100. Yttre = översvämning, värme, sättning.",
   },
   "/renovation": {
-    title: "Renovationsplaner",
-    subtitle: "Paketera åtgärder mot MEPS och klimatriskår",
+    title: "Planerade åtgärder",
+    subtitle: "Paket mot kravet 2030",
+  },
+  "/risks": {
+    title: "Risk",
+    subtitle: "Yttre risker",
   },
   "/reports": {
     title: "Rapporter",
-    subtitle: "Ledning, CSRD, fastighet och renovering",
+    subtitle: "PDF: ledning, CSRD, fastighet, plan",
   },
-  "/guide": { title: "Guide", subtitle: "Kom igång på några minuter" },
+  "/guide": { title: "Guide", subtitle: "Importera → se tal → planera" },
   "/admin": {
     title: "Admin",
-    subtitle: "Riskvikter, datakvalitet och behörigheter",
+    subtitle: "Vikter, datakvalitet, behörighet",
   },
   "/login": { title: "Logga in" },
 };
@@ -179,7 +179,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             EnergyPulse
           </div>
           <div className="truncate text-xs text-muted-foreground">
-            Energi · MEPS · CRREM
+            Energi och risk
           </div>
         </div>
       </div>
@@ -237,14 +237,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="space-y-2 border-t border-border p-3">
-        <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-emerald-500/10 p-3">
-          <div className="text-xs font-semibold text-foreground">
-            Ett hus i taget
-          </div>
-          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-            Öppna en fastighet. Nästa steg står där.
-          </p>
-        </div>
         <div className="flex items-center gap-2 rounded-xl px-2 py-1.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-muted-foreground">
             {(email?.[0] ?? "?").toUpperCase()}

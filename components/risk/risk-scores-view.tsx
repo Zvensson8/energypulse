@@ -145,11 +145,11 @@ export function RiskScoresView({
             <div>
               <div className="flex items-center gap-2">
                 <Activity className="h-6 w-6 text-primary" />
-                <h1 className="page-title">Kombinerad risk</h1>
-                <HelpTip text="EPBD/MEPS (40 %) + CRREM misalignment (35 %) + fysisk risk (15 %) + datakvalitet (10 %) = 0–100. Finansiell risk om misalignment < 2035 (CSRD/ESRS E1)." />
+                <h1 className="page-title">Fastighetsrisk</h1>
+                <HelpTip text="0–100 = MEPS 40 % + CRREM 35 % + yttre 15 % + datakvalitet 10 %. Finansiell flagga om klimatriskår < 2035." />
               </div>
               <p className="page-subtitle">
-                Börja med hög risk → skapa renovationsplan → slutför åtgärder.
+                ≥60 = hög. Klimatriskår före 2035 = finansiell flagga.
               </p>
             </div>
           )}
@@ -192,34 +192,14 @@ export function RiskScoresView({
             </Button>
             {!embedded && (
               <Button asChild>
-                <Link href="/renovation">
+                <Link href="/actions?del=paket">
                   <ClipboardList className="h-4 w-4" />
-                  Renovationsplaner
+                  Paket
                 </Link>
               </Button>
             )}
           </div>
         </div>
-
-        {!embedded && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Step
-              n="1"
-              title="Räkna om risk"
-              body="Uppdaterar score från MEPS, CRREM, fysisk risk och datakvalitet."
-            />
-            <Step
-              n="2"
-              title="Filtrera högrisk"
-              body="Fokusera på score ≥ 60 eller finansiell risk före 2035."
-            />
-            <Step
-              n="3"
-              title="Jämför planer"
-              body="Öppna Renovering och jämför billig / balanserad / aggressiv."
-            />
-          </div>
-        )}
 
         {/* Summary KPIs – help text follows property vs portfolio scope */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -329,8 +309,8 @@ export function RiskScoresView({
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {msg}{" "}
             {msg.includes("Renovationsplan") && (
-              <Link href="/renovation" className="font-medium underline">
-                Öppna planer
+              <Link href="/actions?del=paket" className="font-medium underline">
+                Öppna paket
               </Link>
             )}
           </div>
@@ -584,9 +564,9 @@ function RiskCard({ row: r }: { row: RiskScoreRow }) {
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href={`/renovation?building=${r.building_id}`}>
+            <Link href={`/actions?del=paket&building=${r.building_id}`}>
               <ClipboardList className="h-4 w-4" />
-              Jämför planer
+              Jämför paket
             </Link>
           </Button>
           <Button variant="ghost" asChild>

@@ -418,7 +418,7 @@ export function BuildingScorecardView({
         {/* CTAs */}
         <div className="flex flex-wrap gap-2">
           <Button asChild>
-            <Link href={`/renovation?building=${buildingId}`}>
+            <Link href={`/actions?del=paket&building=${buildingId}`}>
               <GitCompare className="h-4 w-4" />
               Jämför planer
             </Link>
@@ -469,7 +469,7 @@ export function BuildingScorecardView({
               </p>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/renovation">Öppna planer</Link>
+              <Link href="/actions?del=paket">Öppna paket</Link>
             </Button>
           </div>
         )}
@@ -496,7 +496,7 @@ export function BuildingScorecardView({
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <Button asChild>
-                  <Link href={`/renovation?building=${buildingId}`}>
+                  <Link href={`/actions?del=paket&building=${buildingId}`}>
                     Jämför planer
                   </Link>
                 </Button>

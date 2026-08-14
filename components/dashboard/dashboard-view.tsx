@@ -222,7 +222,7 @@ export function DashboardView() {
               )}
               {alerts && alerts.openCompliance > 0 && (
                 <Link
-                  href="/risks"
+                  href="/risk-scores?del=ytter"
                   className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
                 >
                   <AlertTriangle className="h-3.5 w-3.5" />

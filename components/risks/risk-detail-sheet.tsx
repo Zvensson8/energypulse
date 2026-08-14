@@ -379,7 +379,7 @@ export function RiskDetailSheet({
                 </Button>
                 {d.building_id ? (
                   <Button variant="outline" asChild>
-                    <Link href={`/renovation?building=${d.building_id}`}>
+                    <Link href={`/actions?del=paket&building=${d.building_id}`}>
                       <GitCompare className="h-4 w-4" />
                       Jämför renovationsscenarier
                     </Link>
@@ -387,7 +387,7 @@ export function RiskDetailSheet({
                 ) : d.buildings[0] ? (
                   <Button variant="outline" asChild>
                     <Link
-                      href={`/renovation?building=${d.buildings[0].id}`}
+                      href={`/actions?del=paket&building=${d.buildings[0].id}`}
                     >
                       <GitCompare className="h-4 w-4" />
                       Jämför renovationsscenarier

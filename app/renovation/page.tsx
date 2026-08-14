@@ -1,8 +1,7 @@
-import { RenovationPlansView } from "@/components/renovation/renovation-plans-view";
+import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Renovationsplaner · EnergyPulse",
-  description: "Åtgärdsplaner mot MEPS och CRREM misalignment",
+  title: "Planerade åtgärder · EnergyPulse",
 };
 
 export default async function RenovationPage({
@@ -11,5 +10,7 @@ export default async function RenovationPage({
   searchParams: Promise<{ building?: string }>;
 }) {
   const sp = await searchParams;
-  return <RenovationPlansView initialBuildingId={sp.building} />;
+  const q = new URLSearchParams({ del: "paket" });
+  if (sp.building) q.set("building", sp.building);
+  redirect(`/actions?${q.toString()}`);
 }

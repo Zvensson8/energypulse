@@ -26,6 +26,22 @@ const STATUS_SV: Record<string, string> = {
   decommissioned: "Avställd",
 };
 
+const RISK_SV: Record<string, string> = {
+  critical: "Kritisk",
+  high: "Hög",
+  medium: "Medel",
+  low: "Låg",
+};
+
+function riskVariant(
+  level: string | null,
+): "danger" | "warning" | "outline" | "success" {
+  if (level === "critical" || level === "high") return "danger";
+  if (level === "medium") return "warning";
+  if (level === "low") return "success";
+  return "outline";
+}
+
 export function LiljebladsComponentsPanel({
   propertyId,
   propertyNumber,
@@ -193,10 +209,10 @@ export function LiljebladsComponentsPanel({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Wrench className="h-4 w-4 text-primary" />
-            Komponenter från Liljeblads
+            Komponenter
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {data.components.length} st · teknik ägs i Liljeblads
+            {data.components.length} st · risk från Liljeblads (Weibull)
           </p>
         </div>
         <Button
@@ -226,7 +242,20 @@ export function LiljebladsComponentsPanel({
                     .join(" · ")}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {c.risk_score != null && (
+                  <Badge variant={riskVariant(c.risk_level)}>
+                    Risk {Math.round(c.risk_score)}
+                    {c.risk_level
+                      ? ` · ${RISK_SV[c.risk_level] ?? c.risk_level}`
+                      : ""}
+                  </Badge>
+                )}
+                {c.remaining_b10_years != null && (
+                  <span className="text-xs text-muted-foreground">
+                    {c.remaining_b10_years.toFixed(1)} år kvar
+                  </span>
+                )}
                 {c.status && (
                   <Badge variant="outline">
                     {STATUS_SV[c.status] ?? c.status}

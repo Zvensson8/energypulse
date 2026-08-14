@@ -53,11 +53,16 @@ export function isLiljebladsConfigured(): boolean {
 }
 
 async function callWebhook(body: Record<string, unknown>): Promise<unknown> {
+  const key = apiKey();
+  const anon =
+    (process.env.LILJEBLADS_ANON_KEY ?? process.env.LILJEBLADS_PUBLISHABLE_KEY ?? "").trim();
   const res = await fetch(webhookUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey()}`,
+      Authorization: `Bearer ${key}`,
+      "x-api-key": key,
+      ...(anon ? { apikey: anon } : {}),
     },
     body: JSON.stringify(body),
     cache: "no-store",

@@ -111,6 +111,7 @@ export interface Database {
           longitude: number | null;
           ownership_type: OwnershipType;
           status: PropertyStatus;
+          liljeblads_property_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -119,6 +120,7 @@ export interface Database {
           portfolio_id: string;
           external_id?: string | null;
           name: string;
+          liljeblads_property_id?: string | null;
           address?: string | null;
           municipality?: string | null;
           climate_zone?: string | null;

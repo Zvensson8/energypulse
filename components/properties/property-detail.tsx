@@ -79,6 +79,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { listPortfolioActions } from "@/app/actions/actions-priority";
 import { listRenovationPlans } from "@/app/actions/renovation-plans";
 import { ExternalDataPanel } from "@/components/properties/external-data-panel";
+import { LiljebladsComponentsPanel } from "@/components/properties/liljeblads-components-panel";
 
 type TabId =
   | "overview"
@@ -577,6 +578,11 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                 );
               })}
             </div>
+
+            <LiljebladsComponentsPanel
+              propertyId={propertyId}
+              propertyNumber={p.external_id}
+            />
 
             {/* Rapporter – förifyllda med denna fastighet */}
             <section className="space-y-3">

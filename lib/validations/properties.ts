@@ -25,6 +25,7 @@ export const propertyInsertSchema = z.object({
   ),
   ownership_type: ownershipTypeSchema.optional().default("owned"),
   status: propertyStatusSchema.optional().default("active"),
+  liljeblads_property_id: uuidSchema.nullable().optional(),
 });
 
 export const propertyUpdateSchema = propertyInsertSchema.partial().extend({

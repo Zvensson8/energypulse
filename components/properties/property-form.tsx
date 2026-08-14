@@ -40,6 +40,7 @@ type FormState = {
   longitude: string;
   ownership_type: "owned" | "leased" | "joint_venture" | "other";
   status: "active" | "disposed" | "under_development" | "inactive";
+  liljeblads_property_id: string;
 };
 
 const empty: FormState = {
@@ -53,6 +54,7 @@ const empty: FormState = {
   longitude: "",
   ownership_type: "owned",
   status: "active",
+  liljeblads_property_id: "",
 };
 
 export function PropertyForm({
@@ -92,6 +94,7 @@ export function PropertyForm({
         longitude: form.longitude ? Number(form.longitude) : null,
         ownership_type: form.ownership_type,
         status: form.status,
+        liljeblads_property_id: form.liljeblads_property_id.trim() || null,
       };
 
       if (mode === "create") {
@@ -227,6 +230,17 @@ export function PropertyForm({
                   value={form.external_id}
                   onChange={(e) => set("external_id", e.target.value)}
                   placeholder="t.ex. STOCKHOLM 1:12"
+                />
+              </Field>
+
+              <Field
+                label="Liljeblads-fastighet (UUID)"
+                hint="Kopplar teknik/komponenter. Enklare att välja på fastighetssidan."
+              >
+                <Input
+                  value={form.liljeblads_property_id}
+                  onChange={(e) => set("liljeblads_property_id", e.target.value)}
+                  placeholder="uuid från Liljeblads"
                 />
               </Field>
 

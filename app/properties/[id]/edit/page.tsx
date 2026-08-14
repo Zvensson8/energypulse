@@ -33,6 +33,7 @@ export default async function EditPropertyPage({
           longitude: data.longitude != null ? String(data.longitude) : "",
           ownership_type: data.ownership_type,
           status: data.status,
+          liljeblads_property_id: data.liljeblads_property_id ?? "",
         }}
       />
     </div>

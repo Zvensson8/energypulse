@@ -251,6 +251,7 @@ export async function createProperty(raw: unknown) {
         longitude: input.longitude ?? null,
         ownership_type: input.ownership_type ?? "owned",
         status: input.status ?? "active",
+        liljeblads_property_id: input.liljeblads_property_id ?? null,
       })
       .select("*")
       .single();

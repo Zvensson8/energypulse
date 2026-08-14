@@ -39,57 +39,23 @@ type NavItem = {
 
 const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
-    title: "Start",
+    title: "Arbete",
     items: [
-      { href: "/", label: "Hem", icon: Home, hint: "Vad vill du göra?" },
-      {
-        href: "/dashboard",
-        label: "Översikt",
-        icon: LayoutDashboard,
-        hint: "Portföljens läge",
-      },
+      { href: "/", label: "Hem", icon: Home },
+      { href: "/properties", label: "Fastigheter", icon: MapPinned },
+      { href: "/import", label: "Importera", icon: Upload },
+      { href: "/reports", label: "Rapporter", icon: FileText },
     ],
   },
   {
-    title: "Hitta data",
+    title: "Fördjupa",
     items: [
-      {
-        href: "/properties",
-        label: "Fastigheter",
-        icon: MapPinned,
-      },
+      { href: "/dashboard", label: "Portfölj", icon: LayoutDashboard },
       { href: "/risk-scores", label: "Riskscore", icon: Activity },
-      { href: "/crrem", label: "Klimatrisk (CRREM)", icon: LineChart },
-    ],
-  },
-  {
-    title: "Mata in & agera",
-    items: [
-      {
-        href: "/import",
-        label: "Importera energi",
-        icon: Upload,
-        hint: "CSV / Excel",
-      },
-      {
-        href: "/actions",
-        label: "Åtgärder",
-        icon: ListTodo,
-        hint: "Simulera & slutför",
-      },
-      { href: "/renovation", label: "Renovationsplaner", icon: Hammer },
+      { href: "/crrem", label: "CRREM", icon: LineChart },
+      { href: "/actions", label: "Åtgärder", icon: ListTodo },
+      { href: "/renovation", label: "Renovering", icon: Hammer },
       { href: "/risks", label: "Riskregister", icon: AlertTriangle },
-      {
-        href: "/reports",
-        label: "Rapporter",
-        icon: FileText,
-        hint: "PDF till ledning & CSRD",
-      },
-    ],
-  },
-  {
-    title: "Mer",
-    items: [
       { href: "/guide", label: "Guide", icon: BookOpen },
       { href: "/data-edit", label: "Korrigera data", icon: Pencil },
       { href: "/admin", label: "Admin", icon: Settings2 },
@@ -100,7 +66,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/": {
     title: "Hem",
-    subtitle: "Betyg → simulera → plan → beslutsunderlag",
+    subtitle: "Hus som kräver beslut",
   },
   "/dashboard": {
     title: "Beslutstavla",
@@ -273,24 +239,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="space-y-2 border-t border-border p-3">
         <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-emerald-500/10 p-3">
           <div className="text-xs font-semibold text-foreground">
-            Snabbstart
+            Ett hus i taget
           </div>
           <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-            1. Importera · 2. Se risk · 3. Simulera åtgärd
+            Öppna en fastighet. Nästa steg står där.
           </p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" className="h-8 flex-1 text-xs" asChild>
-              <Link href="/import">Importera</Link>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 flex-1 text-xs"
-              asChild
-            >
-              <Link href="/actions">Åtgärder</Link>
-            </Button>
-          </div>
         </div>
         <div className="flex items-center gap-2 rounded-xl px-2 py-1.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-muted-foreground">

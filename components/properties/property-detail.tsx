@@ -71,13 +71,10 @@ import { RiskScoresView } from "@/components/risk/risk-scores-view";
 import { PhysicalRisksView } from "@/components/risks/physical-risks-view";
 import { ActionsView } from "@/components/actions/actions-view";
 import { RenovationPlansView } from "@/components/renovation/renovation-plans-view";
-import {
-  PropertyJourney,
-  buildPropertyJourneySteps,
-} from "@/components/properties/property-journey";
+import { PropertyDecisionHero } from "@/components/properties/property-decision-hero";
+import { summarizePropertyDecision } from "@/lib/property-decision";
 import { EmptyState } from "@/components/ui/empty-state";
-import { listPortfolioActions } from "@/app/actions/actions-priority";
-import { listRenovationPlans } from "@/app/actions/renovation-plans";
+
 import { ExternalDataPanel } from "@/components/properties/external-data-panel";
 import { LiljebladsComponentsPanel } from "@/components/properties/liljeblads-components-panel";
 
@@ -96,13 +93,13 @@ const TABS: {
   icon: React.ComponentType<{ className?: string }>;
   group?: "structure" | "work";
 }[] = [
-  { id: "overview", label: "Översikt", icon: LayoutDashboard },
-  { id: "buildings", label: "Byggnader", icon: Building2, group: "structure" },
+  { id: "overview", label: "Läge", icon: LayoutDashboard },
+  { id: "buildings", label: "Hus", icon: Building2, group: "structure" },
   { id: "spaces", label: "Lokaler", icon: DoorOpen, group: "structure" },
-  { id: "risk-scores", label: "Riskscore", icon: Activity, group: "work" },
-  { id: "risks", label: "Risker", icon: AlertTriangle, group: "work" },
   { id: "actions", label: "Åtgärder", icon: ListTodo, group: "work" },
-  { id: "renovation", label: "Renovering", icon: Hammer, group: "work" },
+  { id: "risk-scores", label: "Varför?", icon: Activity, group: "work" },
+  { id: "risks", label: "Risker", icon: AlertTriangle, group: "work" },
+  { id: "renovation", label: "Planer", icon: Hammer, group: "work" },
 ];
 
 const VALID_TABS = new Set<TabId>(TABS.map((t) => t.id));
@@ -162,36 +159,6 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
     enabled: tab === "spaces" || tab === "overview",
   });
 
-  const journeyQ = useQuery({
-    queryKey: ["property-journey-meta", propertyId],
-    queryFn: async () => {
-      // Scoped server filters – no full portfolio scan / N+1
-      const [actionsRes, plansRes] = await Promise.all([
-        listPortfolioActions({
-          propertyId,
-          status: null,
-        }),
-        listRenovationPlans({ propertyId }),
-      ]);
-      const actions = actionsRes.success
-        ? actionsRes.data.rows.filter(
-            (a) =>
-              a.status === "proposed" ||
-              a.status === "approved" ||
-              a.status === "in_progress"
-          )
-        : [];
-      const plans = plansRes.success ? plansRes.data : [];
-      return {
-        openActions: actions.length,
-        planCount: plans.length,
-        draftPlans: plans.filter((p) => p.status === "draft").length,
-      };
-    },
-    enabled: tab === "overview",
-    staleTime: 60_000,
-  });
-
   const deactivate = useMutation({
     mutationFn: async () => {
       const res = await deleteProperty(propertyId);
@@ -245,11 +212,16 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
     portfolios?: { name: string } | null;
   };
 
+  const performance = data.performance as Array<{
+    building_id: string;
+    energy_intensity?: number | null;
+    data_gap_status?: string | null;
+    meps_2030_gap?: number | null;
+    crrem_stranding_year?: number | null;
+    energy_class?: string | null;
+  }>;
   const piByBuilding = new Map(
-    (data.performance as Array<{ building_id: string }>).map((x) => [
-      x.building_id,
-      x,
-    ])
+    performance.map((x) => [x.building_id, x]),
   );
 
   const buildings = data.buildings as Array<{
@@ -274,25 +246,6 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
   }, 0);
 
   const withPerf = buildings.filter((b) => piByBuilding.has(b.id)).length;
-  const incompletePerf = buildings.filter((b) => {
-    const pi = piByBuilding.get(b.id) as
-      | { data_gap_status?: string }
-      | undefined;
-    return pi?.data_gap_status === "INCOMPLETE_DATA";
-  }).length;
-  const highRiskBuildings = buildings.filter((b) => {
-    const pi = piByBuilding.get(b.id) as
-      | {
-          meps_2030_gap?: number | null;
-          crrem_stranding_year?: number | null;
-        }
-      | undefined;
-    if (!pi) return false;
-    if (pi.meps_2030_gap != null && pi.meps_2030_gap > 0) return true;
-    if (pi.crrem_stranding_year != null && pi.crrem_stranding_year < 2035)
-      return true;
-    return false;
-  }).length;
   const risks = data.physical_risks as Array<{
     id: string;
     risk_type: string;
@@ -303,20 +256,11 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
   }>;
   const spaceCount = spacesQ.data?.length ?? null;
 
-  const journeySteps = buildPropertyJourneySteps({
+  const decision = summarizePropertyDecision(
+    buildings.length,
+    performance,
     propertyId,
-    buildingCount: buildings.length,
-    withPerf,
-    incompletePerf,
-    riskCount: risks.length,
-    highRiskBuildings,
-    openActions: journeyQ.data?.openActions ?? 0,
-    planCount: journeyQ.data?.planCount ?? 0,
-    draftPlans: journeyQ.data?.draftPlans ?? 0,
-    onTab: (t) => {
-      if (VALID_TABS.has(t as TabId)) setTab(t as TabId);
-    },
-  });
+  );
 
   return (
     <div className="page-shell">
@@ -438,7 +382,12 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
 
         {tab === "overview" && (
           <>
-            <PropertyJourney steps={journeySteps} />
+            <PropertyDecisionHero
+              decision={decision}
+              onTab={(t) => {
+                if (VALID_TABS.has(t as TabId)) setTab(t as TabId);
+              }}
+            />
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <MetaCard
@@ -523,60 +472,6 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                   </Button>
                 </div>
               </div>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {(
-                [
-                  {
-                    id: "risk-scores" as const,
-                    label: "Riskscore",
-                    desc: "MEPS + CRREM + data",
-                    icon: Activity,
-                  },
-                  {
-                    id: "risks" as const,
-                    label: "Risker",
-                    desc: "Registrera & stäng",
-                    icon: AlertTriangle,
-                  },
-                  {
-                    id: "actions" as const,
-                    label: "Åtgärder",
-                    desc: "Simulera & slutför",
-                    icon: ListTodo,
-                  },
-                  {
-                    id: "renovation" as const,
-                    label: "Renovering",
-                    desc: "A/B/C-planer",
-                    icon: Hammer,
-                  },
-                ] as const
-              ).map((card) => {
-                const Icon = card.icon;
-                return (
-                  <button
-                    key={card.id}
-                    type="button"
-                    onClick={() => setTab(card.id)}
-                    className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left shadow-sm transition hover:border-primary/25 hover:shadow-md"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold">
-                        {card.label}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {card.desc}
-                      </span>
-                    </span>
-                    <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
-                  </button>
-                );
-              })}
             </div>
 
             <LiljebladsComponentsPanel

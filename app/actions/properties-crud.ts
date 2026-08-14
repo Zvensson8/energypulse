@@ -194,15 +194,21 @@ export async function getProperty(id: string) {
         .order("valid_from", { ascending: false });
       areas = a ?? [];
 
-      const year = new Date().getFullYear() - 1;
       const { data: pi } = await supabase
         .from("performance_indicators")
         .select(
           "building_id, year, energy_intensity, data_gap_status, data_completeness_percent, meps_2030_gap, crrem_stranding_year, energy_class"
         )
         .in("building_id", buildingIds)
-        .eq("year", year);
-      latestPi = pi ?? [];
+        .order("year", { ascending: false });
+      const seen = new Set<string>();
+      latestPi = [];
+      for (const row of pi ?? []) {
+        const bid = String(row.building_id);
+        if (seen.has(bid)) continue;
+        seen.add(bid);
+        latestPi.push(row);
+      }
     }
 
     const { data: risks } = await supabase

@@ -2,8 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listProperties } from "@/app/actions/properties-crud";
+import {
+  getLiljebladsBridgeStatus,
+  importLiljebladsProperties,
+} from "@/app/actions/liljeblads-bridge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,13 +21,45 @@ import {
   MapPinned,
   ArrowRight,
   Upload,
+  Loader2,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function PropertiesList() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  const bridgeQ = useQuery({
+    queryKey: ["liljeblads-bridge-status"],
+    queryFn: async () => {
+      const res = await getLiljebladsBridgeStatus();
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+  });
+
+  const importMut = useMutation({
+    mutationFn: async () => {
+      const res = await importLiljebladsProperties();
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      setImportMsg(
+        data.created > 0
+          ? `${data.created} fastigheter hämtade från Liljeblads${data.skipped ? ` (${data.skipped} fanns redan)` : ""}.`
+          : data.skipped > 0
+            ? "Alla Liljeblads-fastigheter finns redan här."
+            : "Inga fastigheter att hämta från Liljeblads.",
+      );
+      void qc.invalidateQueries({ queryKey: ["properties-list"] });
+    },
+    onError: (e: Error) => setImportMsg(e.message),
+  });
 
   const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ["properties-list", q],
@@ -71,6 +107,23 @@ export function PropertiesList() {
                 Importera energi
               </Link>
             </Button>
+            {bridgeQ.data?.configured && (
+              <Button
+                variant="outline"
+                disabled={importMut.isPending}
+                onClick={() => {
+                  setImportMsg(null);
+                  importMut.mutate();
+                }}
+              >
+                {importMut.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Link2 className="h-4 w-4" />
+                )}
+                Hämta från Liljeblads
+              </Button>
+            )}
             <Button asChild>
               <Link href="/properties/new">
                 <Plus className="h-4 w-4" />
@@ -155,18 +208,47 @@ export function PropertiesList() {
           </div>
         )}
 
+        {importMsg && (
+          <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm">
+            {importMsg}
+          </div>
+        )}
+
         {!isLoading && rows.length === 0 && (
           <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
             <MapPinned className="mx-auto h-10 w-10 text-muted-foreground/40" />
             <h3 className="mt-3 text-lg font-semibold">Inga fastigheter</h3>
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-              Skapa din första fastighet för att börja bygga beståndet.
+              EnergyPulse har en egen lista. Hämta från Liljeblads eller skapa
+              en ny här.
             </p>
-            <Button className="mt-5" asChild>
-              <Link href="/properties/new">
-                <Plus className="h-4 w-4" /> Skapa fastighet
-              </Link>
-            </Button>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {bridgeQ.data?.configured ? (
+                <Button
+                  disabled={importMut.isPending}
+                  onClick={() => {
+                    setImportMsg(null);
+                    importMut.mutate();
+                  }}
+                >
+                  {importMut.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link2 className="h-4 w-4" />
+                  )}
+                  Hämta från Liljeblads
+                </Button>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Liljeblads-nycklar saknas i .env.local
+                </p>
+              )}
+              <Button variant="outline" asChild>
+                <Link href="/properties/new">
+                  <Plus className="h-4 w-4" /> Skapa fastighet
+                </Link>
+              </Button>
+            </div>
           </div>
         )}
 

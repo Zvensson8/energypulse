@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, assertRole, WRITE_ROLES } from "@/lib/auth/session";
+import { ensureDefaultPortfolio } from "@/app/actions/properties-crud";
 import {
   isLiljebladsConfigured,
   listLiljebladsComponents,
@@ -95,6 +96,57 @@ export async function fetchLinkedLiljebladsComponents(
         components,
       },
     };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function importLiljebladsProperties(): Promise<
+  ActionResult<{ created: number; skipped: number }>
+> {
+  try {
+    const supabase = await createClient();
+    const user = await requireUser(supabase);
+    assertRole(user, WRITE_ROLES);
+    if (!isLiljebladsConfigured()) {
+      return { success: false, error: "Liljeblads är inte konfigurerat" };
+    }
+
+    const remote = await listLiljebladsProperties();
+    const { data: existing } = await supabase
+      .from("properties")
+      .select("id, liljeblads_property_id");
+    const linked = new Set(
+      (existing ?? [])
+        .map((p) => p.liljeblads_property_id)
+        .filter((id): id is string => Boolean(id)),
+    );
+
+    const portfolioId = await ensureDefaultPortfolio();
+    let created = 0;
+    let skipped = 0;
+
+    for (const row of remote) {
+      if (linked.has(row.id)) {
+        skipped += 1;
+        continue;
+      }
+      const { error } = await supabase.from("properties").insert({
+        portfolio_id: portfolioId,
+        name: row.name || "Namnlös fastighet",
+        address: row.address,
+        external_id: row.property_number,
+        liljeblads_property_id: row.id,
+        status: "active",
+        ownership_type: "owned",
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      created += 1;
+    }
+
+    return { success: true, data: { created, skipped } };
   } catch (e) {
     return fail(e);
   }

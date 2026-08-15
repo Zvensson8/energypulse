@@ -111,7 +111,7 @@ export async function approveAction(
     }
 
     const now = new Date().toISOString();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("actions")
       .update({
         status: "approved",
@@ -122,6 +122,18 @@ export async function approveAction(
       .eq("status", "proposed")
       .select("*")
       .single();
+
+    if (error && /approved_by|approved_at|schema cache/i.test(error.message)) {
+      const retry = await supabase
+        .from("actions")
+        .update({ status: "approved" })
+        .eq("id", actionId)
+        .eq("status", "proposed")
+        .select("*")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error || !data) {
       return {

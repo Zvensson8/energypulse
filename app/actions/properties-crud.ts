@@ -61,6 +61,39 @@ export async function listPortfolios(): Promise<
   }
 }
 
+/** One implicit building per property — energy still hangs on buildings. */
+export async function insertDefaultBuilding(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string,
+  name: string,
+): Promise<{ id: string } | null> {
+  const { data: existing } = await supabase
+    .from("buildings")
+    .select("id")
+    .eq("property_id", propertyId)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("buildings")
+    .insert({
+      property_id: propertyId,
+      name: name.trim() || "Huvudbyggnad",
+    })
+    .select("id")
+    .single();
+  if (error) {
+    logger.warn("building.default_create_failed", {
+      propertyId,
+      error: error.message,
+    });
+    return null;
+  }
+  logger.info("building.default_created", { id: data.id, propertyId });
+  return data;
+}
+
 export async function ensureDefaultPortfolio() {
   const supabase = await createClient();
   const user = await requireUser(supabase);
@@ -201,11 +234,21 @@ export async function getProperty(id: string) {
       return { success: false as const, error: error?.message ?? "Hittades inte" };
     }
 
-    const { data: buildings } = await supabase
+    let { data: buildings } = await supabase
       .from("buildings")
       .select("*")
       .eq("property_id", id)
       .order("name");
+
+    if (!buildings?.length) {
+      await insertDefaultBuilding(supabase, id, property.name);
+      const again = await supabase
+        .from("buildings")
+        .select("*")
+        .eq("property_id", id)
+        .order("name");
+      buildings = again.data;
+    }
 
     const buildingIds = (buildings ?? []).map((b) => b.id);
     let areas: Array<Record<string, unknown>> = [];
@@ -295,6 +338,8 @@ export async function createProperty(raw: unknown) {
         property_id: data.id,
       });
     }
+
+    await insertDefaultBuilding(supabase, data.id, data.name);
 
     logger.info("property.created", { id: data.id, userId: user.id });
     return { success: true as const, data };

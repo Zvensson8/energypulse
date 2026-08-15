@@ -263,6 +263,10 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
   }, 0);
 
   const withPerf = buildings.filter((b) => piByBuilding.has(b.id)).length;
+  const multiBuilding = buildings.length > 1;
+  const onlyBuilding = buildings.length === 1 ? buildings[0] : null;
+  const visibleTabs = TABS.filter((t) => t.id !== "buildings" || multiBuilding);
+  const activeTab = tab === "buildings" && !multiBuilding ? "overview" : tab;
   const risks = data.physical_risks as Array<{
     id: string;
     risk_type: string;
@@ -344,10 +348,15 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                   <Plus className="h-4 w-4" />
                   Ny lokal
                 </Button>
-              ) : (
+              ) : multiBuilding || tab === "buildings" ? (
                 <Button onClick={() => setAddOpen(true)}>
                   <Plus className="h-4 w-4" />
                   Lägg till byggnad
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setAddOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  Flera hus på tomten?
                 </Button>
               )}
             </div>
@@ -357,9 +366,9 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
         {/* Tabs – scrollable on small screens */}
         <div className="overflow-x-auto rounded-2xl border border-border bg-card p-1.5 shadow-sm">
           <div className="flex min-w-max gap-1">
-            {TABS.map((t) => {
+            {visibleTabs.map((t) => {
               const Icon = t.icon;
-              const active = tab === t.id;
+              const active = activeTab === t.id;
               const count =
                 t.id === "buildings"
                   ? buildings.length
@@ -398,7 +407,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
           </div>
         </div>
 
-        {tab === "overview" && (
+        {activeTab === "overview" && (
           <>
             <PropertyDecisionHero
               decision={decision}
@@ -417,17 +426,40 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
                 label="Ägande"
                 value={OWNERSHIP_SV[p.ownership_type] ?? p.ownership_type}
               />
-              <button
-                type="button"
-                onClick={() => setTab("buildings")}
-                className="rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/25 hover:shadow-md"
-              >
-                <div className="text-sm text-muted-foreground">Byggnader</div>
-                <div className="mt-1 text-2xl font-semibold tabular">
-                  {buildings.length}
-                </div>
-                <div className="mt-0.5 text-xs text-primary">Visa →</div>
-              </button>
+              {multiBuilding ? (
+                <button
+                  type="button"
+                  onClick={() => setTab("buildings")}
+                  className="rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/25 hover:shadow-md"
+                >
+                  <div className="text-sm text-muted-foreground">Hus</div>
+                  <div className="mt-1 text-2xl font-semibold tabular">
+                    {buildings.length}
+                  </div>
+                  <div className="mt-0.5 text-xs text-primary">Visa →</div>
+                </button>
+              ) : onlyBuilding ? (
+                <Link
+                  href={`/buildings/${onlyBuilding.id}`}
+                  className="rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/25 hover:shadow-md"
+                >
+                  <div className="text-sm text-muted-foreground">Energi & betyg</div>
+                  <div className="mt-1 truncate text-lg font-semibold">
+                    {onlyBuilding.name}
+                  </div>
+                  <div className="mt-0.5 text-xs text-primary">Öppna hus →</div>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddOpen(true)}
+                  className="rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/25 hover:shadow-md"
+                >
+                  <div className="text-sm text-muted-foreground">Hus</div>
+                  <div className="mt-1 text-2xl font-semibold tabular">0</div>
+                  <div className="mt-0.5 text-xs text-primary">Skapa →</div>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setTab("spaces")}
@@ -489,8 +521,8 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
               </Link>
             </section>
 
-            {/* Preview buildings */}
-            {buildings.length > 0 && (
+            {/* Preview buildings only when there is more than one house */}
+            {multiBuilding && (
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-lg font-semibold">Byggnader</h2>
@@ -554,7 +586,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
           </>
         )}
 
-        {tab === "buildings" && (
+        {activeTab === "buildings" && (
           <BuildingsPanel
             buildings={buildings}
             areas={areas}
@@ -563,18 +595,18 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
           />
         )}
 
-        {tab === "spaces" && (
+        {activeTab === "spaces" && (
           <SpacesPanel
             buildings={buildings}
             spaces={spacesQ.data}
             isLoading={spacesQ.isLoading}
             error={spacesQ.error as Error | null}
             onAdd={() => setAddSpaceOpen(true)}
-            onOpenBuildings={() => setTab("buildings")}
+            onOpenBuildings={() => setTab("overview")}
           />
         )}
 
-        {tab === "plan" && (
+        {activeTab === "plan" && (
           <PlannedActionsView
             lockedPropertyId={propertyId}
             embedded
@@ -582,7 +614,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
           />
         )}
 
-        {tab === "risk" && (
+        {activeTab === "risk" && (
           <RiskHubView
             lockedPropertyId={propertyId}
             embedded
@@ -837,7 +869,7 @@ function SpacesPanel({
             <HelpTip text="Hyresgästnamn visas maskerade av GDPR-skäl. Visa original kräver motivering och loggas." />
           </div>
           <p className="text-sm text-muted-foreground">
-            Lokaler i den här fastighetens byggnader.
+            Lokaler på den här fastigheten.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -859,12 +891,13 @@ function SpacesPanel({
       {buildings.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border bg-card p-12 text-center">
           <Building2 className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <h3 className="mt-3 text-lg font-semibold">Lägg till byggnad först</h3>
+          <h3 className="mt-3 text-lg font-semibold">Öppna fastigheten igen</h3>
           <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Lokaler kopplas till en byggnad under fastigheten.
+            Ett hus skapas automatiskt. Ladda om sidan om det saknas, sedan kan
+            du lägga till lokaler.
           </p>
           <Button className="mt-5" onClick={onOpenBuildings}>
-            Till byggnader
+            Till översikt
           </Button>
         </div>
       ) : (
@@ -1264,9 +1297,10 @@ function AddBuildingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Lägg till byggnad</DialogTitle>
+          <DialogTitle>Lägg till hus</DialogTitle>
           <DialogDescription>
-            Skapar byggnad och valfri Atemp under den här fastigheten.
+            Ett hus skapas redan med fastigheten. Använd det här bara när
+            tomten har fler hus som ska ha egen energi och eget betyg.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -1277,7 +1311,7 @@ function AddBuildingDialog({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="t.ex. Hus A"
+              placeholder="t.ex. Gårdsflygel"
               required
             />
           </div>
@@ -1410,19 +1444,21 @@ function AddSpaceDialog({
         <DialogHeader>
           <DialogTitle>Ny lokal</DialogTitle>
           <DialogDescription>
-            Kopplas till en byggnad under den här fastigheten. Hyresgäst
-            krypteras automatiskt.
+            {buildings.length > 1
+              ? "Välj vilket hus lokalen tillhör. Hyresgäst krypteras automatiskt."
+              : "Hyresgäst krypteras automatiskt."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => void submit(e)} className="space-y-3">
+          {buildings.length > 1 && (
           <div className="space-y-1.5">
-            <label className="text-sm text-muted-foreground">Byggnad *</label>
+            <label className="text-sm text-muted-foreground">Hus *</label>
             <Select
               value={effectiveBuilding}
               onValueChange={setBuildingId}
             >
               <SelectTrigger className="h-9">
-                <SelectValue placeholder="Välj byggnad" />
+                <SelectValue placeholder="Välj hus" />
               </SelectTrigger>
               <SelectContent>
                 {buildings.map((b) => (
@@ -1433,6 +1469,7 @@ function AddSpaceDialog({
               </SelectContent>
             </Select>
           </div>
+          )}
           <div className="space-y-1.5">
             <label className="text-sm text-muted-foreground">Lokalnamn</label>
             <Input

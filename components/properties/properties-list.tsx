@@ -154,13 +154,13 @@ export function PropertiesList() {
           />
           <Step
             n="2"
-            title="Lägg till byggnader"
-            body="Öppna detaljsidan och registrera byggnader under fastigheten."
+            title="Koppla och importera"
+            body="Koppla Liljeblads och ladda upp månadsförbrukning. Ett hus skapas automatiskt."
           />
           <Step
             n="3"
-            title="Importera data"
-            body="Ladda upp månadsförbrukning – prestanda räknas om automatiskt."
+            title="Flera hus vid behov"
+            body="Bara om tomten har mer än ett hus – lägg till extra byggnader då."
           />
         </div>
 

@@ -66,8 +66,12 @@ export function summarizePropertyDecision(
     return {
       status: "missing_data",
       statusLabel: STATUS_LABEL.missing_data,
-      why: "Inga byggnader registrerade ännu.",
-      next: { label: "Lägg till byggnad", tab: "buildings", verb: "import" },
+      why: "Ingen energiberäkning. Importera månadsförbrukning.",
+      next: {
+        label: "Importera",
+        href: `/import?property=${propertyId}`,
+        verb: "import",
+      },
       energyIntensity: null,
       meets2030: null,
       climateYear: null,

@@ -2,7 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, assertRole, WRITE_ROLES } from "@/lib/auth/session";
-import { ensureDefaultPortfolio } from "@/app/actions/properties-crud";
+import {
+  ensureDefaultPortfolio,
+  insertDefaultBuilding,
+} from "@/app/actions/properties-crud";
 import {
   createLiljebladsWorkOrder,
   isLiljebladsConfigured,
@@ -157,17 +160,24 @@ export async function importLiljebladsProperties(): Promise<
         skipped += 1;
         continue;
       }
-      const { error } = await supabase.from("properties").insert({
-        portfolio_id: portfolioId,
-        name: row.name || "Namnlös fastighet",
-        address: row.address,
-        external_id: row.property_number,
-        liljeblads_property_id: row.id,
-        status: "active",
-        ownership_type: "owned",
-      });
+      const { data: createdProp, error } = await supabase
+        .from("properties")
+        .insert({
+          portfolio_id: portfolioId,
+          name: row.name || "Namnlös fastighet",
+          address: row.address,
+          external_id: row.property_number,
+          liljeblads_property_id: row.id,
+          status: "active",
+          ownership_type: "owned",
+        })
+        .select("id, name")
+        .single();
       if (error) {
         return { success: false, error: error.message };
+      }
+      if (createdProp) {
+        await insertDefaultBuilding(supabase, createdProp.id, createdProp.name);
       }
       created += 1;
     }

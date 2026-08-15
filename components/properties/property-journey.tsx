@@ -214,14 +214,16 @@ export function buildPropertyJourneySteps(input: {
   return [
     {
       id: "buildings",
-      title: "Byggnader",
+      title: buildingCount > 1 ? "Flera hus" : "Fastighet",
       body:
         buildingCount === 0
-          ? "Lägg till minst ett hus med Atemp."
-          : `${buildingCount} hus · ${withPerf} med beräknad prestanda.`,
+          ? "Ett hus skapas automatiskt med fastigheten."
+          : buildingCount === 1
+            ? `${withPerf > 0 ? "Prestanda beräknad." : "Ett hus – importera energi vid behov."}`
+            : `${buildingCount} hus · ${withPerf} med beräknad prestanda.`,
       status: buildingsStatus,
-      onClick: () => onTab("buildings"),
-      cta: buildingCount === 0 ? "Lägg till byggnad" : "Visa byggnader",
+      onClick: () => onTab(buildingCount > 1 ? "buildings" : "overview"),
+      cta: buildingCount > 1 ? "Visa hus" : "Visa fastighet",
     },
     {
       id: "data",

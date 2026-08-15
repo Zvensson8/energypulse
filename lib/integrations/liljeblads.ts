@@ -39,6 +39,12 @@ export type LiljebladsWorkOrder = {
   id: string;
 };
 
+export type LiljebladsPlanItem = {
+  id: string;
+  plan_id: string;
+  created: boolean;
+};
+
 type WebhookOk = {
   success: true;
   results?: unknown[];
@@ -178,4 +184,39 @@ export async function createLiljebladsWorkOrder(input: {
   const id = json.result?.id;
   if (!id) throw new Error("Liljeblads svarade utan arbetsorder-id");
   return { id: String(id) };
+}
+
+export async function upsertLiljebladsPlanItem(input: {
+  propertyId: string;
+  actionText: string;
+  externalId: string;
+  year: number;
+  quarter: number;
+  actionType: string;
+  estimatedCost?: number | null;
+  notes?: string | null;
+  componentId?: string | null;
+}): Promise<LiljebladsPlanItem> {
+  const json = (await callWebhook({
+    type: "upsert_plan_item",
+    property_id: input.propertyId,
+    action_text: input.actionText,
+    external_id: input.externalId,
+    year: input.year,
+    quarter: input.quarter,
+    action_type: input.actionType,
+    estimated_cost: input.estimatedCost ?? undefined,
+    notes: input.notes ?? undefined,
+    component_id: input.componentId ?? undefined,
+    source: "energypulse",
+  })) as {
+    created?: boolean;
+    result?: { id?: string; plan_id?: string };
+  };
+  const id = json.result?.id;
+  const planId = json.result?.plan_id;
+  if (!id || !planId) {
+    throw new Error("Liljeblads svarade utan planrad-id");
+  }
+  return { id: String(id), plan_id: String(planId), created: Boolean(json.created) };
 }

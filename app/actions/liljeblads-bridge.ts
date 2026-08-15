@@ -9,6 +9,7 @@ import {
   listLiljebladsComponentRisks,
   listLiljebladsComponents,
   listLiljebladsProperties,
+  upsertLiljebladsPlanItem,
   type LiljebladsComponent,
   type LiljebladsProperty,
 } from "@/lib/integrations/liljeblads";
@@ -280,6 +281,195 @@ export async function createWorkOrderFromAction(raw: {
     });
 
     return { success: true, data: { work_order_id: wo.id } };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const CATEGORY_TO_ACTION_TYPE: Record<string, string> = {
+  envelope: "overhaul",
+  hvac: "replace",
+  lighting: "replace",
+  controls: "service",
+  renewable: "replace",
+  behaviour: "inspect",
+  other: "service",
+};
+
+function planYearQuarter(plannedYear: number | null): {
+  year: number;
+  quarter: number;
+} {
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const year =
+    plannedYear != null && plannedYear >= 2000 ? plannedYear : thisYear;
+  if (year > thisYear) return { year, quarter: 1 };
+  const next = Math.floor(now.getMonth() / 3) + 2;
+  if (next > 4) return { year: thisYear + 1, quarter: 1 };
+  return { year, quarter: next };
+}
+
+export async function sendActionToMaintenancePlan(raw: {
+  actionId: string;
+  componentId?: string | null;
+}): Promise<
+  ActionResult<{ plan_item_id: string; created: boolean; skipped?: string }>
+> {
+  try {
+    const input = z
+      .object({
+        actionId: uuidSchema,
+        componentId: uuidSchema.nullable().optional(),
+      })
+      .parse(raw);
+
+    const supabase = await createClient();
+    const user = await requireUser(supabase);
+    assertRole(user, WRITE_ROLES);
+
+    if (!isLiljebladsConfigured()) {
+      return { success: false, error: "Liljeblads är inte konfigurerat" };
+    }
+
+    const { data: action, error: actionErr } = await supabase
+      .from("actions")
+      .select(
+        `
+        id, title, category, status, description,
+        investment_cost, estimated_saving_kwh, planned_year,
+        buildings!inner (
+          id, property_id,
+          properties!inner ( id, name, liljeblads_property_id )
+        )
+      `,
+      )
+      .eq("id", input.actionId)
+      .maybeSingle();
+    if (actionErr || !action) {
+      return {
+        success: false,
+        error: actionErr?.message ?? "Åtgärden hittades inte",
+      };
+    }
+
+    if (action.status === "proposed") {
+      return {
+        success: true,
+        data: {
+          plan_item_id: "",
+          created: false,
+          skipped: "Föreslagen åtgärd stannar i EnergyPulse. Godkänn först.",
+        },
+      };
+    }
+    if (action.status === "completed" || action.status === "cancelled") {
+      return {
+        success: true,
+        data: {
+          plan_item_id: "",
+          created: false,
+          skipped: `Status ${action.status} skickas inte.`,
+        },
+      };
+    }
+
+    const buildings = action.buildings as
+      | {
+          properties:
+            | { name: string; liljeblads_property_id: string | null }
+            | { name: string; liljeblads_property_id: string | null }[]
+            | null;
+        }
+      | {
+          properties:
+            | { name: string; liljeblads_property_id: string | null }
+            | { name: string; liljeblads_property_id: string | null }[]
+            | null;
+        }[]
+      | null;
+    const building = Array.isArray(buildings) ? buildings[0] : buildings;
+    const props = building?.properties;
+    const property = Array.isArray(props) ? props[0] : props;
+    const link = property?.liljeblads_property_id ?? null;
+    if (!link) {
+      return {
+        success: false,
+        error: "Koppla fastigheten till Liljeblads först.",
+      };
+    }
+
+    const { year, quarter } = planYearQuarter(
+      action.planned_year != null ? Number(action.planned_year) : null,
+    );
+    const saving =
+      action.estimated_saving_kwh != null
+        ? `Spar ${Number(action.estimated_saving_kwh).toFixed(0)} kWh/år.`
+        : "";
+    const notes = [action.description, saving, "EnergyPulse"]
+      .filter((s) => Boolean(s && String(s).trim()))
+      .join(" ");
+
+    const item = await upsertLiljebladsPlanItem({
+      propertyId: link,
+      actionText: String(action.title ?? "Åtgärd"),
+      externalId: action.id,
+      year,
+      quarter,
+      actionType: CATEGORY_TO_ACTION_TYPE[String(action.category)] ?? "service",
+      estimatedCost:
+        action.investment_cost != null
+          ? Number(action.investment_cost)
+          : null,
+      notes,
+      componentId: input.componentId ?? null,
+    });
+
+    const { error: updErr } = await supabase
+      .from("actions")
+      .update({
+        liljeblads_plan_item_id: item.id,
+        sent_to_plan_at: new Date().toISOString(),
+      })
+      .eq("id", action.id);
+    if (updErr) {
+      return { success: false, error: updErr.message };
+    }
+
+    return {
+      success: true,
+      data: { plan_item_id: item.id, created: item.created },
+    };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function sendActionsToMaintenancePlan(raw: {
+  actionIds: string[];
+}): Promise<
+  ActionResult<{ sent: number; skipped: number; errors: string[] }>
+> {
+  try {
+    const input = z
+      .object({
+        actionIds: z.array(uuidSchema).min(1).max(50),
+      })
+      .parse(raw);
+
+    let sent = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    for (const actionId of input.actionIds) {
+      const res = await sendActionToMaintenancePlan({ actionId });
+      if (!res.success) {
+        errors.push(res.error);
+        continue;
+      }
+      if (res.data.skipped) skipped += 1;
+      else sent += 1;
+    }
+    return { success: true, data: { sent, skipped, errors } };
   } catch (e) {
     return fail(e);
   }

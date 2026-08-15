@@ -22,6 +22,8 @@ export const actionRowSchema = z.object({
   priority_score: z.number().finite().nullable(),
   planned_year: z.number().int().nullable(),
   completed_date: z.string().nullable(),
+  liljeblads_plan_item_id: uuidSchema.nullable().optional(),
+  sent_to_plan_at: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });

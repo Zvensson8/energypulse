@@ -9,7 +9,10 @@ import {
   type PortfolioActionRow,
 } from "@/app/actions/actions-priority";
 import { createAction } from "@/app/actions/actions-crud";
-import { createWorkOrderFromAction } from "@/app/actions/liljeblads-bridge";
+import {
+  createWorkOrderFromAction,
+  sendActionToMaintenancePlan,
+} from "@/app/actions/liljeblads-bridge";
 import {
   completeAction,
   revertActionApplication,
@@ -56,6 +59,7 @@ import {
   Building2,
   Play,
   Wrench,
+  CalendarRange,
 } from "lucide-react";
 import { PropertyFilter } from "@/components/filters/property-filter";
 
@@ -184,6 +188,23 @@ export function ActionsView({
     },
     onSuccess: (d) => {
       setMsg(`Arbetsorder skapad i Liljeblads (${d.work_order_id.slice(0, 8)}…).`);
+    },
+  });
+
+  const planMut = useMutation({
+    mutationFn: async (actionId: string) => {
+      const res = await sendActionToMaintenancePlan({ actionId });
+      if (!res.success) throw new Error(res.error);
+      if (res.data.skipped) throw new Error(res.data.skipped);
+      return res.data;
+    },
+    onSuccess: (d) => {
+      setMsg(
+        d.created
+          ? "Tillagd i underhållsplanen i Liljeblads."
+          : "Uppdaterad i underhållsplanen i Liljeblads.",
+      );
+      invalidate();
     },
   });
 
@@ -390,6 +411,7 @@ export function ActionsView({
           completeMut.isError ||
           revertMut.isError ||
           woMut.isError ||
+          planMut.isError ||
           error) && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {(
@@ -398,6 +420,7 @@ export function ActionsView({
                 completeMut.error ||
                 revertMut.error ||
                 woMut.error ||
+                planMut.error ||
                 error) as Error
             )?.message}
           </div>
@@ -442,6 +465,8 @@ export function ActionsView({
               }
               onWorkOrder={() => void woMut.mutateAsync(r.id)}
               workOrderPending={woMut.isPending && woMut.variables === r.id}
+              onSendPlan={() => void planMut.mutateAsync(r.id)}
+              planPending={planMut.isPending && planMut.variables === r.id}
               reverting={revertMut.isPending}
             />
           ))}
@@ -676,6 +701,8 @@ function ActionCard({
   onPlan,
   onWorkOrder,
   workOrderPending,
+  onSendPlan,
+  planPending,
   reverting,
 }: {
   row: PortfolioActionRow;
@@ -684,10 +711,15 @@ function ActionCard({
   onPlan: () => void;
   onWorkOrder: () => void;
   workOrderPending?: boolean;
+  onSendPlan: () => void;
+  planPending?: boolean;
   reverting?: boolean;
 }) {
   const canSimulate =
     r.status !== "completed" && r.status !== "cancelled";
+  const canSendPlan =
+    r.status === "approved" || r.status === "in_progress";
+  const inPlan = Boolean(r.sent_to_plan_at);
 
   return (
     <article className="group rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5">
@@ -725,6 +757,7 @@ function ActionCard({
             {r.source === "mitigation_plan" && (
               <Badge variant="secondary">Från plan</Badge>
             )}
+            {inPlan && <Badge variant="secondary">I underhållsplan</Badge>}
           </div>
 
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -806,6 +839,25 @@ function ActionCard({
                 <Wrench className="h-4 w-4" />
               )}
               Arbetsorder
+            </Button>
+          )}
+          {canSendPlan && (
+            <Button
+              variant="outline"
+              disabled={planPending}
+              onClick={onSendPlan}
+              title={
+                inPlan
+                  ? "Uppdaterar titel, år och kostnad i Liljeblads"
+                  : "Lägger åtgärden på fastighetens underhållsplan"
+              }
+            >
+              {planPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CalendarRange className="h-4 w-4" />
+              )}
+              {inPlan ? "Uppdatera plan" : "Till underhållsplan"}
             </Button>
           )}
           {onRevert && (

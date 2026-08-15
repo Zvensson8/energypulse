@@ -470,6 +470,8 @@ export interface Database {
           estimated_misalignment_year_shift: number | null;
           estimated_ped_reduction: number | null;
           affects_physical_risk: boolean;
+          liljeblads_plan_item_id: string | null;
+          sent_to_plan_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -493,6 +495,8 @@ export interface Database {
           estimated_misalignment_year_shift?: number | null;
           estimated_ped_reduction?: number | null;
           affects_physical_risk?: boolean;
+          liljeblads_plan_item_id?: string | null;
+          sent_to_plan_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

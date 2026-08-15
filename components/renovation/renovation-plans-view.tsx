@@ -11,6 +11,7 @@ import {
   type RenovationPlan,
   type RenovationScenario,
 } from "@/app/actions/renovation-plans";
+import { sendActionsToMaintenancePlan } from "@/app/actions/liljeblads-bridge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -42,6 +43,7 @@ import {
   GitCompare,
   Check,
   X,
+  CalendarRange,
 } from "lucide-react";
 import { PropertyFilter } from "@/components/filters/property-filter";
 
@@ -123,6 +125,19 @@ export function RenovationPlansView({
       void qc.invalidateQueries({ queryKey: ["renovation-plans"] });
       void qc.invalidateQueries({ queryKey: ["portfolio-actions"] });
       setDetail(null);
+    },
+  });
+
+  const sendPlanMut = useMutation({
+    mutationFn: async (actionIds: string[]) => {
+      const res = await sendActionsToMaintenancePlan({ actionIds });
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: (d) => {
+      const err = d.errors.length ? ` Fel: ${d.errors[0]}` : "";
+      setMsg(`Till underhållsplan: ${d.sent} skickade, ${d.skipped} hoppade.${err}`);
+      void qc.invalidateQueries({ queryKey: ["portfolio-actions"] });
     },
   });
 
@@ -234,9 +249,11 @@ export function RenovationPlansView({
             {msg}
           </div>
         )}
-        {error && (
+        {(error || sendPlanMut.isError || setStatusMut.isError) && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {(error as Error).message}
+            {(
+              (error || sendPlanMut.error || setStatusMut.error) as Error
+            )?.message}
           </div>
         )}
 
@@ -461,8 +478,27 @@ export function RenovationPlansView({
                     </Button>
                   ))}
                 </div>
+                <Button
+                  className="mt-3"
+                  variant="outline"
+                  disabled={
+                    sendPlanMut.isPending || detail.actions.length === 0
+                  }
+                  onClick={() =>
+                    void sendPlanMut.mutateAsync(
+                      detail.actions.map((a) => a.action_id),
+                    )
+                  }
+                >
+                  {sendPlanMut.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CalendarRange className="h-4 w-4" />
+                  )}
+                  Till underhållsplan
+                </Button>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  «Klar» slutför länkade åtgärder och räknar om prestanda.
+                  Skickar godkända/pågående åtgärder. Föreslagna och klara hoppas över.
                 </p>
               </div>
             </div>

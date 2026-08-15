@@ -52,6 +52,8 @@ export type PortfolioActionRow = {
   applied_baseline_stranding: number | null;
   applied_result_stranding: number | null;
   application_id: string | null;
+  liljeblads_plan_item_id: string | null;
+  sent_to_plan_at: string | null;
 };
 
 function toError(e: unknown): ActionResult<never> {
@@ -114,6 +116,7 @@ export async function listPortfolioActions(opts?: {
         estimated_saving_kwh, estimated_saving_co2,
         investment_cost, currency, payback_years,
         priority_score, planned_year,
+        liljeblads_plan_item_id, sent_to_plan_at,
         buildings!inner (
           id, name, property_id,
           properties!inner ( id, name )
@@ -292,6 +295,9 @@ export async function listPortfolioActions(opts?: {
         applied_baseline_stranding: app?.baseline_stranding_year ?? null,
         applied_result_stranding: app?.result_stranding_year ?? null,
         application_id: app?.id ?? null,
+        liljeblads_plan_item_id:
+          (a.liljeblads_plan_item_id as string | null) ?? null,
+        sent_to_plan_at: (a.sent_to_plan_at as string | null) ?? null,
       };
     });
 

@@ -144,11 +144,11 @@ export async function importLiljebladsProperties(): Promise<
     const remote = await listLiljebladsProperties();
     const { data: existing } = await supabase
       .from("properties")
-      .select("id, liljeblads_property_id");
-    const linked = new Set(
+      .select("id, name, liljeblads_property_id");
+    const byRemoteId = new Map(
       (existing ?? [])
-        .map((p) => p.liljeblads_property_id)
-        .filter((id): id is string => Boolean(id)),
+        .filter((p) => p.liljeblads_property_id)
+        .map((p) => [p.liljeblads_property_id as string, p]),
     );
 
     const portfolioId = await ensureDefaultPortfolio();
@@ -156,7 +156,9 @@ export async function importLiljebladsProperties(): Promise<
     let skipped = 0;
 
     for (const row of remote) {
-      if (linked.has(row.id)) {
+      const already = byRemoteId.get(row.id);
+      if (already) {
+        await insertDefaultBuilding(supabase, already.id, already.name);
         skipped += 1;
         continue;
       }

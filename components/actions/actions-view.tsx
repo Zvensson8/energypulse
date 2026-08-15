@@ -11,8 +11,10 @@ import {
 import { createAction } from "@/app/actions/actions-crud";
 import {
   createWorkOrderFromAction,
+  fetchLinkedLiljebladsComponents,
   sendActionToMaintenancePlan,
 } from "@/app/actions/liljeblads-bridge";
+import { liljebladsWorkOrderHref } from "@/lib/liljeblads-app";
 import {
   completeAction,
   revertActionApplication,
@@ -60,6 +62,7 @@ import {
   Play,
   Wrench,
   CalendarRange,
+  ExternalLink,
 } from "lucide-react";
 import { PropertyFilter } from "@/components/filters/property-filter";
 
@@ -100,6 +103,7 @@ export function ActionsView({
     id: string;
     name: string;
   } | null>(null);
+  const [woTarget, setWoTarget] = useState<PortfolioActionRow | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const { data, isLoading, error, isFetching } = useQuery({
@@ -165,7 +169,7 @@ export function ActionsView({
       const res = await completeAction({
         action_id: actionId,
         year,
-        reason: "Bekräftad efter simulering",
+        reason: "Markerad genomförd i EnergyPulse",
       });
       if (!res.success) throw new Error(res.error);
       return res.data;
@@ -181,13 +185,22 @@ export function ActionsView({
   });
 
   const woMut = useMutation({
-    mutationFn: async (actionId: string) => {
-      const res = await createWorkOrderFromAction({ actionId });
+    mutationFn: async (input: {
+      actionId: string;
+      componentId?: string | null;
+    }) => {
+      const res = await createWorkOrderFromAction(input);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
     onSuccess: (d) => {
-      setMsg(`Arbetsorder skapad i Liljeblads (${d.work_order_id.slice(0, 8)}…).`);
+      setWoTarget(null);
+      setMsg(
+        d.already_existed
+          ? "Arbetsorder fanns redan."
+          : "Arbetsorder skapad i Liljeblads.",
+      );
+      invalidate();
     },
   });
 
@@ -463,10 +476,16 @@ export function ActionsView({
               onPlan={() =>
                 setPlanBuilding({ id: r.building_id, name: r.building_name })
               }
-              onWorkOrder={() => void woMut.mutateAsync(r.id)}
-              workOrderPending={woMut.isPending && woMut.variables === r.id}
+              onWorkOrder={() => setWoTarget(r)}
+              workOrderPending={
+                woMut.isPending && woMut.variables?.actionId === r.id
+              }
               onSendPlan={() => void planMut.mutateAsync(r.id)}
               planPending={planMut.isPending && planMut.variables === r.id}
+              onComplete={() => void completeMut.mutateAsync(r.id)}
+              completePending={
+                completeMut.isPending && completeMut.variables === r.id
+              }
               reverting={revertMut.isPending}
             />
           ))}
@@ -624,6 +643,20 @@ export function ActionsView({
         }}
       />
 
+      <WorkOrderPickDialog
+        row={woTarget}
+        pending={woMut.isPending}
+        error={woMut.isError ? (woMut.error as Error).message : null}
+        onClose={() => setWoTarget(null)}
+        onConfirm={(componentId) =>
+          woTarget &&
+          void woMut.mutateAsync({
+            actionId: woTarget.id,
+            componentId,
+          })
+        }
+      />
+
       <PlanDialog
         building={planBuilding}
         year={year}
@@ -703,6 +736,8 @@ function ActionCard({
   workOrderPending,
   onSendPlan,
   planPending,
+  onComplete,
+  completePending,
   reverting,
 }: {
   row: PortfolioActionRow;
@@ -713,13 +748,18 @@ function ActionCard({
   workOrderPending?: boolean;
   onSendPlan: () => void;
   planPending?: boolean;
+  onComplete: () => void;
+  completePending?: boolean;
   reverting?: boolean;
 }) {
   const canSimulate =
     r.status !== "completed" && r.status !== "cancelled";
   const canSendPlan =
     r.status === "approved" || r.status === "in_progress";
+  const canComplete =
+    r.status === "approved" || r.status === "in_progress";
   const inPlan = Boolean(r.sent_to_plan_at);
+  const woId = r.liljeblads_work_order_id;
 
   return (
     <article className="group rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:p-5">
@@ -758,6 +798,8 @@ function ActionCard({
               <Badge variant="secondary">Från plan</Badge>
             )}
             {inPlan && <Badge variant="secondary">I underhållsplan</Badge>}
+            {woId && <Badge variant="secondary">Arbetsorder</Badge>}
+            {r.tech_risk && <Badge variant="warning">Teknikrisk</Badge>}
           </div>
 
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -826,7 +868,7 @@ function ActionCard({
             <ClipboardList className="h-4 w-4" />
             Paket
           </Button>
-          {canSimulate && (
+          {canSimulate && !woId && (
             <Button
               variant="outline"
               disabled={workOrderPending}
@@ -838,7 +880,34 @@ function ActionCard({
               ) : (
                 <Wrench className="h-4 w-4" />
               )}
-              Arbetsorder
+              Skapa arbetsorder
+            </Button>
+          )}
+          {woId && (
+            <Button variant="outline" asChild>
+              <a
+                href={liljebladsWorkOrderHref(woId)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Öppna i Liljeblads
+              </a>
+            </Button>
+          )}
+          {canComplete && (
+            <Button
+              variant="outline"
+              disabled={completePending}
+              onClick={onComplete}
+              title="Sätter Klar och tillämpar modeled spar (MEPS/CRREM)"
+            >
+              {completePending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              Markera genomförd + räkna om
             </Button>
           )}
           {canSendPlan && (
@@ -874,6 +943,108 @@ function ActionCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function WorkOrderPickDialog({
+  row,
+  pending,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  row: PortfolioActionRow | null;
+  pending: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: (componentId: string | null) => void;
+}) {
+  const [componentId, setComponentId] = useState<string>("");
+
+  const compsQ = useQuery({
+    queryKey: ["liljeblads-components", row?.property_id],
+    queryFn: async () => {
+      if (!row?.property_id) return { linked: false, components: [] };
+      const res = await fetchLinkedLiljebladsComponents(row.property_id);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    enabled: Boolean(row?.property_id),
+  });
+
+  return (
+    <Dialog
+      open={Boolean(row)}
+      onOpenChange={(o) => {
+        if (!o) {
+          setComponentId("");
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Skapa arbetsorder</DialogTitle>
+          <DialogDescription>
+            {row?.title} · {row?.property_name}. Komponent är valfri.
+          </DialogDescription>
+        </DialogHeader>
+        {row?.investment_cost != null && (
+          <p className="text-sm text-muted-foreground">
+            Kostnad {formatNumber(row.investment_cost / 1000, 0)} tkr
+          </p>
+        )}
+        {compsQ.isLoading && (
+          <p className="text-sm text-muted-foreground">Hämtar komponenter…</p>
+        )}
+        {compsQ.data?.linked === false && (
+          <p className="text-sm text-amber-800">
+            Fastigheten är inte kopplad till Liljeblads.
+          </p>
+        )}
+        {compsQ.data?.linked && (
+          <div className="space-y-1.5">
+            <div className="text-sm font-medium">Komponent</div>
+            <Select
+              value={componentId || "none"}
+              onValueChange={(v) => setComponentId(v === "none" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Ingen komponent" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Ingen komponent</SelectItem>
+                {(compsQ.data.components ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {c.risk_level === "high" || c.risk_level === "critical"
+                      ? " · högrisk"
+                      : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {error && <p className="text-sm text-red-700">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Avbryt
+          </Button>
+          <Button
+            disabled={pending || !compsQ.data?.linked}
+            onClick={() => onConfirm(componentId || null)}
+          >
+            {pending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wrench className="h-4 w-4" />
+            )}
+            Skapa
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

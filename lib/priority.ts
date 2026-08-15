@@ -17,6 +17,11 @@ export const DEFAULT_PRIORITY_WEIGHTS: PriorityWeights = {
   payback: 0.25,
 };
 
+/** Applied only when the action has matching high/critical component risk. */
+export const TECH_RISK_WEIGHT = 0.15;
+
+export const TECH_CATEGORIES = new Set(["hvac", "lighting", "renewable"]);
+
 /** Normalisera vikter så de summerar till 1. */
 export function normalizeWeights(w: PriorityWeights): PriorityWeights {
   const sum = w.meps + w.crrem + w.payback;
@@ -26,6 +31,18 @@ export function normalizeWeights(w: PriorityWeights): PriorityWeights {
     crrem: w.crrem / sum,
     payback: w.payback / sum,
   };
+}
+
+export function actionHasTechRisk(input: {
+  category: string;
+  componentId?: string | null;
+  highRiskComponentIds: Set<string>;
+  propertyHasHighRisk: boolean;
+}): boolean {
+  if (input.componentId && input.highRiskComponentIds.has(input.componentId)) {
+    return true;
+  }
+  return input.propertyHasHighRisk && TECH_CATEGORIES.has(input.category);
 }
 
 /**
@@ -71,9 +88,10 @@ export function computePriorityScore(input: {
   paybackYears: number | null | undefined;
   weights?: PriorityWeights;
   referenceYear?: number;
+  techRisk?: boolean;
 }): {
   score: number;
-  components: { meps: number; crrem: number; payback: number };
+  components: { meps: number; crrem: number; payback: number; tech: number };
   weights: PriorityWeights;
 } {
   const weights = normalizeWeights(input.weights ?? DEFAULT_PRIORITY_WEIGHTS);
@@ -83,11 +101,15 @@ export function computePriorityScore(input: {
     input.referenceYear
   );
   const payback = normalizePayback(input.paybackYears);
-  const score =
+  const tech = input.techRisk ? 1 : 0;
+  const techW = input.techRisk ? TECH_RISK_WEIGHT : 0;
+  const rest = 1 - techW;
+  const base =
     weights.meps * meps + weights.crrem * crrem + weights.payback * payback;
+  const score = rest * base + techW * tech;
   return {
     score: Math.round(score * 10000) / 10000,
-    components: { meps, crrem, payback },
+    components: { meps, crrem, payback, tech },
     weights,
   };
 }

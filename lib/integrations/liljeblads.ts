@@ -29,6 +29,8 @@ export type LiljebladsComponent = {
 
 export type LiljebladsComponentRisk = {
   component_id: string;
+  property_id: string | null;
+  type: string | null;
   risk_score: number | null;
   risk_level: string | null;
   remaining_b10_years: number | null;
@@ -150,17 +152,43 @@ export async function listLiljebladsComponentRisks(
     min_confidence: "low",
     limit: 50,
   })) as { results?: Array<Record<string, unknown>> };
-  return (json.results ?? []).map((r) => ({
+  return (json.results ?? []).map((r) => mapComponentRisk(r));
+}
+
+export async function listLiljebladsComponentRisksAll(): Promise<
+  LiljebladsComponentRisk[]
+> {
+  const json = (await callWebhook({
+    type: "list_high_risk_components",
+    min_level: "high",
+    min_confidence: "low",
+    limit: 50,
+  })) as { results?: Array<Record<string, unknown>> };
+  return (json.results ?? []).map((r) => mapComponentRisk(r));
+}
+
+function mapComponentRisk(
+  r: Record<string, unknown>,
+): LiljebladsComponentRisk {
+  return {
     component_id: String(r.component_id ?? ""),
-    risk_score:
-      typeof r.risk_score === "number" ? r.risk_score : null,
+    property_id: (r.property_id as string | null) ?? null,
+    type: (r.type as string | null) ?? null,
+    risk_score: typeof r.risk_score === "number" ? r.risk_score : null,
     risk_level: (r.risk_level as string | null) ?? null,
     remaining_b10_years:
       typeof r.remaining_b10_years === "number"
         ? r.remaining_b10_years
         : null,
     recommendation: (r.recommendation as string | null) ?? null,
-  }));
+  };
+}
+
+export function liljebladsWorkOrderUrl(workOrderId: string): string {
+  const base = (
+    process.env.LILJEBLADS_APP_URL ?? "https://liljeblads.vercel.app"
+  ).replace(/\/$/, "");
+  return `${base}/work-orders?id=${encodeURIComponent(workOrderId)}`;
 }
 
 export async function createLiljebladsWorkOrder(input: {

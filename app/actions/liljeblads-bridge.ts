@@ -6,6 +6,7 @@ import { ensureDefaultPortfolio } from "@/app/actions/properties-crud";
 import {
   createLiljebladsWorkOrder,
   isLiljebladsConfigured,
+  liljebladsWorkOrderUrl,
   listLiljebladsComponentRisks,
   listLiljebladsComponents,
   listLiljebladsProperties,
@@ -95,16 +96,18 @@ export async function fetchLinkedLiljebladsComponents(
       listLiljebladsComponentRisks(link).catch(() => []),
     ]);
     const riskById = new Map(risks.map((r) => [r.component_id, r]));
-    const merged = components.map((c) => {
-      const risk = riskById.get(c.id);
-      if (!risk) return c;
-      return {
-        ...c,
-        risk_score: risk.risk_score,
-        risk_level: risk.risk_level,
-        remaining_b10_years: risk.remaining_b10_years,
-      };
-    });
+    const merged = components
+      .map((c) => {
+        const risk = riskById.get(c.id);
+        if (!risk) return c;
+        return {
+          ...c,
+          risk_score: risk.risk_score,
+          risk_level: risk.risk_level,
+          remaining_b10_years: risk.remaining_b10_years,
+        };
+      })
+      .sort((a, b) => (b.risk_score ?? -1) - (a.risk_score ?? -1));
     return {
       success: true,
       data: {
@@ -203,7 +206,13 @@ export async function linkLiljebladsProperty(raw: {
 export async function createWorkOrderFromAction(raw: {
   actionId: string;
   componentId?: string | null;
-}): Promise<ActionResult<{ work_order_id: string }>> {
+}): Promise<
+  ActionResult<{
+    work_order_id: string;
+    url: string;
+    already_existed: boolean;
+  }>
+> {
   try {
     const input = z
       .object({
@@ -224,7 +233,8 @@ export async function createWorkOrderFromAction(raw: {
       .from("actions")
       .select(
         `
-        id, title, investment_cost, building_id,
+        id, title, investment_cost, building_id, status,
+        liljeblads_work_order_id,
         buildings!inner (
           id, property_id,
           properties!inner ( id, name, liljeblads_property_id )
@@ -237,6 +247,17 @@ export async function createWorkOrderFromAction(raw: {
       return {
         success: false,
         error: actionErr?.message ?? "Åtgärden hittades inte",
+      };
+    }
+
+    if (action.liljeblads_work_order_id) {
+      return {
+        success: true,
+        data: {
+          work_order_id: action.liljeblads_work_order_id,
+          url: liljebladsWorkOrderUrl(action.liljeblads_work_order_id),
+          already_existed: true,
+        },
       };
     }
 
@@ -280,7 +301,32 @@ export async function createWorkOrderFromAction(raw: {
       rawContext: `EnergyPulse åtgärd ${action.id} · ${property?.name ?? ""}`,
     });
 
-    return { success: true, data: { work_order_id: wo.id } };
+    const nextStatus =
+      action.status === "proposed" || action.status === "approved"
+        ? "in_progress"
+        : action.status;
+
+    const { error: updErr } = await supabase
+      .from("actions")
+      .update({
+        liljeblads_work_order_id: wo.id,
+        sent_to_work_order_at: new Date().toISOString(),
+        liljeblads_component_id: input.componentId ?? null,
+        status: nextStatus,
+      })
+      .eq("id", action.id);
+    if (updErr) {
+      return { success: false, error: updErr.message };
+    }
+
+    return {
+      success: true,
+      data: {
+        work_order_id: wo.id,
+        url: liljebladsWorkOrderUrl(wo.id),
+        already_existed: false,
+      },
+    };
   } catch (e) {
     return fail(e);
   }

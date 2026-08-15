@@ -31,6 +31,7 @@ export function PropertiesList() {
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [linkFilter, setLinkFilter] = useState<"all" | "unlinked">("all");
   const [importMsg, setImportMsg] = useState<string | null>(null);
 
   const bridgeQ = useQuery({
@@ -71,16 +72,22 @@ export function PropertiesList() {
   });
 
   const rows = useMemo(() => {
-    const list = data ?? [];
-    if (statusFilter === "all") return list;
-    return list.filter((p) => p.status === statusFilter);
-  }, [data, statusFilter]);
+    let list = data ?? [];
+    if (statusFilter !== "all") {
+      list = list.filter((p) => p.status === statusFilter);
+    }
+    if (linkFilter === "unlinked") {
+      list = list.filter((p) => !p.liljeblads_property_id);
+    }
+    return list;
+  }, [data, statusFilter, linkFilter]);
 
   const stats = useMemo(() => {
     const list = data ?? [];
     return {
       total: list.length,
       active: list.filter((p) => p.status === "active").length,
+      unlinked: list.filter((p) => !p.liljeblads_property_id).length,
       buildings: list.reduce((s, p) => s + (p.building_count ?? 0), 0),
     };
   }, [data]);
@@ -153,12 +160,15 @@ export function PropertiesList() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat
             label="Fastigheter"
             value={String(stats.total)}
-            active={statusFilter === "all"}
-            onClick={() => setStatusFilter("all")}
+            active={statusFilter === "all" && linkFilter === "all"}
+            onClick={() => {
+              setStatusFilter("all");
+              setLinkFilter("all");
+            }}
           />
           <Stat
             label="Aktiva"
@@ -166,6 +176,15 @@ export function PropertiesList() {
             tone="text-emerald-600"
             active={statusFilter === "active"}
             onClick={() => setStatusFilter("active")}
+          />
+          <Stat
+            label="Ej kopplad"
+            value={String(stats.unlinked)}
+            tone="text-amber-600"
+            active={linkFilter === "unlinked"}
+            onClick={() =>
+              setLinkFilter((v) => (v === "unlinked" ? "all" : "unlinked"))
+            }
           />
           <Stat
             label="Byggnader"
@@ -263,17 +282,29 @@ export function PropertiesList() {
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Building2 className="h-5 w-5" />
                 </span>
-                <Badge
-                  variant={
-                    p.status === "active"
-                      ? "success"
-                      : p.status === "inactive"
-                        ? "outline"
-                        : "warning"
-                  }
-                >
-                  {STATUS_SV[p.status] ?? p.status}
-                </Badge>
+                <div className="flex flex-wrap justify-end gap-1">
+                  {p.liljeblads_property_id ? (
+                    <Badge variant="success">Kopplad</Badge>
+                  ) : (
+                    <Badge variant="warning">Ej kopplad</Badge>
+                  )}
+                  {p.high_risk_count > 0 && (
+                    <Badge variant="danger">
+                      {p.high_risk_count} högrisk
+                    </Badge>
+                  )}
+                  <Badge
+                    variant={
+                      p.status === "active"
+                        ? "success"
+                        : p.status === "inactive"
+                          ? "outline"
+                          : "warning"
+                    }
+                  >
+                    {STATUS_SV[p.status] ?? p.status}
+                  </Badge>
+                </div>
               </div>
               <h3 className="mt-3 text-base font-semibold text-foreground group-hover:text-primary">
                 {p.name}

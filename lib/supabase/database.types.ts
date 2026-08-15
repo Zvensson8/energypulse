@@ -472,6 +472,9 @@ export interface Database {
           affects_physical_risk: boolean;
           liljeblads_plan_item_id: string | null;
           sent_to_plan_at: string | null;
+          liljeblads_work_order_id: string | null;
+          sent_to_work_order_at: string | null;
+          liljeblads_component_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -497,6 +500,9 @@ export interface Database {
           affects_physical_risk?: boolean;
           liljeblads_plan_item_id?: string | null;
           sent_to_plan_at?: string | null;
+          liljeblads_work_order_id?: string | null;
+          sent_to_work_order_at?: string | null;
+          liljeblads_component_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

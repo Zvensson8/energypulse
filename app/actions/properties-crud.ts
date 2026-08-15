@@ -102,6 +102,8 @@ export interface PropertyListItem {
   portfolio_id: string;
   portfolio_name: string | null;
   building_count: number;
+  liljeblads_property_id: string | null;
+  high_risk_count: number;
 }
 
 export async function listProperties(search?: string): Promise<
@@ -114,7 +116,7 @@ export async function listProperties(search?: string): Promise<
     let q = supabase
       .from("properties")
       .select(
-        "id, name, external_id, address, municipality, climate_zone, ownership_type, status, portfolio_id, portfolios(name)"
+        "id, name, external_id, address, municipality, climate_zone, ownership_type, status, portfolio_id, liljeblads_property_id, portfolios(name)"
       )
       .order("name");
 
@@ -140,8 +142,28 @@ export async function listProperties(search?: string): Promise<
       }
     }
 
+    const riskByRemote = new Map<string, number>();
+    try {
+      const { isLiljebladsConfigured, listLiljebladsComponentRisksAll } =
+        await import("@/lib/integrations/liljeblads");
+      if (isLiljebladsConfigured()) {
+        const risks = await listLiljebladsComponentRisksAll();
+        for (const r of risks) {
+          if (!r.property_id) continue;
+          if (r.risk_level !== "high" && r.risk_level !== "critical") continue;
+          riskByRemote.set(
+            r.property_id,
+            (riskByRemote.get(r.property_id) ?? 0) + 1,
+          );
+        }
+      }
+    } catch {
+      // List still works without Liljeblads.
+    }
+
     const rows: PropertyListItem[] = (data ?? []).map((p) => {
       const port = p.portfolios as { name: string } | null;
+      const remote = p.liljeblads_property_id as string | null;
       return {
         id: p.id,
         name: p.name,
@@ -154,6 +176,8 @@ export async function listProperties(search?: string): Promise<
         portfolio_id: p.portfolio_id,
         portfolio_name: port?.name ?? null,
         building_count: counts.get(p.id) ?? 0,
+        liljeblads_property_id: remote,
+        high_risk_count: remote ? (riskByRemote.get(remote) ?? 0) : 0,
       };
     });
 

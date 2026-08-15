@@ -7,6 +7,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, assertRole, WRITE_ROLES } from "@/lib/auth/session";
 import {
+  actionHasTechRisk,
   computePriorityScore,
   estimateActionImpact,
   parsePriorityWeights,
@@ -54,6 +55,9 @@ export type PortfolioActionRow = {
   application_id: string | null;
   liljeblads_plan_item_id: string | null;
   sent_to_plan_at: string | null;
+  liljeblads_work_order_id: string | null;
+  sent_to_work_order_at: string | null;
+  tech_risk: boolean;
 };
 
 function toError(e: unknown): ActionResult<never> {
@@ -117,9 +121,11 @@ export async function listPortfolioActions(opts?: {
         investment_cost, currency, payback_years,
         priority_score, planned_year,
         liljeblads_plan_item_id, sent_to_plan_at,
+        liljeblads_work_order_id, sent_to_work_order_at,
+        liljeblads_component_id,
         buildings!inner (
           id, name, property_id,
-          properties!inner ( id, name )
+          properties!inner ( id, name, liljeblads_property_id )
         )
       `
       )
@@ -242,13 +248,38 @@ export async function listPortfolioActions(opts?: {
       }
     }
 
+    const highRiskIds = new Set<string>();
+    const highRiskRemoteProps = new Set<string>();
+    try {
+      const { isLiljebladsConfigured, listLiljebladsComponentRisksAll } =
+        await import("@/lib/integrations/liljeblads");
+      if (isLiljebladsConfigured()) {
+        const risks = await listLiljebladsComponentRisksAll();
+        for (const r of risks) {
+          if (r.risk_level !== "high" && r.risk_level !== "critical") continue;
+          if (r.component_id) highRiskIds.add(r.component_id);
+          if (r.property_id) highRiskRemoteProps.add(r.property_id);
+        }
+      }
+    } catch {
+      // Priority still works without Liljeblads.
+    }
+
     const rows: PortfolioActionRow[] = (actions ?? []).map((a) => {
       const b = a.buildings as unknown as {
         name: string;
         property_id: string | null;
         properties:
-          | { id: string; name: string }
-          | { id: string; name: string }[]
+          | {
+              id: string;
+              name: string;
+              liljeblads_property_id?: string | null;
+            }
+          | {
+              id: string;
+              name: string;
+              liljeblads_property_id?: string | null;
+            }[]
           | null;
       } | null;
       const prop = Array.isArray(b?.properties)
@@ -298,6 +329,23 @@ export async function listPortfolioActions(opts?: {
         liljeblads_plan_item_id:
           (a.liljeblads_plan_item_id as string | null) ?? null,
         sent_to_plan_at: (a.sent_to_plan_at as string | null) ?? null,
+        liljeblads_work_order_id:
+          (a.liljeblads_work_order_id as string | null) ?? null,
+        sent_to_work_order_at:
+          (a.sent_to_work_order_at as string | null) ?? null,
+        tech_risk: actionHasTechRisk({
+          category: a.category as string,
+          componentId: (a.liljeblads_component_id as string | null) ?? null,
+          highRiskComponentIds: highRiskIds,
+          propertyHasHighRisk: Boolean(
+            (prop as { liljeblads_property_id?: string | null } | undefined)
+              ?.liljeblads_property_id &&
+              highRiskRemoteProps.has(
+                (prop as { liljeblads_property_id?: string | null })
+                  .liljeblads_property_id as string,
+              ),
+          ),
+        }),
       };
     });
 
@@ -333,7 +381,7 @@ export async function recalculateActionPriorities(opts?: {
     let aq = supabase
       .from("actions")
       .select(
-        "id, building_id, payback_years, estimated_saving_kwh, status"
+        "id, building_id, payback_years, estimated_saving_kwh, status, category, liljeblads_component_id"
       )
       .neq("status", "cancelled");
 
@@ -347,6 +395,39 @@ export async function recalculateActionPriorities(opts?: {
     const buildingIds = [
       ...new Set((actions ?? []).map((a) => a.building_id as string)),
     ];
+
+    const buildingToRemote = new Map<string, string | null>();
+    if (buildingIds.length > 0) {
+      const { data: bld } = await supabase
+        .from("buildings")
+        .select("id, properties(liljeblads_property_id)")
+        .in("id", buildingIds);
+      for (const b of bld ?? []) {
+        const props = b.properties as
+          | { liljeblads_property_id: string | null }
+          | { liljeblads_property_id: string | null }[]
+          | null;
+        const prop = Array.isArray(props) ? props[0] : props;
+        buildingToRemote.set(b.id as string, prop?.liljeblads_property_id ?? null);
+      }
+    }
+
+    const highRiskIds = new Set<string>();
+    const highRiskRemoteProps = new Set<string>();
+    try {
+      const { isLiljebladsConfigured, listLiljebladsComponentRisksAll } =
+        await import("@/lib/integrations/liljeblads");
+      if (isLiljebladsConfigured()) {
+        const risks = await listLiljebladsComponentRisksAll();
+        for (const r of risks) {
+          if (r.risk_level !== "high" && r.risk_level !== "critical") continue;
+          if (r.component_id) highRiskIds.add(r.component_id);
+          if (r.property_id) highRiskRemoteProps.add(r.property_id);
+        }
+      }
+    } catch {
+      // Recalc still works without Liljeblads.
+    }
 
     const piByBuilding = new Map<
       string,
@@ -375,11 +456,20 @@ export async function recalculateActionPriorities(opts?: {
     let updated = 0;
     for (const a of actions ?? []) {
       const pi = piByBuilding.get(a.building_id as string);
+      const remote = buildingToRemote.get(a.building_id as string) ?? null;
       const { score } = computePriorityScore({
         mepsGap: pi?.meps_2030_gap,
         strandingYear: pi?.crrem_stranding_year,
         paybackYears: a.payback_years as number | null,
         weights,
+        techRisk: actionHasTechRisk({
+          category: a.category as string,
+          componentId: (a.liljeblads_component_id as string | null) ?? null,
+          highRiskComponentIds: highRiskIds,
+          propertyHasHighRisk: Boolean(
+            remote && highRiskRemoteProps.has(remote),
+          ),
+        }),
       });
 
       const { error: uErr } = await supabase

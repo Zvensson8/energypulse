@@ -3,6 +3,8 @@
  * Uses existing jarvis-webhook + lbl_ API key — no Liljeblads schema change.
  */
 
+import { repairMaybe } from "@/lib/encoding";
+
 export type LiljebladsProperty = {
   id: string;
   name: string;
@@ -110,8 +112,8 @@ export async function listLiljebladsProperties(): Promise<LiljebladsProperty[]> 
   };
   return (json.results ?? []).map((p) => ({
     id: String(p.id),
-    name: String(p.name ?? ""),
-    address: (p.address as string | null) ?? null,
+    name: repairMaybe(String(p.name ?? "")) ?? "",
+    address: repairMaybe((p.address as string | null) ?? null),
     property_number: (p.property_number as string | null) ?? null,
   }));
 }
@@ -126,16 +128,16 @@ export async function listLiljebladsComponents(
   })) as { results?: Array<Record<string, unknown>> };
   return (json.results ?? []).map((c) => ({
     id: String(c.id),
-    name: String(c.name ?? ""),
-    type: (c.type as string | null) ?? null,
+    name: repairMaybe(String(c.name ?? "")) ?? "",
+    type: repairMaybe((c.type as string | null) ?? null),
     status: (c.status as string | null) ?? null,
-    manufacturer: (c.manufacturer as string | null) ?? null,
-    model: (c.model as string | null) ?? null,
+    manufacturer: repairMaybe((c.manufacturer as string | null) ?? null),
+    model: repairMaybe((c.model as string | null) ?? null),
     serial_number: (c.serial_number as string | null) ?? null,
-    room_zone: (c.room_zone as string | null) ?? null,
+    room_zone: repairMaybe((c.room_zone as string | null) ?? null),
     next_service_date: (c.next_service_date as string | null) ?? null,
     property_id: (c.property_id as string | null) ?? null,
-    property_name: (c.property_name as string | null) ?? null,
+    property_name: repairMaybe((c.property_name as string | null) ?? null),
     risk_score: null,
     risk_level: null,
     remaining_b10_years: null,

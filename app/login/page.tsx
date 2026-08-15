@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { getBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +8,18 @@ import { Leaf, ShieldCheck } from "lucide-react";
 import { APP_TAGLINE } from "@/lib/labels";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    if (hash.includes("type=recovery") || hash.includes("type=invite")) {
+      window.location.replace("/update-password" + hash);
+    }
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,17 +33,20 @@ export default function LoginPage() {
       });
       if (authError) {
         const msg = authError.message.toLowerCase();
-        if (msg.includes("invalid") || msg.includes("credentials")) {
+        if (msg.includes("email not confirmed")) {
           setError(
-            "Fel e-post eller lösenord. Kontrollera uppgifterna och försök igen."
+            "E-postadressen är inte bekräftad. Öppna mailet från Supabase eller bekräfta användaren i dashboarden."
+          );
+        } else if (msg.includes("invalid") || msg.includes("credentials")) {
+          setError(
+            "Fel e-post eller lösenord. Användaren måste ligga i EnergyPulse-projektet (Paris), inte Liljeblads."
           );
         } else {
           setError(authError.message);
         }
         return;
       }
-      router.replace("/");
-      router.refresh();
+      window.location.assign("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Inloggning misslyckades");
     } finally {

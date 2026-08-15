@@ -127,6 +127,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const page = useMemo(() => matchTitle(pathname), [pathname]);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      if (hash.includes("type=recovery") || hash.includes("type=invite")) {
+        window.location.replace("/update-password" + hash);
+        return;
+      }
+    }
     try {
       const supabase = getBrowserClient();
       void supabase.auth.getUser().then(({ data }) => {

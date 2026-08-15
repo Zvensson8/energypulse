@@ -66,11 +66,6 @@ export function HomeHub() {
       return res.data;
     },
     onSuccess: (d) => {
-      if (d.kind === "wo") {
-        window.open(d.url, "_blank", "noopener,noreferrer");
-        void qc.invalidateQueries({ queryKey: ["property-decisions"] });
-        return;
-      }
       window.location.href = d.href;
     },
   });
@@ -90,7 +85,7 @@ export function HomeHub() {
         <section>
           <h1 className="page-title">I dag</h1>
           <p className="page-subtitle">
-            Hus · därför · nästa. Gör skapar arbetsorder i Liljeblads.
+            Hus · därför · nästa. Gör öppnar åtgärder att godkänna.
           </p>
           {!isLoading && rows.length > 0 && (
             <p className="mt-3 text-sm text-muted-foreground">

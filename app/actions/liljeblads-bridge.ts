@@ -268,6 +268,13 @@ export async function createWorkOrderFromAction(raw: {
       };
     }
 
+    if (action.status !== "approved" && action.status !== "in_progress") {
+      return {
+        success: false,
+        error: "Godkänn åtgärden först. Arbetsorder skapas inte från förslag.",
+      };
+    }
+
     if (action.liljeblads_work_order_id) {
       return {
         success: true,
@@ -320,9 +327,7 @@ export async function createWorkOrderFromAction(raw: {
     });
 
     const nextStatus =
-      action.status === "proposed" || action.status === "approved"
-        ? "in_progress"
-        : action.status;
+      action.status === "approved" ? "in_progress" : action.status;
 
     const { error: updErr } = await supabase
       .from("actions")

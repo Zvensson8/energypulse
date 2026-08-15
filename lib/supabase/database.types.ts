@@ -475,6 +475,8 @@ export interface Database {
           liljeblads_work_order_id: string | null;
           sent_to_work_order_at: string | null;
           liljeblads_component_id: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -503,6 +505,8 @@ export interface Database {
           liljeblads_work_order_id?: string | null;
           sent_to_work_order_at?: string | null;
           liljeblads_component_id?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

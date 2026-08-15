@@ -27,6 +27,8 @@ export const actionRowSchema = z.object({
   liljeblads_work_order_id: uuidSchema.nullable().optional(),
   sent_to_work_order_at: z.string().nullable().optional(),
   liljeblads_component_id: uuidSchema.nullable().optional(),
+  approved_by: uuidSchema.nullable().optional(),
+  approved_at: z.string().nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });

@@ -226,6 +226,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
     latitude: number | null;
     longitude: number | null;
     portfolios?: { name: string } | null;
+    liljeblads_property_id?: string | null;
   };
 
   const performance = data.performance as Array<{
@@ -276,6 +277,7 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
     buildings.length,
     performance,
     propertyId,
+    { linked: Boolean(p.liljeblads_property_id) },
   );
 
   return (
@@ -328,10 +330,10 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
               </Button>
               <Button variant="outline" asChild>
                 <Link
-                  href={`/reports?property=${propertyId}&type=property_full`}
+                  href={`/reports?property=${propertyId}&type=budget`}
                 >
                   <FileText className="h-4 w-4" />
-                  Rapporter
+                  PDF
                 </Link>
               </Button>
               {tab === "spaces" ? (
@@ -459,10 +461,10 @@ export function PropertyDetail({ propertyId }: { propertyId: string }) {
             <section className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-muted-foreground">PDF:</span>
               <Link
-                href={`/reports?property=${propertyId}&type=property_full`}
+                href={`/reports?property=${propertyId}&type=budget`}
                 className="font-medium text-primary hover:underline"
               >
-                Fastighet
+                Underlag
               </Link>
               <span className="text-muted-foreground">·</span>
               <Link

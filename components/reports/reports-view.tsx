@@ -10,6 +10,7 @@ import {
   exportRenovationPlansReport,
   type ReportKind,
 } from "@/app/actions/export-reports";
+import { exportPropertyBudgetPdf } from "@/app/actions/export-budget-pdf";
 import { getDataQualitySummary } from "@/app/actions/data-quality-summary";
 import { Button } from "@/components/ui/button";
 import { DataQualityBanner } from "@/components/ui/data-quality-banner";
@@ -45,6 +46,16 @@ const REPORTS: {
   color: string;
   requiresProperty?: boolean;
 }[] = [
+  {
+    id: "budget",
+    title: "Underlag",
+    desc: "Ett hus: kWh/m², klarar 2030, klimatriskår, föreslagen åtgärd och kostnad.",
+    audience: "Ledning / budget",
+    includes: ["Tre tal", "En åtgärd", "Kostnad"],
+    icon: FileText,
+    color: "from-teal-500 to-emerald-500",
+    requiresProperty: true,
+  },
   {
     id: "leadership_climate",
     title: "Förslag till ledningen – klimatrisk",
@@ -131,7 +142,7 @@ export function ReportsView() {
   const [selected, setSelected] = useState<ReportKind>(
     typeParam && VALID_TYPES.has(typeParam as ReportKind)
       ? (typeParam as ReportKind)
-      : "leadership_climate"
+      : "budget"
   );
   const [propertyId, setPropertyId] = useState(propertyParam);
   const [year, setYear] = useState(new Date().getFullYear() - 1);
@@ -187,6 +198,10 @@ export function ReportsView() {
         propertyId: propertyId || undefined,
         year,
       };
+      if (selected === "budget") {
+        if (!propertyId) throw new Error("Välj en fastighet");
+        return exportPropertyBudgetPdf({ propertyId });
+      }
       if (selected === "leadership_climate") {
         return exportLeadershipClimateReport(opts);
       }

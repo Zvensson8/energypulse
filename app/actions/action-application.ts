@@ -207,17 +207,16 @@ export async function completeAction(
     const user = await requireUser(supabase);
     assertRole(user, WRITE_ROLES);
 
-    const { error: uErr } = await supabase
-      .from("actions")
-      .update({
-        status: "completed",
-        completed_date: new Date().toISOString().slice(0, 10),
-      })
-      .eq("id", input.action_id);
+    const { applyCompletedActionCore } = await import(
+      "@/lib/complete-action-core"
+    );
+    const core = await applyCompletedActionCore(supabase, {
+      actionId: input.action_id,
+      year: input.year,
+      reason: input.reason ?? "Markerad genomförd i EnergyPulse",
+    });
+    if (!core.ok) return { success: false, error: core.error };
 
-    if (uErr) return { success: false, error: uErr.message };
-
-    // Trigger bör ha kört; hämta application (eller anropa explicit)
     let { data: existingApp } = await supabase
       .from("action_applications")
       .select("*")
@@ -225,28 +224,7 @@ export async function completeAction(
       .eq("status", "applied")
       .maybeSingle();
 
-    if (!existingApp) {
-      const { data: rpcData, error: rpcErr } = await supabase.rpc(
-        "apply_completed_action",
-        {
-          p_action_id: input.action_id,
-          p_year: input.year ?? null,
-          p_reason: input.reason ?? "Manuellt completed",
-        }
-      );
-      if (rpcErr) {
-        logger.warn("apply_completed_action rpc", { error: rpcErr.message });
-        return {
-          success: false,
-          error: `Åtgärd markerad klar men tillämpning misslyckades: ${rpcErr.message}`,
-        };
-      }
-      if (rpcData) {
-        existingApp = rpcData as unknown as typeof existingApp;
-      }
-    }
-
-    if (!existingApp) {
+    if (!existingApp && !core.already) {
       return {
         success: false,
         error:
@@ -257,11 +235,15 @@ export async function completeAction(
     logger.info("action.completed", {
       userId: user.id,
       actionId: input.action_id,
+      already: core.already,
     });
 
     return {
       success: true,
-      data: existingApp as unknown as ApplicationDiff,
+      data: (existingApp ?? {
+        id: input.action_id,
+        action_id: input.action_id,
+      }) as unknown as ApplicationDiff,
     };
   } catch (e) {
     return toError(e);

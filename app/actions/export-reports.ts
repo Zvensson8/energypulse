@@ -21,6 +21,7 @@ export type ActionResult<T> =
   | { success: false; error: string };
 
 export type ReportKind =
+  | "budget"
   | "leadership_climate"
   | "csrd"
   | "property_full"

@@ -6,6 +6,7 @@ import { cn, formatNumber } from "@/lib/utils";
 import type { PropertyDecision } from "@/lib/property-decision";
 
 const TONE: Record<PropertyDecision["status"], string> = {
+  unlinked: "border-red-300 bg-red-50 text-red-800",
   needs_decision: "border-red-200 bg-red-50 text-red-800",
   missing_data: "border-amber-200 bg-amber-50 text-amber-900",
   ok: "border-emerald-200 bg-emerald-50 text-emerald-900",

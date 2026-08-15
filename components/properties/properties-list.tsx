@@ -79,7 +79,12 @@ export function PropertiesList() {
     if (linkFilter === "unlinked") {
       list = list.filter((p) => !p.liljeblads_property_id);
     }
-    return list;
+    return [...list].sort((a, b) => {
+      const au = a.liljeblads_property_id ? 1 : 0;
+      const bu = b.liljeblads_property_id ? 1 : 0;
+      if (au !== bu) return au - bu;
+      return a.name.localeCompare(b.name, "sv");
+    });
   }, [data, statusFilter, linkFilter]);
 
   const stats = useMemo(() => {

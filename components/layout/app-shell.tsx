@@ -62,7 +62,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/": {
     title: "Hem",
-    subtitle: "Kräver beslut · saknar data · ok",
+    subtitle: "Hus · därför · Gör",
   },
   "/dashboard": {
     title: "Portfölj",

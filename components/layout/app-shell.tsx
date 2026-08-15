@@ -127,14 +127,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const page = useMemo(() => matchTitle(pathname), [pathname]);
 
   useEffect(() => {
-    const supabase = getBrowserClient();
-    void supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setEmail(session?.user?.email ?? null);
-    });
-    return () => sub.subscription.unsubscribe();
+    try {
+      const supabase = getBrowserClient();
+      void supabase.auth.getUser().then(({ data }) => {
+        setEmail(data.user?.email ?? null);
+      });
+      const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+        setEmail(session?.user?.email ?? null);
+      });
+      return () => sub.subscription.unsubscribe();
+    } catch {
+      setEmail(null);
+    }
   }, []);
 
   useEffect(() => {

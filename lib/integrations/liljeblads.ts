@@ -27,6 +27,12 @@ export type LiljebladsComponent = {
   risk_score: number | null;
   risk_level: string | null;
   remaining_b10_years: number | null;
+  age_years: number | null;
+  confidence: string | null;
+  recommendation: string | null;
+  expected_lifespan_years: number | null;
+  median_life_years: number | null;
+  acute_count: number | null;
 };
 
 export type LiljebladsComponentRisk = {
@@ -37,6 +43,11 @@ export type LiljebladsComponentRisk = {
   risk_level: string | null;
   remaining_b10_years: number | null;
   recommendation: string | null;
+  age_years: number | null;
+  confidence: string | null;
+  expected_lifespan_years: number | null;
+  median_life_years: number | null;
+  acute_count: number | null;
 };
 
 export type LiljebladsWorkOrder = {
@@ -141,6 +152,12 @@ export async function listLiljebladsComponents(
     risk_score: null,
     risk_level: null,
     remaining_b10_years: null,
+    age_years: null,
+    confidence: null,
+    recommendation: null,
+    expected_lifespan_years: null,
+    median_life_years: null,
+    acute_count: null,
   }));
 }
 
@@ -169,6 +186,10 @@ export async function listLiljebladsComponentRisksAll(): Promise<
   return (json.results ?? []).map((r) => mapComponentRisk(r));
 }
 
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 function mapComponentRisk(
   r: Record<string, unknown>,
 ): LiljebladsComponentRisk {
@@ -176,13 +197,15 @@ function mapComponentRisk(
     component_id: String(r.component_id ?? ""),
     property_id: (r.property_id as string | null) ?? null,
     type: (r.type as string | null) ?? null,
-    risk_score: typeof r.risk_score === "number" ? r.risk_score : null,
+    risk_score: asNumber(r.risk_score),
     risk_level: (r.risk_level as string | null) ?? null,
-    remaining_b10_years:
-      typeof r.remaining_b10_years === "number"
-        ? r.remaining_b10_years
-        : null,
+    remaining_b10_years: asNumber(r.remaining_b10_years),
     recommendation: (r.recommendation as string | null) ?? null,
+    age_years: asNumber(r.age_years),
+    confidence: (r.confidence as string | null) ?? null,
+    expected_lifespan_years: asNumber(r.expected_lifespan_years),
+    median_life_years: asNumber(r.median_life_years),
+    acute_count: asNumber(r.acute_count),
   };
 }
 

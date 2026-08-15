@@ -105,6 +105,12 @@ export async function fetchLinkedLiljebladsComponents(
           risk_score: risk.risk_score,
           risk_level: risk.risk_level,
           remaining_b10_years: risk.remaining_b10_years,
+          age_years: risk.age_years,
+          confidence: risk.confidence,
+          recommendation: risk.recommendation,
+          expected_lifespan_years: risk.expected_lifespan_years,
+          median_life_years: risk.median_life_years,
+          acute_count: risk.acute_count,
         };
       })
       .sort((a, b) => (b.risk_score ?? -1) - (a.risk_score ?? -1));

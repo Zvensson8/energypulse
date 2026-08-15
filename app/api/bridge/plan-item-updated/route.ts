@@ -17,6 +17,7 @@ export async function POST(req: Request) {
     planned_year?: number;
     planned_quarter?: number;
     investment_cost?: number | null;
+    removed?: boolean;
   };
 
   const actionId = String(body.action_id ?? "").trim();
@@ -40,6 +41,25 @@ export async function POST(req: Request) {
     }
     if (!action) {
       return NextResponse.json({ success: true, skipped: true });
+    }
+
+    if (body.removed) {
+      const { error: remErr } = await supabase
+        .from("actions")
+        .update({
+          status: "cancelled",
+          liljeblads_plan_item_id: null,
+          sent_to_plan_at: null,
+        })
+        .eq("id", action.id);
+      if (remErr) {
+        return NextResponse.json({ error: remErr.message }, { status: 500 });
+      }
+      return NextResponse.json({
+        success: true,
+        removed: true,
+        action_id: action.id,
+      });
     }
 
     const quarter =
